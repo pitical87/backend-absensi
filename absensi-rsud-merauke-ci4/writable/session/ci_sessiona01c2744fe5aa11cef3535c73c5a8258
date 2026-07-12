@@ -1,0 +1,1 @@
+__ci_last_regenerate|i:1783401783;csrf_token|s:32:"7cb13d16b061b29b8e1d51fb7ffcb8d1";_ci_previous_url|s:38:"http://localhost:8080/admin/pengaturan";uid|i:1;role|s:5:"admin";nama|s:5:"admin";posisi|s:4:"Staf";flash_sukses|s:61:"Kunci API baru telah dibuat. Perbarui konfigurasi pada SIMRS.";__ci_vars|a:1:{s:12:"flash_sukses";s:3:"old";}
