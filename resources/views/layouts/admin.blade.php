@@ -7,6 +7,7 @@ $menus = [
     'unit'       => ['admin/unit',       'gedung',   'Data Unit Kerja'],
     'struktur'   => ['admin/struktur',   'struktur', 'Struktur Organisasi'],
     'shift'      => ['admin/shift',      'jam',      'Pengaturan Shift'],
+    'jadwal'     => ['admin/jadwal',     'kalender', 'Jadwal Shift'],
     'kehadiran'  => ['admin/kehadiran',  'peta',     'Data Kehadiran'],
     'izin'       => ['admin/izin',       'surat',    'Persetujuan Izin'],
     'libur'      => ['admin/libur',      'kalender', 'Hari Libur'],

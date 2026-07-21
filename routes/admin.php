@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AktivitasController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\IzinController;
+use App\Http\Controllers\Admin\JadwalController;
 use App\Http\Controllers\Admin\KehadiranController;
 use App\Http\Controllers\Admin\LiburController;
 use App\Http\Controllers\Admin\PegawaiController;
@@ -30,6 +31,9 @@ Route::prefix('admin')->middleware('admin')->group(function () {
 
     Route::get('shift', [ShiftController::class, 'index'])->name('admin.shift');
     Route::post('shift/aksi', [ShiftController::class, 'aksi'])->name('admin.shift.aksi');
+
+    Route::get('jadwal', [JadwalController::class, 'index'])->name('admin.jadwal');
+    Route::post('jadwal/aksi', [JadwalController::class, 'aksi'])->name('admin.jadwal.aksi');
 
     Route::get('kehadiran', [KehadiranController::class, 'index'])->name('admin.kehadiran');
 

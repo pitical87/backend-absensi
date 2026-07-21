@@ -65,7 +65,7 @@ class IzinController extends Controller
         $putusan = (string) $request->input('putusan');
         $catatan = trim((string) $request->input('catatan')) ?: null;
 
-        $iz = DB::table('pengajuan_izin i')
+        $iz = DB::table('pengajuan_izin as i')
             ->select('i.*', 'u.nama_lengkap')->join('users as u', 'u.id', '=', 'i.user_id')
             ->where('i.id', $id)->first();
 

@@ -53,7 +53,7 @@ class AuthController extends Controller
             ]);
         }
 
-        $u = DB::table('users')->where('email', $email)->first();
+        $u = User::where('email', $email)->first();
 
         if (! $u || ! password_verify($pass, $u->password_hash)) {
             $this->catatPercobaan($email, $ip, false);
@@ -72,7 +72,7 @@ class AuthController extends Controller
             ->where('email', $email)->where('sukses', 0)->delete();
 
         session()->regenerate(true);
-        session([
+        session()->put([
             'uid'    => (int) $u->id,
             'role'   => $u->role,
             'nama'   => $u->nama_lengkap,

@@ -11,6 +11,7 @@ class Izin extends Model
 {
     use HasFactory;
 
+    public $timestamps = false;
     protected $table = 'pengajuan_izin';
 
     protected $fillable = [

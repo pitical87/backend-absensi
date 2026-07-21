@@ -13,7 +13,7 @@
     <td>{{ $r->tanggal }}</td>
     <td>{{ $r->nama_lengkap }}</td>
     <td>{{ $r->unit_nama ?? '-' }}@if($r->sub_nama) - {{ $r->sub_nama }}@endif</td>
-    <td>{{ label_shift(['kategori' => $r->shift_kategori, 'jam_masuk' => $r->shift_masuk, 'jam_pulang' => $r->shift_pulang]) }}</td>
+    <td>{{ label_shift((object)['kategori' => $r->shift_kategori, 'jam_masuk' => $r->shift_masuk, 'jam_pulang' => $r->shift_pulang]) }}</td>
     <td>{{ $r->waktu_masuk ? date('H:i', strtotime($r->waktu_masuk)) : '-' }}</td>
     <td>{{ $r->waktu_pulang ? date('H:i', strtotime($r->waktu_pulang)) : '-' }}</td>
     <td>{{ $r->status_masuk ?? '-' }}</td>

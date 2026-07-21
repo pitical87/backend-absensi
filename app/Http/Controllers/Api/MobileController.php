@@ -16,6 +16,7 @@ use DateTime;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
+use Illuminate\Support\Facades\DB;
 
 class MobileController extends Controller
 {
@@ -52,7 +53,7 @@ class MobileController extends Controller
             ],429);
         }
 
-        $user = User::where('email',$email)->first();
+        $user = User::where('email',$email)->where('role','!=','admin')->first();
         if(!$user || !password_verify($password,$user->password_hash)){
             $this->catatPercobaan($email, $ip, false);
             $tersisa = $this->sisaPercobaan($email,$ip);
@@ -198,6 +199,23 @@ class MobileController extends Controller
             :$this->absenService->absenPulang($u, $lat, $lng, $akurasi, $jarak, $now, $fileFoto, $flagAnomali, $alasanAnomali);
     }
     
+    public function getTodayIzin(Request $req):JsonResponse{
+        $u = $req->get('user');
+        $izin = Izin::where('user_id',$u->id)->where('status','Disetujui')->whereDate('tanggal_mulai',Carbon::today())->first();
+        if(!$izin){
+            return response()->json([
+                "sukses"=> true,
+                "hasLeave"=> false,
+                "izin"=> null
+            ]);
+        }
+        return response()->json([
+                "sukses"=> true,
+                "hasLeave"=> true,
+                "izin"=> $izin
+        ]);
+    }
+
     public function status(Request $req):JsonResponse{
         $user = $req->get('user');
         $absen = Absensi::where('user_id',$user->id)
@@ -248,6 +266,211 @@ class MobileController extends Controller
                 'total_jam' => round($data['total_menit'] / 60, 1),
                 'target_jam' => (float) pengaturan('target_jam_kerja_bulanan', 160),
             ],
+        ]);
+    }
+
+    public function jadwal(Request $req): JsonResponse
+    {
+        $user = $req->get('user');
+        $today = now()->toDateString();
+
+        $jadwal = \Illuminate\Support\Facades\DB::table('jadwal_shift')
+            ->where('user_id', $user->id)
+            ->where('tanggal_berlaku', '<=', $today)
+            ->orderByDesc('tanggal_berlaku')
+            ->first();
+
+        $shiftId = $jadwal ? (int) $jadwal->shift_id : $user->shift_id;
+        $shift = $shiftId ? \App\Models\Shift::find($shiftId) : null;
+
+        return response()->json([
+            'sukses' => true,
+            'shift' => $shift ? [
+                'id'        => $shift->id,
+                'kategori'  => $shift->kategori,
+                'jam_masuk' => Carbon::parse($shift->jam_masuk)->format('H:i'),
+                'jam_pulang'=> Carbon::parse($shift->jam_pulang)->format('H:i'),
+            ] : null,
+            'izinkan_pilih' => pengaturan('izinkan_pilih_shift', '1') === '1',
+        ]);
+    }
+
+    public function riwayatIzin(Request $req):JsonResponse{
+        $u = $req->get('user');
+        $izin = Izin::with(['diprosesOleh:id,nama_lengkap'])
+            ->where('user_id',$u->id)
+            ->orderByDesc('id')
+            ->limit(50)
+            ->get()
+            ->map(fn ($i) => [
+                'id'            => $i->id,
+                'jenis'         => $i->jenis,
+                'jenis_cuti'    => $i->jenis_cuti,
+                'tanggal_mulai' => $i->tanggal_mulai->format('Y-m-d'),
+                'tanggal_selesai'=> $i->tanggal_selesai->format('Y-m-d'),
+                'lama_hari'     => $i->lama_hari,
+                'keterangan'    => $i->keterangan,
+                'alamat_izin'   => $i->alamat_izin,
+                'lampiran'      => $i->lampiran,
+                'status'        => $i->status,
+                'tahap_aktif'   => $i->tahap_aktif,
+                'nomor_surat'   => $i->nomor_surat,
+                'ttd_digital'   => $i->ttd_digital,
+                'created_at'    => $i->created_at?->toISOString(),
+                'persetujuan'   => $i->persetujuan->map(fn ($p) => [
+                    'tahap'       => $p->tahap,
+                    'posisi_tahap'=> $p->posisi_tahap,
+                    'status'      => $p->status,
+                    'oleh_nama'   => $p->user?->nama_lengkap,
+                    'waktu'       => $p->waktu?->toISOString(),
+                ]),
+            ]);
+        if($izin->isEmpty()){
+            return response()->json([
+                "sukses"=>true,
+                "message"=>"belum ada pengajuan izin"
+            ]);
+        }
+
+        return response()->json([
+            "sukses"=>true,
+            "izin"=>$izin,
+        ]);
+    }
+
+    public function pengajuanIzin(Request $req) : JsonResponse{
+        $u = $req->get('user');
+        $jenis = $req->get('jenis_pengajuan');
+        $mulai = $req->get('tanggal_mulai');
+        $selesai = $req->get('tanggal_selesai');
+        $jenisCuti = $req->get('jenis_cuti');
+        $alamat = $req->input('alamat');
+        $alasan = $req->get('alasan');
+        $lamaHari = null;
+        $berjenjang = in_array($jenis, ['Izin', 'Cuti'], true);
+
+        if ($berjenjang) {
+            pastikan_libur_tetap((int) date('Y', strtotime($mulai)));
+            pastikan_libur_tetap((int) date('Y', strtotime($selesai)));
+            
+            $liburSet = [];
+            foreach (DB::table('hari_libur')->get() as $h) {
+                $liburSet[$h->tanggal] = true;
+            }
+            $mingguLibur = pengaturan('minggu_libur', '0') === '1';
+            $lamaHari = hari_kerja_antara($mulai, $selesai, $liburSet, $mingguLibur);
+            if ($lamaHari < 1) $lamaHari = 1;
+        }
+
+
+        $validJenis = ['Izin', 'Sakit', 'Cuti', 'Dinas Luar'];
+
+        if (!in_array($jenis, $validJenis)) {
+            return response()->json(["sukses" => false, "pesan" => "Jenis pengajuan tidak valid."]);
+        }
+
+        if (!$mulai) {
+            return response()->json(["sukses" => false, "pesan" => "Tanggal mulai wajib diisi."]);
+        }
+
+        if ($selesai < $mulai) {
+            return response()->json(["sukses" => false, "pesan" => "Tanggal selesai tidak boleh sebelum tanggal mulai."]);
+        }
+
+        if (!$alasan) {
+            return response()->json(["sukses" => false, "pesan" => "Alasan/keperluan wajib diisi."]);
+        }
+
+
+        if(strtolower($jenis) == "cuti"){
+            if (!is_pns($u)) {
+                return response()->json(["sukses" => false, "pesan" => "Cuti hanya dapat diajukan oleh pegawai berstatus PNS."]);
+            }
+            if (!$jenisCuti) {
+                return response()->json(["sukses" => false, "pesan" => "Jenis cuti wajib dipilih."]);
+            }
+        }
+
+        if((strtolower($jenis) == "cuti" && $alamat == null) || (strtolower($jenis) == "izin" && $alamat == null)){
+            return response()->json([
+                "sukses"=>false,
+                "pesan"=> "Alamat wajib diisi."
+            ]);
+        }
+
+        $tanggalTindih = Izin::where('user_id',$u->id)
+            ->whereIn('status', ['Menunggu', 'Disetujui'])
+                ->where('tanggal_mulai', '<=', $selesai)->where('tanggal_selesai', '>=', $mulai)
+                ->count() > 0;
+        if($tanggalTindih){
+             return response()->json([
+                "sukses"=>false,
+                "pesan"=> "Tanggal yang diajukan tumpang tindih dengan izin yang lain."
+            ]);
+        }
+        $lampiran = null;
+        $allowedExt = ['jpeg','jpg','png','pdf'];
+        if($req->hasFile('lampiran')){
+            $berkas = $req->file('lampiran');
+            $eks = strtolower($berkas->getClientOriginalExtension() ?: '');
+            if(!in_array($eks,$allowedExt)){
+                return response()->json([
+                    "sukses"=>false,
+                    "pesan"=>"Lampiran hanya boleh berupa JPG, PNG, atau PDF."
+                ]);
+            }
+
+            if($berkas->getSize() > 3 * 1024 * 1024){
+                return response()->json([
+                    "sukses"=>false,
+                    "pesan"=>"Ukuran file maksimal 3 MB."
+                ]);
+            }
+            $dir = 'izin/' . now()->format('Ym');
+            $nama = $u->id . '_' . now()->format('Ymd_His') . '_' . bin2hex(random_bytes(3)).
+            '.'.($eks=="jpeg" ? "jpg" : $eks);
+            $lampiran = $berkas->storeAs($dir, $nama, 'public');
+        }
+        $izin = Izin::create([
+            'user_id' => $u->id,
+            'jenis' => $jenis,
+            'jenis_cuti'    => $jenis === 'Cuti' ? $jenisCuti : null,
+            'tanggal_mulai' => $mulai,
+            'tanggal_selesai' => $selesai,
+            'lama_hari' => $lamaHari,
+            'alamat_izin'   => $alamat,
+            'keterangan'    => $alasan,
+            'lampiran'      => $lampiran,
+            'status'        => 'Menunggu',
+        ]);
+
+        return response()->json([
+            "sukses" => true,
+            "pesan" => "Pengajuan " . $jenis . " berhasil dikirim.",
+            "izin_id" => $izin->id,
+        ]);
+        
+    }
+
+    public function deleteIzin(Request $req, int $id) : JsonResponse{
+        $user = $req->get('user');
+        $izin = Izin::where('id', $id)
+            ->where('user_id', $user->id)
+            ->where('status', 'Menunggu')
+            ->first();
+
+        if (!$izin) {
+            return response()->json([
+                "sukses" => false,
+                "pesan" => "Izin tidak ditemukan atau sudah diproses."
+            ], 404);
+        }
+
+        $izin->delete();
+
+        return response()->json([
+            "sukses" => true,
+            "pesan" => "Pengajuan izin berhasil dibatalkan."
         ]);
     }
 

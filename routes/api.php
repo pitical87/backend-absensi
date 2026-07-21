@@ -13,6 +13,11 @@ Route::prefix('mobile')->group(function (){
         Route::get('status',[MobileController::class,'status']);
         Route::get('riwayat',[MobileController::class,'riwayatAbsensi']);
         Route::get('statistik', [MobileController::class, 'statistik']);
+        Route::get('jadwal', [MobileController::class, 'jadwal']);
+        Route::get('izin',[MobileController::class,"riwayatIzin"]);
+        Route::post('izin',[MobileController::class,"pengajuanIzin"]);
+        Route::delete('izin/{id}',[MobileController::class,"deleteIzin"]);
+        Route::get('izin/today',[MobileController::class,"getTodayIzin"]);
     });
 });
 

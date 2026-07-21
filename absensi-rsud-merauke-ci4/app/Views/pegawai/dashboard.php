@@ -229,7 +229,7 @@ $warna = ['tepat' => '#178A50', 'telat' => '#D9930D', 'jalan' => '#2F87DE',
         ?>
         <tr>
           <td class="angka"><?= tgl_id($tgl, false) ?></td>
-          <td><?= $rec ? esc(label_shift(['kategori' => $rec['shift_kategori'],
+          <td><?= $rec ? esc(label_shift((object)['kategori' => $rec['shift_kategori'],
                 'jam_masuk' => $rec['shift_masuk'], 'jam_pulang' => $rec['shift_pulang']])) : '—' ?></td>
           <td class="angka"><?= jam_id($rec['waktu_masuk'] ?? null) ?></td>
           <td class="angka"><?= jam_id($rec['waktu_pulang'] ?? null) ?></td>

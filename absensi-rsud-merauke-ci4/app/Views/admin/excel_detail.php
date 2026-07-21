@@ -13,7 +13,7 @@
     <td><?= esc($r['tanggal']) ?></td>
     <td><?= esc($r['nama_lengkap']) ?></td>
     <td><?= esc($r['unit_nama'] ?? '-') ?><?= $r['sub_nama'] ? ' - ' . esc($r['sub_nama']) : '' ?></td>
-    <td><?= esc(label_shift(['kategori' => $r['shift_kategori'], 'jam_masuk' => $r['shift_masuk'], 'jam_pulang' => $r['shift_pulang']])) ?></td>
+    <td><?= esc(label_shift((object)['kategori' => $r['shift_kategori'], 'jam_masuk' => $r['shift_masuk'], 'jam_pulang' => $r['shift_pulang']])) ?></td>
     <td><?= $r['waktu_masuk'] ? esc(date('H:i', strtotime($r['waktu_masuk']))) : '-' ?></td>
     <td><?= $r['waktu_pulang'] ? esc(date('H:i', strtotime($r['waktu_pulang']))) : '-' ?></td>
     <td><?= esc($r['status_masuk'] ?? '-') ?></td>

@@ -69,7 +69,7 @@
           <td><?= esc($r['nama_lengkap']) ?>
             <?php if ($r['flag_anomali']): ?> <span class="badge badge-amber">⚠</span><?php endif; ?></td>
           <td><?= esc($r['unit_nama'] ?? '—') ?><?= $r['sub_nama'] ? ' — ' . esc($r['sub_nama']) : '' ?></td>
-          <td><?= esc(label_shift(['kategori' => $r['shift_kategori'], 'jam_masuk' => $r['shift_masuk'], 'jam_pulang' => $r['shift_pulang']])) ?></td>
+          <td><?= esc(label_shift((object)['kategori' => $r['shift_kategori'], 'jam_masuk' => $r['shift_masuk'], 'jam_pulang' => $r['shift_pulang']])) ?></td>
           <td class="angka"><?= jam_id($r['waktu_masuk']) ?></td>
           <td class="angka"><?= jam_id($r['waktu_pulang']) ?></td>
           <td><?= badge_status(! $r['waktu_pulang'] ? 'Belum Pulang'

@@ -72,7 +72,7 @@
           <td>{{ $r->nama_lengkap }}
             @if($r->flag_anomali) <span class="badge badge-amber">⚠</span>@endif</td>
           <td>{{ $r->unit_nama ?? '—' }}@if($r->sub_nama) — {{ $r->sub_nama }}@endif</td>
-          <td>{{ label_shift(['kategori' => $r->shift_kategori, 'jam_masuk' => $r->shift_masuk, 'jam_pulang' => $r->shift_pulang]) }}</td>
+          <td>{{ label_shift((object)['kategori' => $r->shift_kategori, 'jam_masuk' => $r->shift_masuk, 'jam_pulang' => $r->shift_pulang]) }}</td>
           <td class="angka">{{ jam_id($r->waktu_masuk) }}</td>
           <td class="angka">{{ jam_id($r->waktu_pulang) }}</td>
           <td>{!! badge_status(! $r->waktu_pulang ? 'Belum Pulang'
