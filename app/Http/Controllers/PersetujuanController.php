@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Izin;
+use App\Models\IzinPersetujuan;
+use App\Models\User;
 use App\Services\AlurIzinService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -21,37 +24,37 @@ class PersetujuanController extends Controller
 
         $lib = app(AlurIzinService::class);
 
-        $kandidat = DB::table('pengajuan_izin i')
-            ->select('i.*', 'p.nama_lengkap', 'p.jabatan_kategori', 'p.jabatan_id', 'p.seksi_pembina_id',
-                     'p.posisi AS posisi_pemohon', 'p.unit_kerja_id', 'p.sub_unit_id', 'p.nip',
-                     'uk.nama AS unit_nama', 'su.nama AS sub_nama')
-            ->join('users p', 'p.id', '=', 'i.user_id')
-            ->leftJoin('unit_kerja as uk', 'uk.id', '=', 'p.unit_kerja_id')
-            ->leftJoin('sub_unit as su', 'su.id', '=', 'p.sub_unit_id')
-            ->where('i.status', 'Menunggu')->where('i.tahap_aktif', '>', 0)
-            ->orderBy('i.tahap_aktif')->orderBy('i.id')
-            ->get()->all();
+        $kandidat = Izin::with([
+            'user:id,nama_lengkap,jabatan_kategori,jabatan_id,seksi_pembina_id,posisi,unit_kerja_id,sub_unit_id,nip',
+            'user.unitKerja:id,nama',
+            'user.subUnit:id,nama',
+        ])
+            ->where('status', 'Menunggu')
+            ->where('tahap_aktif', '>', 0)
+            ->orderBy('tahap_aktif')
+            ->orderBy('id')
+            ->get();
 
         $tugasSaya = [];
         foreach ($kandidat as $r) {
             $pemohon = [
-                'id' => $r->user_id, 'posisi' => $r->posisi_pemohon,
-                'jabatan_id' => $r->jabatan_id, 'seksi_pembina_id' => $r->seksi_pembina_id,
-                'unit_kerja_id' => $r->unit_kerja_id, 'sub_unit_id' => $r->sub_unit_id,
+                'id' => $r->user_id, 'posisi' => $r->user->posisi,
+                'jabatan_id' => $r->user->jabatan_id, 'seksi_pembina_id' => $r->user->seksi_pembina_id,
+                'unit_kerja_id' => $r->user->unit_kerja_id, 'sub_unit_id' => $r->user->sub_unit_id,
             ];
             $pengajuanRingkas = ['id' => $r->id, 'tahap_aktif' => $r->tahap_aktif];
-            $userObj = (object) $u;
+            $userObj =User::find($u['id']);
             if ($lib->bolehBertindak($pengajuanRingkas, $pemohon, $userObj) && $u['role'] !== 'admin') {
                 $tugasSaya[] = $r;
             }
         }
 
-        $riwayatSaya = DB::table('izin_persetujuan p')
-            ->select('p.*', 'i.jenis', 'i.jenis_cuti', 'i.tanggal_mulai', 'i.tanggal_selesai', 'u.nama_lengkap')
-            ->join('pengajuan_izin i', 'i.id', '=', 'p.pengajuan_id')
-            ->join('users as u', 'u.id', '=', 'i.user_id')
-            ->where('p.oleh_user_id', $u['id'])
-            ->orderBy('p.waktu', 'DESC')->limit(30)->get()->all();
+        $riwayatSaya = IzinPersetujuan::with(['pengajuan:user,id,jenis,jenis_cuti,tanggal_mulai,tanggal_selesai', 'pengajuan.user:id,nama_lengkap'])
+            ->where('oleh_user_id', $u['id'])
+            ->orderBy('waktu', 'DESC')
+            ->limit(30)
+            ->get()
+            ->all();
 
         return view('pegawai.persetujuan', [
             'u' => $u, 'tugasSaya' => $tugasSaya, 'riwayatSaya' => $riwayatSaya,
@@ -69,16 +72,15 @@ class PersetujuanController extends Controller
         $putusan = (string) $request->input('putusan');
         $catatan = trim((string) $request->input('catatan')) ?: null;
 
-        $iz = DB::table('pengajuan_izin')->where('id', $id)->first();
+        $iz = Izin::with('user:id,id,nama_lengkap')->find($id);
         if (! $iz || $iz->status !== 'Menunggu' || (int) $iz->tahap_aktif === 0) {
             return redirect('persetujuan')
                 ->with('flash_gagal', 'Pengajuan tidak ditemukan atau sudah diproses.');
         }
 
-        $pemohon = DB::table('users')->where('id', $iz->user_id)->first();
         $lib = app(AlurIzinService::class);
         $userObj = (object) $u;
-        $pemohonArr = (array) $pemohon;
+        $pemohonArr = (array) $iz->user;
         $izArr = (array) $iz;
         if (! $lib->bolehBertindak($izArr, $pemohonArr, $userObj)) {
             return redirect('persetujuan')
@@ -86,7 +88,7 @@ class PersetujuanController extends Controller
         }
 
         $hasil = $lib->proses($izArr, $pemohonArr, (int) $u['id'], $putusan, $catatan);
-        catat_aktivitas('Persetujuan ' . $iz->jenis, $pemohon->nama_lengkap . ' — tahap '
+        catat_aktivitas('Persetujuan ' . $iz->jenis, $iz->user->nama_lengkap . ' — tahap '
             . label_tahap_izin((int) $iz->tahap_aktif) . ' oleh ' . $u['nama_lengkap'] . ' → ' . $hasil);
 
         $pesan = match ($hasil) {
@@ -119,11 +121,11 @@ class PersetujuanController extends Controller
             ->leftJoin('profesi as p', 'p.id', '=', 'u.profesi_id')
             ->leftJoin('shift as s', 's.id', '=', 'u.shift_id')
             ->leftJoin('jabatan as j', 'j.id', '=', 'u.jabatan_id')
-            ->leftJoin('jabatan ji', 'ji.id', '=', 'j.induk_id')
-            ->leftJoin('jabatan sp', 'sp.id', '=', 'u.seksi_pembina_id')
-            ->leftJoin('jabatan spi', 'spi.id', '=', 'sp.induk_id')
+            ->leftJoin('jabatan as ji', 'ji.id', '=', 'j.induk_id')
+            ->leftJoin('jabatan as sp', 'sp.id', '=', 'u.seksi_pembina_id')
+            ->leftJoin('jabatan as spi', 'spi.id', '=', 'sp.induk_id')
             ->where('u.id', $uid)
-            ->first();
+            ->first();      
 
         if (! $u || $u->status !== 'aktif') {
             session()->flush();

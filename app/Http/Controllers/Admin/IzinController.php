@@ -35,7 +35,7 @@ class IzinController extends Controller
         if ($idBerjenjang) {
             foreach (DB::table('izin_persetujuan as p')
                          ->select('p.*', 'o.nama_lengkap AS oleh_nama')
-                         ->leftJoin('users o', 'o.id', '=', 'p.oleh_user_id')
+                         ->leftJoin('users as o', 'o.id', '=', 'p.oleh_user_id')
                          ->whereIn('pengajuan_id', $idBerjenjang)
                          ->orderBy('tahap')->get() as $p) {
                 $tahapPer[(int) $p->pengajuan_id][] = $p;

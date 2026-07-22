@@ -55,4 +55,41 @@ class Izin extends Model
     {
         return $this->belongsTo(User::class, 'ttd_oleh');
     }
+
+    public function scopeDariBawahan($query, User $user){
+        $query->where('status','Menunggu')
+            ->where('tahap_aktif', '>',0)
+            ->whereHas('user', function ($q) use ($user){
+                $q->where('status','aktif');
+
+                switch($user->posisi){
+                    case 'Koordinator/Kepala Unit/Ruang/Instalasi':
+                            $q->where('unit_kerja_id',$user->unit_kerja_id)
+                                ->where('id', '!=',$user->id);
+                            if(! empty($user->sub_unit_id)){
+                                $q->where('sub_unit_id',$user->sub_unit_id);
+                            }
+                            break;
+                    case 'Kepala Seksi/Sub Bagian':
+                        $q->where('seksi_pembina_id', $user->jabatan_id)
+                            ->where('id','!=',$user->id);
+                            break;
+                    case 'Kepala Bidang/Bagian':
+                        $seksi = Jabatan::find($user->jabatan_id);
+                        if($seksi && $seksi->induk_id){
+                            $seksiAnak = Jabatan::where('induk_id', $seksi->induk_id)->pluck('id');
+                            $q->whereIn('jabatan_id',$seksiAnak)
+                                ->where('id', '!=',$user->id);
+                        }else{
+                            $q->whereRaw('0=1');
+                        }
+                        break;
+                    case 'HRD':
+                        break;
+                    default:
+                        $q->whereRaw('0=1');
+                        break;
+                }
+            });
+    }
 }

@@ -18,6 +18,8 @@ Route::prefix('mobile')->group(function (){
         Route::post('izin',[MobileController::class,"pengajuanIzin"]);
         Route::delete('izin/{id}',[MobileController::class,"deleteIzin"]);
         Route::get('izin/today',[MobileController::class,"getTodayIzin"]);
+        Route::get('izin/total',[MobileController::class,"getIzinMenungguTotal"]);
+        Route::get('izin/detail',[MobileController::class,"getDetailIzinMenunggu"]);
     });
 });
 

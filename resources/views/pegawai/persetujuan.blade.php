@@ -20,10 +20,10 @@
         @foreach($tugasSaya as $r)
         <tr>
           <td>
-            <strong>{{ $r->nama_lengkap }}</strong>
-            @if($r->nip)<br><span class="teks-kecil teks-redup">NIP {{ $r->nip }}</span>@endif
-            <br><span class="teks-kecil teks-redup">{{ $r->unit_nama ?? '—' }}@if(
-                $r->sub_nama) — {{ $r->sub_nama }}@endif</span>
+            <strong>{{ $r->user->nama_lengkap }}</strong>
+            @if($r->user->nip)<br><span class="teks-kecil teks-redup">NIP {{ $r->user->nip }}</span>@endif
+            <br><span class="teks-kecil teks-redup">{{ $r->user->unitKerja->nama ?? '—' }}@if(
+                $r->user->subUnit->nama) — {{ $r->user->subUnit->nama }}@endif</span>
           </td>
           <td><strong>{{ $r->jenis_cuti ?: $r->jenis }}</strong></td>
           <td class="angka">{{ tgl_id($r->tanggal_mulai, false) }}@if(
@@ -66,9 +66,9 @@
         @foreach($riwayatSaya as $r)
         <tr>
           <td class="angka teks-kecil">{{ tgl_id($r->waktu, false) }} · {{ jam_id($r->waktu) }}</td>
-          <td>{{ $r->nama_lengkap }}</td>
-          <td>{{ $r->jenis_cuti ?: $r->jenis }}</td>
-          <td class="angka">{{ tgl_id($r->tanggal_mulai, false) }}</td>
+          <td>{{ $r->pengajuan->user->nama_lengkap }}</td>
+          <td>{{ $r->pengajuan->jenis_cuti ?: $r->pengajuan->jenis }}</td>
+          <td class="angka">{{ tgl_id($r->pengajuan->tanggal_mulai, false) }}</td>
           <td>{!! badge_tahap($r->status) !!}</td>
           <td class="teks-kecil">{{ $r->catatan ?? '—' }}</td>
         </tr>
