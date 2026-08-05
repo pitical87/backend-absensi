@@ -72,16 +72,16 @@ class PersetujuanController extends Controller
         $putusan = (string) $request->input('putusan');
         $catatan = trim((string) $request->input('catatan')) ?: null;
 
-        $iz = Izin::with('user:id,id,nama_lengkap')->find($id);
+        $iz = Izin::with('user:id,id,nama_lengkap,unit_kerja_id,sub_unit_id,jabatan_id,seksi_pembina_id,posisi')->find($id);
         if (! $iz || $iz->status !== 'Menunggu' || (int) $iz->tahap_aktif === 0) {
             return redirect('persetujuan')
                 ->with('flash_gagal', 'Pengajuan tidak ditemukan atau sudah diproses.');
         }
 
         $lib = app(AlurIzinService::class);
-        $userObj = (object) $u;
-        $pemohonArr = (array) $iz->user;
-        $izArr = (array) $iz;
+        $pemohonArr = $iz->user->toArray();
+        $izArr = $iz->toArray();
+        $userObj = User::find($u['id']);
         if (! $lib->bolehBertindak($izArr, $pemohonArr, $userObj)) {
             return redirect('persetujuan')
                 ->with('flash_gagal', 'Anda tidak berwenang memutus pengajuan ini pada tahap saat ini.');

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Absensi;
 use App\Models\ApiToken;
 use App\Models\Izin;
+use App\Models\IzinPersetujuan;
 use App\Models\LoginAttempt;
 use App\Models\User;
 use App\Services\AbsenService;
@@ -13,6 +14,7 @@ use App\Services\AlurIzinService;
 use App\Services\AnomaliService;
 use App\Services\CutiService;
 use App\Services\RekapService;
+use App\Services\StrukturService;
 use Carbon\Carbon;
 use DateTime;
 use Illuminate\Http\JsonResponse;
@@ -98,6 +100,138 @@ class MobileController extends Controller
 
     }
 
+    public function registerDataMaster(Request $req): JsonResponse
+    {
+        $struktur = app(StrukturService::class);
+
+        $sub = [];
+        foreach (DB::table('sub_unit')->orderBy('unit_kerja_id')->orderBy('id')->get() as $s) {
+            $sub[(int) $s->unit_kerja_id][] = ['id' => (int) $s->id, 'nama' => $s->nama];
+        }
+
+        $unitList = DB::table('unit_kerja')->orderBy('id')->get()
+            ->map(fn ($u) => [
+                'id'        => (int) $u->id,
+                'nama'      => $u->nama,
+                'punya_sub' => (bool) $u->punya_sub,
+            ])
+            ->values();
+
+        $profList = DB::table('profesi')->orderBy('id')->get()
+            ->map(fn ($p) => ['id' => (int) $p->id, 'nama' => $p->nama])
+            ->values();
+
+        return response()->json([
+            'sukses'           => true,
+            'unit'             => $unitList,
+            'sub'              => $sub,
+            'profesi'          => $profList,
+            'jabatan'          => $struktur->pilihan(),
+            'kategori_jabatan' => kategori_jabatan_list(),
+            'posisi'           => posisi_list(),
+            'seksi_pembina'    => array_merge(
+                $struktur->pilihan()['Kepala Seksi'] ?? [],
+                $struktur->pilihan()['Kepala Sub Bagian'] ?? []
+            ),
+        ]);
+    }
+
+    public function register(Request $req, StrukturService $struktur): JsonResponse
+    {
+        $d = [
+            'nama_lengkap'  => trim((string) $req->input('nama_lengkap')),
+            'tempat_lahir'  => trim((string) $req->input('tempat_lahir')),
+            'tanggal_lahir' => $req->input('tanggal_lahir') ?: null,
+            'jenis_kelamin' => (string) $req->input('jenis_kelamin'),
+            'agama'         => (string) $req->input('agama'),
+            'email'         => trim((string) $req->input('email')),
+            'no_hp'         => trim((string) $req->input('no_hp')),
+            'nip'           => trim((string) $req->input('nip')) ?: null,
+            'unit_kerja_id' => (int) $req->input('unit_kerja_id') ?: null,
+            'sub_unit_id'   => (int) $req->input('sub_unit_id') ?: null,
+            'profesi_id'    => (int) $req->input('profesi_id') ?: null,
+        ];
+        $pass  = (string) $req->input('password');
+        $pass2 = (string) $req->input('password2');
+
+        $galat = [];
+        if ($d['nama_lengkap'] === '') $galat[] = 'Nama lengkap wajib diisi.';
+        if (! filter_var($d['email'], FILTER_VALIDATE_EMAIL)) $galat[] = 'Email tidak valid.';
+        if (! in_array($d['jenis_kelamin'], ['Laki-Laki', 'Perempuan'], true)) $galat[] = 'Jenis kelamin wajib dipilih.';
+        if (! in_array($d['agama'], ['Katolik', 'Kristen', 'Islam', 'Hindu', 'Budha', 'Lainnya'], true)) $galat[] = 'Agama wajib dipilih.';
+        $tl = $d["tanggal_lahir"];
+        if($tl !== null && (
+            ! preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $tl)
+            || ! checkdate((int) substr((string) $tl, 5, 2), (int) substr((string) $tl, 8, 2), (int) substr((string) $tl, 0, 4))
+        )){
+            $galat[] = 'Format tanggal lahir tidak valid. Gunakan format YYYY-MM-DD.';
+        }
+        if (strlen($pass) < 6) $galat[] = 'Password minimal 6 karakter.';
+        if ($pass !== $pass2) $galat[] = 'Konfirmasi password tidak sama.';
+
+        if (User::where('email', $d['email'])->count() > 0) {
+            $galat[] = 'Email sudah terdaftar. Gunakan email lain atau masuk.';
+        }
+
+        $unit = $d['unit_kerja_id']
+            ? DB::table('unit_kerja')->where('id', $d['unit_kerja_id'])->first()
+            : null;
+        if (! $unit) {
+            $galat[] = 'Tempat kerja wajib dipilih.';
+        } elseif ($unit->punya_sub) {
+            $sah = $d['sub_unit_id'] && DB::table('sub_unit')
+                ->where('id', $d['sub_unit_id'])->where('unit_kerja_id', $d['unit_kerja_id'])
+                ->count() > 0;
+            if (! $sah) $galat[] = 'Sub unit wajib dipilih untuk ' . $unit->nama . '.';
+        } else {
+            $d['sub_unit_id'] = null;
+        }
+        if (! $d['profesi_id'] || DB::table('profesi')->where('id', $d['profesi_id'])->count() === 0) {
+            $galat[] = 'Profesi wajib dipilih.';
+        }
+
+        [$kategoriJab, $jabatanId, $galatJab] = $struktur->resolusi(
+            (string) $req->input('jabatan_kategori'),
+            (int) $req->input('jabatan_id')
+        );
+        if ($galatJab !== '') $galat[] = $galatJab;
+        $d['jabatan_kategori'] = $kategoriJab;
+        $d['jabatan_id']       = $jabatanId;
+
+        $statusPegawai = (string) $req->input('status_pegawai') === 'PNS' ? 'PNS' : 'Non-PNS';
+        [$posisi, $seksiPembinaId, $galatPosisi] = $struktur->resolusiPosisi(
+            (string) $req->input('posisi'),
+            $kategoriJab,
+            $jabatanId,
+            (int) $req->input('seksi_pembina_id') ?: null
+        );
+        if ($galatPosisi !== '') $galat[] = $galatPosisi;
+        $d['posisi']           = $posisi;
+        $d['status_pegawai']   = $statusPegawai;
+        $d['seksi_pembina_id'] = $seksiPembinaId;
+
+        if ($galat) {
+            return response()->json([
+                'sukses' => false,
+                'pesan'  => implode(' ', $galat),
+            ], 422);
+        }
+
+        User::insert($d + [
+            'password_hash' => bcrypt($pass),
+            'role'          => 'pegawai',
+            'status'        => 'nonaktif',
+            'created_at'    => now(),
+        ]);
+
+        catat_aktivitas('Pendaftaran', $d['nama_lengkap'] . ' mendaftarkan akun pegawai baru');
+
+        return response()->json([
+            'sukses' => true,
+            'pesan'  => 'Pendaftaran berhasil. Silakan masuk dengan email dan password Anda.',
+        ], 201);
+    }
+
     public function me(Request $req):JsonResponse{
         $user = $req->get('user');
         $user->load(['unitKerja','subUnit','profesi','shift','jabatan']);
@@ -114,7 +248,7 @@ class MobileController extends Controller
 
     public function getIzinMenungguTotal(Request $req):JsonResponse{
         $user = $req->get('user');
-        $total = Izin::dariBawahan($user)->count();
+        $total = $this->tugasSaya($user)->count();
         return response()->json([
             "sukses"=>true,
             "total"=>$total
@@ -123,13 +257,72 @@ class MobileController extends Controller
 
     public function getDetailIzinMenunggu(Request $req):JsonResponse{
         $user = $req->get('user');
-        $daftar = Izin::dariBawahan($user)
-            ->with(['user:id, nama_lengkap, nip, unit_kerja_id'])
-            ->orderByDesc('created_at')
-            ->get();
+        $daftar = $this->tugasSaya($user);
         return response()->json([
             "sukses"=>true,
             "izin"=>$daftar
+        ]);
+    }
+
+    private function tugasSaya(User $user): \Illuminate\Support\Collection
+    {
+        $lib = app(AlurIzinService::class);
+
+        $kandidat = Izin::with([
+                'user:id,nama_lengkap,nip,unit_kerja_id,sub_unit_id,jabatan_id,seksi_pembina_id,posisi',
+                'user.unitKerja:id,nama',
+                'user.subUnit:id,nama',
+            ])
+            ->where('status', 'Menunggu')
+            ->where('tahap_aktif', '>', 0)
+            ->orderBy('tahap_aktif')
+            ->orderBy('id')
+            ->get();
+
+        return $kandidat->filter(function ($r) use ($lib, $user) {
+            $pemohon = [
+                'id' => $r->user_id, 'posisi' => $r->user->posisi,
+                'jabatan_id' => $r->user->jabatan_id, 'seksi_pembina_id' => $r->user->seksi_pembina_id,
+                'unit_kerja_id' => $r->user->unit_kerja_id, 'sub_unit_id' => $r->user->sub_unit_id,
+            ];
+            return $lib->bolehBertindak(
+                ['id' => $r->id, 'tahap_aktif' => $r->tahap_aktif],
+                $pemohon, $user
+            );
+        })->values();
+    }
+
+    public function getRiwayatPersetujuan(Request $req): JsonResponse
+    {
+        $user = $req->get('user');
+        $riwayat = IzinPersetujuan::with(['pengajuan' => function ($q) {
+                $q->select('id', 'user_id', 'jenis', 'jenis_cuti', 'tanggal_mulai', 'tanggal_selesai')
+                  ->with(['user' => function ($q2) {
+                      $q2->select('id', 'nama_lengkap');
+                  }]);
+            }])
+            ->where('oleh_user_id', $user->id)
+            ->orderBy('waktu', 'DESC')
+            ->limit(30)
+            ->get()
+            ->map(fn ($r) => [
+                'id'            => $r->id,
+                'waktu'         => $r->waktu?->toISOString(),
+                'catatan'       => $r->catatan,
+                'status'        => $r->status,
+                'pengajuan'     => [
+                    'id'            => $r->pengajuan->id,
+                    'jenis'         => $r->pengajuan->jenis,
+                    'jenis_cuti'    => $r->pengajuan->jenis_cuti,
+                    'tanggal_mulai' => $r->pengajuan->tanggal_mulai->format('Y-m-d'),
+                    'tanggal_selesai'=> $r->pengajuan->tanggal_selesai->format('Y-m-d'),
+                    'nama_pemohon'  => $r->pengajuan->user->nama_lengkap,
+                ],
+            ]);
+
+        return response()->json([
+            'sukses'   => true,
+            'riwayat'  => $riwayat,
         ]);
     }
 
@@ -548,6 +741,52 @@ class MobileController extends Controller
             "sukses" => true,
             "pesan" => "Pengajuan izin berhasil dibatalkan."
         ]);
+    }
+
+    public function prosesIzinMenunggu(Request $req): JsonResponse
+    {
+        $user = $req->get('user');
+        $id = (int) $req->input('id');
+        $putusan = (string) $req->input('putusan');
+        $catatan = trim((string) $req->input('catatan')) ?: null;
+
+        if (! in_array($putusan, ['setuju', 'tolak'], true)) {
+            return response()->json([
+                'sukses' => false, 'pesan' => 'Putusan tidak valid.',
+            ], 422);
+        }
+
+        $iz = Izin::with('user:id,id,nama_lengkap,unit_kerja_id,sub_unit_id,jabatan_id,seksi_pembina_id,posisi')->find($id);
+        if (! $iz || $iz->status !== 'Menunggu' || (int) $iz->tahap_aktif === 0) {
+            return response()->json([
+                'sukses' => false,
+                'pesan' => 'Pengajuan tidak ditemukan atau sudah diproses.',
+            ], 404);
+        }
+
+        $lib = app(AlurIzinService::class);
+        $pemohonArr = $iz->user->toArray();
+        $izArr = $iz->toArray();
+
+        if (! $lib->bolehBertindak($izArr, $pemohonArr, $user)) {
+            return response()->json([
+                'sukses' => false,
+                'pesan' => 'Anda tidak berwenang memutus pengajuan ini.',
+            ], 403);
+        }
+
+        $hasil = $lib->proses($izArr, $pemohonArr, $user->id, $putusan, $catatan);
+        catat_aktivitas('Persetujuan ' . $iz->jenis, $iz->user->nama_lengkap
+            . ' — tahap ' . label_tahap_izin((int) $iz->tahap_aktif)
+            . ' oleh ' . $user->nama_lengkap . ' → ' . $hasil);
+
+        $pesan = match ($hasil) {
+            'Ditolak'   => 'Pengajuan ditolak.',
+            'Disetujui' => 'Pengajuan disetujui penuh.',
+            default     => 'Persetujuan tercatat, pengajuan diteruskan ke tahap berikutnya.',
+        };
+
+        return response()->json(['sukses' => true, 'pesan' => $pesan, 'hasil' => $hasil]);
     }
 
     private function catatPercobaan(string $email, string $ip, bool $sukses): void

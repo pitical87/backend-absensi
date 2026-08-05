@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('mobile')->group(function (){
     Route::post('login',[MobileController::class, 'login']);
+    Route::get('register/master',[MobileController::class, 'registerDataMaster']);
+    Route::post('register',[MobileController::class, 'register']);
     Route::middleware('mobile.auth')->group(function(){
         Route::get('me',[MobileController::class, 'me']);
         Route::post('logout',[MobileController::class, 'logout']);
@@ -20,6 +22,8 @@ Route::prefix('mobile')->group(function (){
         Route::get('izin/today',[MobileController::class,"getTodayIzin"]);
         Route::get('izin/total',[MobileController::class,"getIzinMenungguTotal"]);
         Route::get('izin/detail',[MobileController::class,"getDetailIzinMenunggu"]);
+        Route::post('izin/proses',[MobileController::class,"prosesIzinMenunggu"]);
+        Route::get('izin/riwayat-persetujuan',[MobileController::class,"getRiwayatPersetujuan"]);
     });
 });
 
