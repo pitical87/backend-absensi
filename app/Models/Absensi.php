@@ -18,6 +18,8 @@ class Absensi extends Model
         'user_id', 'tanggal', 'shift_id', 'waktu_masuk', 'waktu_pulang',
         'lat_masuk', 'lng_masuk', 'lat_pulang', 'lng_pulang',
         'foto_masuk', 'foto_pulang', 'status_masuk', 'menit_terlambat',
+        'status_pulang', 'menit_awal_pulang',
+        'bintang_masuk', 'bintang_pulang', 'bintang_harian',
         'total_menit_kerja', 'flag_anomali', 'catatan_anomali',
     ];
 
@@ -32,6 +34,10 @@ class Absensi extends Model
             'lat_pulang' => 'decimal:7',
             'lng_pulang' => 'decimal:7',
             'menit_terlambat' => 'integer',
+            'menit_awal_pulang' => 'integer',
+            'bintang_masuk' => 'integer',
+            'bintang_pulang' => 'integer',
+            'bintang_harian' => 'float',
             'total_menit_kerja' => 'integer',
             'flag_anomali' => 'boolean',
         ];

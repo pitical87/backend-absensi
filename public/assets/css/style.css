@@ -453,6 +453,8 @@ table.tabel { width: 100%; border-collapse: collapse; font-size: .87rem; min-wid
 .badge-merah { background: var(--merah-bg); color: var(--merah); }
 .badge-biru  { background: var(--biru-muda); color: var(--biru); }
 .badge-abu   { background: #EDF2F7; color: var(--teks-redup); }
+.badge-emas  { background: #FDF3D7; color: #A87900; }
+.teks-bintang { color: #E8A800; letter-spacing: 1px; font-size: .95rem; }
 
 /* ============================================================
    Grafik batang SVG

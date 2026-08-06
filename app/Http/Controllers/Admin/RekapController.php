@@ -138,6 +138,7 @@ class RekapController extends Controller
                 'total_libur'        => $r['libur'],
                 'total_menit_kerja'  => $r['total_menit'],
                 'persentase'         => $r['persen'],
+                'bintang_rata_rata'  => $r['bintang_bulanan'],
                 'generated_at'       => now(),
             ];
             $ada = DB::table('rekap_bulanan')

@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\AbsenService;
 use App\Services\AlurIzinService;
 use App\Services\AnomaliService;
+use App\Services\BintangService;
 use App\Services\CutiService;
 use App\Services\RekapService;
 use App\Services\StrukturService;
@@ -442,10 +443,16 @@ class MobileController extends Controller
             "absen_masuk" => $absen ? [
                 "waktu" => substr($absen->waktu_masuk, 11, 5),
                 "status" => $absen->status_masuk,
+                "menit_terlambat" => (int) $absen->menit_terlambat,
+                "bintang" => $absen->bintang_masuk,
             ] : null,
             "absen_pulang" => $absen?->waktu_pulang ? [
                 "waktu" => substr($absen->waktu_pulang, 11, 5),
+                "status" => $absen->status_pulang,
+                "menit_awal" => (int) $absen->menit_awal_pulang,
+                "bintang" => $absen->bintang_pulang,
             ] : null,
+            "bintang_harian" => $absen?->bintang_harian,
         ]);
     }
 
@@ -460,6 +467,12 @@ class MobileController extends Controller
                 'jam_masuk'   => substr($a->waktu_masuk, 11, 5),  // "08:05"
                 'jam_pulang'  => $a->waktu_pulang ? substr($a->waktu_pulang, 11, 5) : null,
                 'status'      => $a->status_masuk,                 // "Tepat Waktu" / "Terlambat"
+                'status_pulang' => $a->status_pulang,
+                'menit_terlambat' => (int) $a->menit_terlambat,
+                'menit_awal_pulang' => (int) $a->menit_awal_pulang,
+                'bintang_masuk' => $a->bintang_masuk,
+                'bintang_pulang' => $a->bintang_pulang,
+                'bintang_harian' => $a->bintang_harian,
             ]);
         return response()->json([
             "sukses"=>true,
@@ -482,6 +495,35 @@ class MobileController extends Controller
                 'total_jam' => round($data['total_menit'] / 60, 1),
                 'target_jam' => (float) pengaturan('target_jam_kerja_bulanan', 160),
             ],
+            'ketepatan' => [
+                'tepat_masuk'  => $data['persen_tepat_masuk'],
+                'tepat_pulang' => $data['persen_tepat_pulang'],
+            ],
+            'bintang_bulanan' => $data['bintang_bulanan'],
+        ]);
+    }
+
+    public function performaBulan(Request $req, RekapService $rekap): JsonResponse
+    {
+        $user  = $req->get('user');
+        $bulan = min(12, max(1, (int) ($req->query('bulan') ?: now()->subMonth()->month)));
+        $tahun = (int) ($req->query('tahun') ?: now()->subMonth()->year);
+
+        if ($bulan > now()->month && $tahun === (int) now()->year) {
+            $bulan = now()->month;
+        }
+
+        $data    = $rekap->hitung($user->id, $bulan, $tahun);
+        $bintang = $data['bintang_bulanan'];
+        $servis  = app(BintangService::class);
+
+        return response()->json([
+            'sukses'  => true,
+            'bulan'   => $bulan,
+            'tahun'   => $tahun,
+            'nama_bulan' => BULAN_ID[$bulan] ?? $bulan,
+            'bintang' => $bintang,
+            'pesan'   => $bintang === null ? null : $servis->pesanBulanan((float) $bintang),
         ]);
     }
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\RekapService;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
@@ -64,6 +65,28 @@ class DashboardController extends Controller
         }
         $maks = max(1, $totalPegawai, ...array_column($grafik30, 'jml'));
 
+        $teladan = [];
+        $rekapService = app(RekapService::class);
+        $pegawaiAktif = DB::table('users as u')
+            ->select('u.id', 'u.nama_lengkap', 'uk.nama AS unit_nama')
+            ->leftJoin('unit_kerja as uk', 'uk.id', '=', 'u.unit_kerja_id')
+            ->where('u.role', 'pegawai')->where('u.status', 'aktif')
+            ->get()->all();
+        foreach ($pegawaiAktif as $pg) {
+            $r = $rekapService->hitung((int) $pg->id, (int) now()->month, (int) now()->year);
+            if (($r['bintang_bulanan'] ?? 0) >= 4.5) {
+                $teladan[] = [
+                    'id'      => (int) $pg->id,
+                    'nama'    => $pg->nama_lengkap,
+                    'unit'    => $pg->unit_nama ?? '—',
+                    'bintang' => $r['bintang_bulanan'],
+                    'hadir'   => $r['hadir'],
+                ];
+            }
+        }
+        usort($teladan, fn ($a, $b) => $b['bintang'] <=> $a['bintang']);
+        $teladan = array_slice($teladan, 0, 5);
+
         return view('admin.dashboard', [
             'judulHalaman' => 'Dashboard',
             'menuAktif'    => 'dashboard',
@@ -77,6 +100,7 @@ class DashboardController extends Controller
             'terbaru'      => $terbaru,
             'grafik30'     => $grafik30,
             'maks'         => $maks,
+            'teladan'      => $teladan,
         ]);
     }
 }

@@ -25,6 +25,33 @@
 </section>
 @endif
 
+@if($teladan)
+<section class="kartu">
+  <div class="kartu-kepala">
+    <h2>{!! ikon('bintang') !!} Pegawai Teladan Bulan Ini</h2>
+    <span class="teks-redup teks-kecil">bintang rata-rata ≥ 4.5</span>
+  </div>
+  <div class="tabel-bungkus">
+    <table class="tabel">
+      <thead>
+        <tr><th>Nama Pegawai</th><th>Unit</th><th>Bintang</th><th>Kehadiran</th></tr>
+      </thead>
+      <tbody>
+        @foreach($teladan as $t)
+        <tr>
+          <td>{{ $t['nama'] }}</td>
+          <td>{{ $t['unit'] }}</td>
+          <td><span class="teks-bintang">{{ str_repeat('★', (int) round($t['bintang'])) }}{{ str_repeat('☆', 5 - (int) round($t['bintang'])) }}</span>
+            <span class="teks-redup teks-kecil">({{ $t['bintang'] }})</span></td>
+          <td>{{ $t['hadir'] }} hari</td>
+        </tr>
+        @endforeach
+      </tbody>
+    </table>
+  </div>
+</section>
+@endif
+
 <section class="kartu">
   <div class="kartu-kepala">
     <h2>{!! ikon('grafik') !!} Kehadiran 30 Hari Terakhir</h2>

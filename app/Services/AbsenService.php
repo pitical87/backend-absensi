@@ -77,6 +77,9 @@ class AbsenService
             $pesan  = 'Anda terlambat datang sebanyak ' . $menit . ' menit';
         }
 
+        $bintang     = app(BintangService::class);
+        $bintangMasuk = $bintang->bintangMasuk((int) ceil($selisih));
+
         $absensiId = Absensi::insertGetId([
             'user_id'         => $u['id'],
             'tanggal'         => $tanggalShift,
@@ -87,6 +90,8 @@ class AbsenService
             'foto_masuk'      => $foto,
             'status_masuk'    => $status,
             'menit_terlambat' => $menit,
+            'bintang_masuk'   => $bintangMasuk,
+            'bintang_harian'  => $bintangMasuk,
             'flag_anomali'    => $flagAnomali ? 1 : 0,
             'catatan_anomali' => $alasanAnomali ? implode(' | ', $alasanAnomali) : null,
         ]);
@@ -99,6 +104,8 @@ class AbsenService
             'keterangan' => 'Absen datang tercatat pukul ' . $now->format('H.i')
                           . ' · jarak ' . number_format($jarak, 0, ',', '.') . ' m dari titik RSUD.',
             'status'     => $status,
+            'menit'      => $menit,
+            'bintang'    => $bintangMasuk,
             'jam'        => $now->format('H.i'),
         ]);
     }
@@ -118,12 +125,36 @@ class AbsenService
 
         $totalMenit = max(0, (int) floor(($now->getTimestamp() - strtotime($rec->waktu_masuk)) / 60));
 
+        $bintang      = app(BintangService::class);
+        $jamMasuk     = $u['shift_jam_masuk'] ?? null;
+        $jamPulang    = $u['shift_jam_pulang'] ?? null;
+        $menitAwal    = 0;
+        $statusPulang = null;
+        $bintangPulang = null;
+        $bintangHarian = null;
+
+        if ($jamPulang && $jamMasuk) {
+            $menitAwal    = $bintang->selisihMenitPulang(
+                $jamMasuk, $jamPulang, $rec->tanggal->format('Y-m-d'), $now
+            );
+            $bintangPulang = $bintang->bintangPulang($menitAwal);
+            $statusPulang  = $menitAwal > 0 ? 'Lebih Awal' : 'Tepat Waktu';
+
+            if ($rec->bintang_masuk !== null) {
+                $bintangHarian = $bintang->bintangHarian((int) $rec->bintang_masuk, $bintangPulang);
+            }
+        }
+
         Absensi::where('id', $rec->id)->update([
             'waktu_pulang'      => $now->format('Y-m-d H:i:s'),
             'lat_pulang'        => round($lat, 7),
             'lng_pulang'        => round($lng, 7),
             'foto_pulang'       => $foto,
             'total_menit_kerja' => $totalMenit,
+            'status_pulang'     => $statusPulang,
+            'menit_awal_pulang' => $menitAwal,
+            'bintang_pulang'    => $bintangPulang,
+            'bintang_harian'    => $bintangHarian,
             'flag_anomali'      => ($rec->flag_anomali || $flagAnomali) ? 1 : 0,
             'catatan_anomali'   => trim(implode(' | ', array_filter([
                                         $rec->catatan_anomali,
@@ -132,12 +163,22 @@ class AbsenService
         ]);
         $this->catatLog($u['id'], (int) $rec->id, 'pulang', $lat, $lng, $akurasi, $jarak, $now);
 
+        $jenis = 'sukses';
+        $pesan = 'Terima kasih atas dedikasi Anda hari ini';
+        if ($menitAwal > 0) {
+            $jenis = 'awal';
+            $pesan = 'Anda pulang lebih awal sebanyak ' . $menitAwal . ' menit';
+        }
+
         return response()->json([
             'sukses'     => true,
-            'jenis'      => 'sukses',
-            'pesan'      => 'Terima kasih atas dedikasi Anda hari ini',
+            'jenis'      => $jenis,
+            'pesan'      => $pesan,
             'keterangan' => 'Absen pulang tercatat pukul ' . $now->format('H.i')
                           . ' · total jam kerja ' . menit_ke_teks($totalMenit) . '.',
+            'status'     => $statusPulang,
+            'menit'      => $menitAwal,
+            'bintang'    => $bintangHarian,
             'jam'        => $now->format('H.i'),
         ]);
     }

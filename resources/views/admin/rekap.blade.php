@@ -89,7 +89,7 @@
         <tr>
           <th>Nama Pegawai</th><th>Unit</th><th>Hari Efektif</th><th>Hadir</th>
           <th>Tepat</th><th>Telat</th><th>Alpa</th><th>Izin</th><th>Sakit</th>
-          <th>Cuti</th><th>Dinas</th><th>Total Jam</th><th>%</th>
+          <th>Cuti</th><th>Dinas</th><th>Total Jam</th><th>%</th><th title="Rata-rata bintang ketepatan waktu (pegawai teladan = bintang 5)">Bintang</th>
         </tr>
       </thead>
       <tbody>
@@ -111,16 +111,32 @@
           <td class="angka">{{ $r['dinas_luar'] }}</td>
           <td class="angka">{{ menit_ke_teks($r['total_menit']) }}</td>
           <td class="angka"><strong>{{ $r['persen'] }}%</strong></td>
+          <td class="angka">
+            @if($r['bintang_bulanan'] === null)
+              <span class="teks-redup">—</span>
+            @else
+              @php $bi = app(\App\Services\BintangService::class); @endphp
+              <span title="{{ number_format((float) $r['bintang_bulanan'], 1) }} dari 5"
+                    class="{{ (float) $r['bintang_bulanan'] >= 4.5 ? 'teks-bintang' : 'teks-redup' }}">
+                {{ $bi->simbol((int) round((float) $r['bintang_bulanan'], 0, PHP_ROUND_HALF_UP)) }}
+              </span>
+              @if((float) $r['bintang_bulanan'] >= 4.5)
+                <span class="badge badge-emas">Teladan</span>
+              @endif
+            @endif
+          </td>
         </tr>
         @endforeach
         @if(! $pegawai)
-        <tr><td colspan="13" class="tengah teks-redup">Tidak ada pegawai pada filter ini.</td></tr>
+        <tr><td colspan="14" class="tengah teks-redup">Tidak ada pegawai pada filter ini.</td></tr>
         @endif
       </tbody>
     </table>
   </div>
   <p class="petunjuk">Angka dihitung langsung dari data absensi, izin yang disetujui, dan kalender
-    hari libur. <em>Generate &amp; Simpan Rekap</em> menyimpan salinan ke tabel arsip
+    hari libur. <strong>Bintang</strong> = rata-rata bintang harian {{ '(bintang masuk + bintang pulang) / 2' }}
+    bulan ini (alpa = 0 bintang); rata-rata ≥ 4.5 diberi tanda <span class="badge badge-emas">Teladan</span>.
+    <em>Generate &amp; Simpan Rekap</em> menyimpan salinan ke tabel arsip
     <code>rekap_bulanan</code> — juga tersedia bagi SIMRS melalui API.</p>
 </section>
 
