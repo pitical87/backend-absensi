@@ -20,6 +20,8 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::get('pegawai', [PegawaiController::class, 'index'])->name('admin.pegawai');
     Route::get('pegawai/form/{id?}', [PegawaiController::class, 'form'])->name('admin.pegawai.form');
     Route::post('pegawai/simpan', [PegawaiController::class, 'simpan'])->name('admin.pegawai.simpan');
+    Route::post('pegawai/import', [PegawaiController::class, 'impor'])->name('admin.pegawai.import');
+    Route::get('pegawai/template', [PegawaiController::class, 'template'])->name('admin.pegawai.template');
     Route::post('pegawai/status', [PegawaiController::class, 'ubahStatus'])->name('admin.pegawai.status');
     Route::post('pegawai/hapus', [PegawaiController::class, 'hapus'])->name('admin.pegawai.hapus');
 

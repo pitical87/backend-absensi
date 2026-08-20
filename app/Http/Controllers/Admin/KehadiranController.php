@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Absensi;
+use App\Models\LogLokasi;
+use App\Models\UnitKerja;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class KehadiranController extends Controller
 {
@@ -17,27 +19,27 @@ class KehadiranController extends Controller
         $fUnit       = (int) $request->get('unit');
         $hanyaAnomali = $request->get('anomali') === '1';
 
-        $b = DB::table('absensi as a')
-            ->selectRaw("a.*, u.nama_lengkap, uk.nama AS unit_nama, su.nama AS sub_nama,
+        $b = Absensi::selectRaw("absensi.*, u.nama_lengkap, uk.nama AS unit_nama, su.nama AS sub_nama,
                          s.kategori AS shift_kategori, s.jam_masuk AS shift_masuk, s.jam_pulang AS shift_pulang,
                          (SELECT jarak_meter FROM log_lokasi l
-                           WHERE l.absensi_id = a.id AND l.tipe = 'datang'
+                           WHERE l.absensi_id = absensi.id AND l.tipe = 'datang'
                         ORDER BY l.id DESC LIMIT 1) AS jarak_datang")
-            ->join('users as u', 'u.id', '=', 'a.user_id')
+            ->join('users as u', 'u.id', '=', 'absensi.user_id')
             ->leftJoin('unit_kerja as uk', 'uk.id', '=', 'u.unit_kerja_id')
             ->leftJoin('sub_unit as su', 'su.id', '=', 'u.sub_unit_id')
-            ->leftJoin('shift as s', 's.id', '=', 'a.shift_id')
-            ->where('a.tanggal', $tanggal);
+            ->leftJoin('shift as s', 's.id', '=', 'absensi.shift_id')
+            ->where('absensi.tanggal', $tanggal);
         if ($fUnit)        $b->where('u.unit_kerja_id', $fUnit);
-        if ($hanyaAnomali) $b->where('a.flag_anomali', 1);
-        $rows = $b->orderBy('a.waktu_masuk')->get()->all();
+        if ($hanyaAnomali) $b->where('absensi.flag_anomali', 1);
+        $rows = $b->orderBy('absensi.waktu_masuk')->get()->all();
 
-        $ditolak = DB::table('log_lokasi as l')
-            ->select('l.*', 'u.nama_lengkap')
-            ->join('users as u', 'u.id', '=', 'l.user_id')
-            ->where('l.ditolak', 1)
-            ->whereDate('l.waktu', $tanggal)
-            ->orderBy('l.waktu')->get()->all();
+        $ditolak = LogLokasi::select('log_lokasi.*', 'u.nama_lengkap')
+            ->join('users as u', 'u.id', '=', 'log_lokasi.user_id')
+            ->where('log_lokasi.ditolak', 1)
+            ->whereDate('log_lokasi.waktu', $tanggal)
+            ->orderBy('log_lokasi.waktu')
+            ->get()
+            ->all();
 
         $titik = [];
         foreach ($rows as $r) {
@@ -62,7 +64,7 @@ class KehadiranController extends Controller
             'rows'         => $rows,
             'ditolak'      => $ditolak,
             'titik'        => $titik,
-            'unitList'     => DB::table('unit_kerja')->orderBy('id')->get()->all(),
+            'unitList'     => UnitKerja::orderBy('id')->get()->all(),
             'rsLat'        => (float) pengaturan('lokasi_lat', 0),
             'rsLng'        => (float) pengaturan('lokasi_lng', 0),
             'radius'       => (float) pengaturan('radius_meter', 100),

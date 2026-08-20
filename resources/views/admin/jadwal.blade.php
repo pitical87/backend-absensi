@@ -43,22 +43,22 @@
       <button type="submit" class="btn btn-primer btn-kecil">Simpan Semua</button>
     </div>
 
-    <div class="tabel-bungkus" style="overflow-x:auto">
+    <div class="tabel-bungkus overflow-x-auto">
       <table class="tabel jadwal-grid" style="min-width:{{ 180 + ($hariDalamBulan * 52) }}px">
         <thead>
           <tr>
-            <th style="position:sticky;left:0;background:var(--putih);z-index:2;min-width:160px">Nama Pegawai</th>
+            <th class="sticky left-0 bg-white z-[2] min-w-[160px]">Nama Pegawai</th>
             @for($d = 1; $d <= $hariDalamBulan; $d++)
               @php
                 $dt = Carbon\Carbon::createFromDate($tahun, $bulan, $d);
                 $isLibur = in_array($dt->dayOfWeek, [Carbon\Carbon::SUNDAY]);
               @endphp
-              <th class="angka" style="min-width:52px;{{ $isLibur ? 'color:var(--merah)' : '' }}" title="{{ $dt->translatedFormat('l') }}">{{ $d }}</th>
+              <th class="angka min-w-[52px]" style="{{ $isLibur ? 'color:var(--merah)' : '' }}" title="{{ $dt->translatedFormat('l') }}">{{ $d }}</th>
             @endfor
-            <th style="min-width:60px;text-align:center" title="Isi semua tanggal dengan shift yang sama">Isi Semua</th>
+            <th class="min-w-[60px] text-center" title="Isi semua tanggal dengan shift yang sama">Isi Semua</th>
           </tr>
-          <tr style="font-size:.72rem;color:var(--teks-redup)">
-            <th style="position:sticky;left:0;background:var(--latar);z-index:2;font-size:.72rem;font-weight:400"></th>
+          <tr class="text-[0.72rem] text-teks-redup">
+            <th class="sticky left-0 bg-latar z-[2] text-[0.72rem] font-normal"></th>
             @for($d = 1; $d <= $hariDalamBulan; $d++)
               @php
                 $dt = Carbon\Carbon::createFromDate($tahun, $bulan, $d);
@@ -73,7 +73,7 @@
         <tbody>
           @foreach($pegawai as $p)
           <tr>
-            <td style="position:sticky;left:0;background:var(--putih);z-index:1;white-space:nowrap">
+            <td class="sticky left-0 bg-white z-[1] whitespace-nowrap">
               <strong>{{ $p->nama_lengkap }}</strong>
             </td>
             @for($d = 1; $d <= $hariDalamBulan; $d++)
@@ -81,7 +81,7 @@
                 $tgl = sprintf('%04d-%02d-%02d', $tahun, $bulan, $d);
                 $val = $jadwal[$p->id][$tgl] ?? '';
               @endphp
-              <td style="padding:2px;text-align:center">
+              <td class="p-0.5 text-center">
                 <select name="grid[{{ $p->id }}][{{ $tgl }}]"
                         data-user="{{ $p->id }}"
                         class="jadwal-select"
@@ -96,8 +96,8 @@
                 </select>
               </td>
             @endfor
-            <td style="padding:2px;text-align:center">
-              <select class="jadwal-isiSemua" data-user="{{ $p->id }}" style="width:48px;padding:2px;font-size:.7rem;border:1px solid var(--garis);border-radius:4px">
+            <td class="p-0.5 text-center">
+              <select class="jadwal-isiSemua w-[48px] p-0.5 text-[0.7rem] border border-garis rounded" data-user="{{ $p->id }}">
                 <option value="">Isi…</option>
                 @foreach($shiftList as $s)
                   <option value="{{ (int) $s->id }}">{{ substr($s->kategori, 0, 1) }}</option>
@@ -110,7 +110,7 @@
       </table>
     </div>
 
-    <p class="petunjuk" style="margin-top:12px">
+    <p class="petunjuk mt-3">
       Pilihan: <strong>—</strong> = Libur / tidak ada jadwal.
       Kode: P = Pagi, S = Sore, M = Malam (warna mengikuti shift).
       Minggu ditandai merah. Gunakan "Isi Semua" untuk mengisi satu shift ke seluruh tanggal sekaligus.
@@ -122,7 +122,7 @@
 
 <section class="kartu">
   <div class="kartu-kepala"><h2>{!! ikon('kalender') !!} Grid Jadwal</h2></div>
-  <p class="teks-redup" style="text-align:center;padding:30px 0">Tidak ada pegawai aktif di sub unit ini.</p>
+  <p class="teks-redup text-center py-[30px]">Tidak ada pegawai aktif di sub unit ini.</p>
 </section>
 
 @endif

@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Absensi;
+use App\Models\Izin;
+use App\Models\UnitKerja;
+use App\Models\User;
 use App\Services\RekapService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class V1Controller extends Controller
 {
@@ -44,19 +47,19 @@ class V1Controller extends Controller
     public function pegawai(Request $request)
     {
         $this->cekAuth($request);
-        $data = DB::table('users as u')
-            ->select('u.id', 'u.nama_lengkap', 'u.nip', 'u.email', 'u.no_hp', 'u.jenis_kelamin', 'u.status', 'u.role',
-                     'u.jabatan_kategori', 'j.nama AS jabatan',
+        $data = User::select('users.id', 'users.nama_lengkap', 'users.nip', 'users.email', 'users.no_hp',
+                     'users.jenis_kelamin', 'users.status', 'users.role',
+                     'users.jabatan_kategori', 'j.nama AS jabatan',
                      'uk.nama AS unit_kerja', 'su.nama AS sub_unit', 'p.nama AS profesi',
                      's.kategori AS shift_kategori', 's.jam_masuk AS shift_jam_masuk',
                      's.jam_pulang AS shift_jam_pulang')
-            ->leftJoin('unit_kerja as uk', 'uk.id', '=', 'u.unit_kerja_id')
-            ->leftJoin('sub_unit as su', 'su.id', '=', 'u.sub_unit_id')
-            ->leftJoin('profesi as p', 'p.id', '=', 'u.profesi_id')
-            ->leftJoin('shift as s', 's.id', '=', 'u.shift_id')
-            ->leftJoin('jabatan as j', 'j.id', '=', 'u.jabatan_id')
-            ->where('u.role', 'pegawai')
-            ->orderBy('u.nama_lengkap')->get()->all();
+            ->leftJoin('unit_kerja as uk', 'uk.id', '=', 'users.unit_kerja_id')
+            ->leftJoin('sub_unit as su', 'su.id', '=', 'users.sub_unit_id')
+            ->leftJoin('profesi as p', 'p.id', '=', 'users.profesi_id')
+            ->leftJoin('shift as s', 's.id', '=', 'users.shift_id')
+            ->leftJoin('jabatan as j', 'j.id', '=', 'users.jabatan_id')
+            ->where('users.role', 'pegawai')
+            ->orderBy('users.nama_lengkap')->get()->all();
 
         return response()->json(['sukses' => true, 'jumlah' => count($data), 'data' => $data]);
     }
@@ -64,20 +67,19 @@ class V1Controller extends Controller
     public function getPegawai(Request $request, int $id)
     {
         $this->cekAuth($request);
-        $data = DB::table('users as u')
-            ->select('u.id', 'u.nama_lengkap', 'u.nip', 'u.email', 'u.no_hp',
-                     'u.jenis_kelamin', 'u.status', 'u.role',
-                     'u.jabatan_kategori', 'j.nama AS jabatan',
+        $data = User::select('users.id', 'users.nama_lengkap', 'users.nip', 'users.email', 'users.no_hp',
+                     'users.jenis_kelamin', 'users.status', 'users.role',
+                     'users.jabatan_kategori', 'j.nama AS jabatan',
                      'uk.nama AS unit_kerja', 'su.nama AS sub_unit', 'p.nama AS profesi',
                      's.kategori AS shift_kategori', 's.jam_masuk AS shift_jam_masuk',
                      's.jam_pulang AS shift_jam_pulang')
-            ->leftJoin('unit_kerja as uk', 'uk.id', '=', 'u.unit_kerja_id')
-            ->leftJoin('sub_unit as su', 'su.id', '=', 'u.sub_unit_id')
-            ->leftJoin('profesi as p', 'p.id', '=', 'u.profesi_id')
-            ->leftJoin('shift as s', 's.id', '=', 'u.shift_id')
-            ->leftJoin('jabatan as j', 'j.id', '=', 'u.jabatan_id')
-            ->where('u.role', 'pegawai')
-            ->where('u.id', $id)
+            ->leftJoin('unit_kerja as uk', 'uk.id', '=', 'users.unit_kerja_id')
+            ->leftJoin('sub_unit as su', 'su.id', '=', 'users.sub_unit_id')
+            ->leftJoin('profesi as p', 'p.id', '=', 'users.profesi_id')
+            ->leftJoin('shift as s', 's.id', '=', 'users.shift_id')
+            ->leftJoin('jabatan as j', 'j.id', '=', 'users.jabatan_id')
+            ->where('users.role', 'pegawai')
+            ->where('users.id', $id)
             ->first();
 
         if (! $data) {
@@ -101,20 +103,20 @@ class V1Controller extends Controller
                 'pesan' => 'Rentang maksimal 92 hari per permintaan.'], 422);
         }
 
-        $b = DB::table('absensi as a')
-            ->select('a.id', 'a.user_id', 'u.nama_lengkap', 'a.tanggal', 'a.waktu_masuk', 'a.waktu_pulang',
-                     'a.status_masuk', 'a.menit_terlambat', 'a.total_menit_kerja',
-                     'a.lat_masuk', 'a.lng_masuk', 'a.lat_pulang', 'a.lng_pulang',
-                     'a.flag_anomali', 'a.catatan_anomali',
+        $b = Absensi::select('absensi.id', 'absensi.user_id', 'u.nama_lengkap', 'absensi.tanggal',
+                     'absensi.waktu_masuk', 'absensi.waktu_pulang',
+                     'absensi.status_masuk', 'absensi.menit_terlambat', 'absensi.total_menit_kerja',
+                     'absensi.lat_masuk', 'absensi.lng_masuk', 'absensi.lat_pulang', 'absensi.lng_pulang',
+                     'absensi.flag_anomali', 'absensi.catatan_anomali',
                      's.kategori AS shift_kategori', 's.jam_masuk AS shift_jam_masuk',
                      's.jam_pulang AS shift_jam_pulang')
-            ->join('users as u', 'u.id', '=', 'a.user_id')
-            ->leftJoin('shift as s', 's.id', '=', 'a.shift_id')
-            ->where('a.tanggal', '>=', $dari)->where('a.tanggal', '<=', $sampai);
+            ->join('users as u', 'u.id', '=', 'absensi.user_id')
+            ->leftJoin('shift as s', 's.id', '=', 'absensi.shift_id')
+            ->where('absensi.tanggal', '>=', $dari)->where('absensi.tanggal', '<=', $sampai);
         if ($userId) {
-            $b->where('a.user_id', $userId);
+            $b->where('absensi.user_id', $userId);
         }
-        $data = $b->orderBy('a.tanggal')->orderBy('u.nama_lengkap')->get()->all();
+        $data = $b->orderBy('absensi.tanggal')->orderBy('u.nama_lengkap')->get()->all();
 
         return response()->json([
             'sukses' => true,
@@ -131,14 +133,13 @@ class V1Controller extends Controller
         $bulan = min(12, max(1, (int) ($request->get('bulan') ?: now()->format('n'))));
         $tahun = min(2100, max(2024, (int) ($request->get('tahun') ?: now()->format('Y'))));
 
-        $pegawai = DB::table('users as u')
-            ->select('u.id', 'u.nama_lengkap', 'uk.nama AS unit_kerja', 'su.nama AS sub_unit',
+        $pegawai = User::select('users.id', 'users.nama_lengkap', 'uk.nama AS unit_kerja', 'su.nama AS sub_unit',
                      'p.nama AS profesi')
-            ->leftJoin('unit_kerja as uk', 'uk.id', '=', 'u.unit_kerja_id')
-            ->leftJoin('sub_unit as su', 'su.id', '=', 'u.sub_unit_id')
-            ->leftJoin('profesi as p', 'p.id', '=', 'u.profesi_id')
-            ->where('u.role', 'pegawai')->where('u.status', 'aktif')
-            ->orderBy('u.nama_lengkap')->get()->all();
+            ->leftJoin('unit_kerja as uk', 'uk.id', '=', 'users.unit_kerja_id')
+            ->leftJoin('sub_unit as su', 'su.id', '=', 'users.sub_unit_id')
+            ->leftJoin('profesi as p', 'p.id', '=', 'users.profesi_id')
+            ->where('users.role', 'pegawai')->where('users.status', 'aktif')
+            ->orderBy('users.nama_lengkap')->get()->all();
 
         $lib  = app(RekapService::class);
         $data = [];
@@ -180,16 +181,17 @@ class V1Controller extends Controller
         $dari   = $this->tanggalValid($request->get('dari'), now()->format('Y-m-01'));
         $sampai = $this->tanggalValid($request->get('sampai'), now()->format('Y-m-t'));
 
-        $b = DB::table('pengajuan_izin i')
-            ->select('i.id', 'i.user_id', 'u.nama_lengkap', 'i.jenis', 'i.tanggal_mulai', 'i.tanggal_selesai',
-                     'i.keterangan', 'i.status', 'i.catatan_admin', 'i.created_at', 'i.processed_at')
-            ->join('users as u', 'u.id', '=', 'i.user_id')
-            ->where('i.tanggal_mulai', '<=', $sampai)
-            ->where('i.tanggal_selesai', '>=', $dari);
+        $b = Izin::select('pengajuan_izin.id', 'pengajuan_izin.user_id', 'u.nama_lengkap',
+                     'pengajuan_izin.jenis', 'pengajuan_izin.tanggal_mulai', 'pengajuan_izin.tanggal_selesai',
+                     'pengajuan_izin.keterangan', 'pengajuan_izin.status', 'pengajuan_izin.catatan_admin',
+                     'pengajuan_izin.created_at', 'pengajuan_izin.processed_at')
+            ->join('users as u', 'u.id', '=', 'pengajuan_izin.user_id')
+            ->where('pengajuan_izin.tanggal_mulai', '<=', $sampai)
+            ->where('pengajuan_izin.tanggal_selesai', '>=', $dari);
         if ($status !== 'Semua') {
-            $b->where('i.status', $status);
+            $b->where('pengajuan_izin.status', $status);
         }
-        $data = $b->orderBy('i.tanggal_mulai')->get()->all();
+        $data = $b->orderBy('pengajuan_izin.tanggal_mulai')->get()->all();
 
         return response()->json([
             'sukses' => true,

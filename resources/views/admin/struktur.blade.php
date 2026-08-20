@@ -21,7 +21,7 @@
     @csrf
     <input type="hidden" name="aksi" value="tambah">
     <input type="text" name="nama" placeholder="Nama jabatan, cth. Kasi Rekam Medis" required
-           style="min-width:220px">
+           class="min-w-[220px]">
     <select name="kategori" required>
       <option value="">Kategori…</option>
       @foreach($kategoriJab as $k)<option>{{ $k }}</option>@endforeach
@@ -93,7 +93,7 @@
           <label>Label Unit (khusus Bidang/Bagian, kosongkan bila bukan)</label>
           <input type="text" name="unit_label" id="uj-unit" placeholder="cth. Bidang Pelayanan">
         </div>
-        <div class="aksi-baris" style="justify-content:flex-end">
+        <div class="aksi-baris justify-end">
           <button type="button" class="btn btn-garis btn-kecil"
                   onclick="document.getElementById('modal-jabatan').classList.remove('terbuka')">Batal</button>
           <button type="submit" class="btn btn-primer btn-kecil">{!! ikon('centang', 15) !!} Simpan</button>

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -12,6 +13,7 @@ class User extends Authenticatable
     use HasFactory;
 
     protected $table = 'users';
+    public $timestamps = false;
 
     protected $fillable = [
         'nama_lengkap', 'tempat_lahir', 'tanggal_lahir', 'jenis_kelamin',
@@ -104,5 +106,12 @@ class User extends Authenticatable
     public function isActive(): bool
     {
         return $this->status === 'aktif';
+    }
+    protected function jabatanUnit(): Attribute
+    {
+        return Attribute::get(
+            fn () => $this->jabatan?->unit_label
+                ?? $this->jabatan?->induk?->unit_label
+        );
     }
 }

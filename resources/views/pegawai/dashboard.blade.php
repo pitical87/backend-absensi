@@ -171,7 +171,7 @@ $warna = ['tepat' => '#178A50', 'telat' => '#D9930D', 'jalan' => '#2F87DE',
     <div class="stat"><span>Izin/Sakit/Cuti</span>
       <strong>{{ $rekap['izin'] + $rekap['sakit'] + $rekap['cuti'] }}</strong></div>
     <div class="stat"><span>Total Jam Kerja</span>
-      <strong style="font-size:1.02rem">{{ menit_ke_teks($rekap['total_menit']) }}</strong></div>
+      <strong class="text-[1.02rem]">{{ menit_ke_teks($rekap['total_menit']) }}</strong></div>
     <div class="stat"><span>Kehadiran</span><strong>{{ $rekap['persen'] }}%</strong></div>
   </div>
   <p class="petunjuk">Hari efektif tidak menghitung hari libur dan izin/sakit/cuti yang disetujui,
@@ -179,7 +179,7 @@ $warna = ['tepat' => '#178A50', 'telat' => '#D9930D', 'jalan' => '#2F87DE',
 
   @if($rekap['hari_berjalan'] > 0)
     @php $lebar = 40 + $rekap['hari_dalam_bulan'] * 20; @endphp
-    <h3 style="margin-top:18px">Grafik Jam Kerja Harian</h3>
+    <h3 class="mt-4">Grafik Jam Kerja Harian</h3>
     <div class="grafik-bungkus">
       <svg viewBox="0 0 {{ $lebar }} 160" role="img" aria-label="Grafik jam kerja harian bulan ini">
         @foreach([0, 4, 8, 12] as $j) @php $y = 130 - $j / 12 * 100; @endphp
@@ -220,16 +220,16 @@ $warna = ['tepat' => '#178A50', 'telat' => '#D9930D', 'jalan' => '#2F87DE',
       </svg>
     </div>
     <div class="legenda">
-      <span><i style="background:#178A50"></i> Tepat waktu</span>
-      <span><i style="background:#D9930D"></i> Terlambat</span>
-      <span><i style="background:#2F87DE"></i> Sedang bertugas</span>
-      <span><i style="background:#8A5FC8"></i> Izin/Sakit/Cuti/Dinas</span>
-      <span><i style="background:#B9C7D6"></i> Libur</span>
-      <span><i style="background:#E5B4B4"></i> Alpa</span>
+      <span><i class="bg-[#178A50]"></i> Tepat waktu</span>
+      <span><i class="bg-[#D9930D]"></i> Terlambat</span>
+      <span><i class="bg-[#2F87DE]"></i> Sedang bertugas</span>
+      <span><i class="bg-[#8A5FC8]"></i> Izin/Sakit/Cuti/Dinas</span>
+      <span><i class="bg-[#B9C7D6]"></i> Libur</span>
+      <span><i class="bg-[#E5B4B4]"></i> Alpa</span>
     </div>
   @endif
 
-  <h3 style="margin-top:20px">Tabel Rekap</h3>
+  <h3 class="mt-5">Tabel Rekap</h3>
   <div class="tabel-bungkus">
     <table class="tabel">
       <thead>

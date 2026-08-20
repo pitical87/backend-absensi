@@ -3,9 +3,16 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\PegawaiRequest;
+use App\Models\JadwalShift;
+use App\Models\Profesi;
+use App\Models\Shift;
+use App\Models\SubUnit;
+use App\Models\UnitKerja;
+use App\Models\User;
+use App\Services\PegawaiImportService;
 use App\Services\StrukturService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class PegawaiController extends Controller
 {
@@ -16,51 +23,50 @@ class PegawaiController extends Controller
         $q     = trim((string) $request->get('q'));
         $fUnit = (int) $request->get('unit');
 
-        $b = DB::table('users as u')
-            ->select('u.*', 'uk.nama AS unit_nama', 'su.nama AS sub_nama', 'p.nama AS profesi_nama',
+        $b = User::select('users.*', 'uk.nama AS unit_nama', 'su.nama AS sub_nama', 'p.nama AS profesi_nama',
                      's.kategori AS shift_kategori', 's.jam_masuk AS shift_masuk', 's.jam_pulang AS shift_pulang',
                      'j.nama AS jabatan_nama')
-            ->leftJoin('unit_kerja as uk', 'uk.id', '=', 'u.unit_kerja_id')
-            ->leftJoin('sub_unit as su', 'su.id', '=', 'u.sub_unit_id')
-            ->leftJoin('profesi as p', 'p.id', '=', 'u.profesi_id')
-            ->leftJoin('shift as s', 's.id', '=', 'u.shift_id')
-            ->leftJoin('jabatan as j', 'j.id', '=', 'u.jabatan_id');
+            ->leftJoin('unit_kerja as uk', 'uk.id', '=', 'users.unit_kerja_id')
+            ->leftJoin('sub_unit as su', 'su.id', '=', 'users.sub_unit_id')
+            ->leftJoin('profesi as p', 'p.id', '=', 'users.profesi_id')
+            ->leftJoin('shift as s', 's.id', '=', 'users.shift_id')
+            ->leftJoin('jabatan as j', 'j.id', '=', 'users.jabatan_id');
         if ($q !== '') {
             $b->where(function ($qry) use ($q) {
-                $qry->where('u.nama_lengkap', 'like', "%{$q}%")->orWhere('u.email', 'like', "%{$q}%");
+                $qry->where('users.nama_lengkap', 'like', "%{$q}%")->orWhere('users.email', 'like', "%{$q}%");
             });
         }
         if ($fUnit) {
-            $b->where('u.unit_kerja_id', $fUnit);
+            $b->where('users.unit_kerja_id', $fUnit);
         }
-        $pegawai = $b->orderBy('u.nama_lengkap')->get()->all();
+        $pegawai = $b->orderBy('users.nama_lengkap')->get()->all();
 
         return view('admin.pegawai_index', [
             'judulHalaman' => 'Data Pegawai',
             'menuAktif'    => 'pegawai',
             'pegawai'      => $pegawai,
-            'unitList'     => DB::table('unit_kerja')->orderBy('id')->get()->all(),
+            'unitList'     => UnitKerja::orderBy('id')->get()->all(),
             'q'            => $q,
             'fUnit'        => $fUnit,
         ]);
     }
 
-    public function form(StrukturService $struktur,int $id = 0)
+    public function form(StrukturService $struktur, int $id = 0)
     {
         $edit = null;
         if ($id) {
-            $edit = DB::table('users')->where('id', $id)->first();
+            $edit = User::find($id);
             if (! $edit) {
-                return redirect('admin/pegawai')->with('flash_gagal', 'Pegawai tidak ditemukan.');
+                return redirect('admin/pegawai')->with('error', 'Pegawai tidak ditemukan.');
             }
         }
 
         $sub = [];
-        foreach (DB::table('sub_unit')->orderBy('unit_kerja_id')->orderBy('id')->get() as $s) {
+        foreach (SubUnit::orderBy('unit_kerja_id')->orderBy('id')->get() as $s) {
             $sub[(int) $s->unit_kerja_id][] = ['id' => (int) $s->id, 'nama' => $s->nama];
         }
         $shiftGrup = [];
-        foreach (DB::table('shift')->where('aktif', 1)->orderBy('jam_masuk')->get() as $s) {
+        foreach (Shift::where('aktif', 1)->orderBy('jam_masuk')->get() as $s) {
             $shiftGrup[$s->kategori][] = $s;
         }
 
@@ -68,8 +74,8 @@ class PegawaiController extends Controller
             'judulHalaman' => $edit ? 'Ubah Data Pegawai' : 'Tambah Pegawai',
             'menuAktif'    => 'pegawai',
             'edit'         => $edit,
-            'unitList'     => DB::table('unit_kerja')->orderBy('id')->get()->all(),
-            'profList'     => DB::table('profesi')->orderBy('id')->get()->all(),
+            'unitList'     => UnitKerja::orderBy('id')->get()->all(),
+            'profList'     => Profesi::orderBy('id')->get()->all(),
             'subPerUnit'   => $sub,
             'shiftGrup'    => $shiftGrup,
             'agamaList'    => self::AGAMA,
@@ -83,95 +89,128 @@ class PegawaiController extends Controller
         ]);
     }
 
-    public function simpan(Request $request, StrukturService $struktur)
+    public function simpan(PegawaiRequest $request, StrukturService $struktur)
     {
-        $id = (int) $request->input('id');
-        $d  = [
-            'nama_lengkap'  => trim((string) $request->input('nama_lengkap')),
-            'tempat_lahir'  => trim((string) $request->input('tempat_lahir')) ?: null,
-            'tanggal_lahir' => $request->input('tanggal_lahir') ?: null,
-            'jenis_kelamin' => $request->input('jenis_kelamin') ?: null,
-            'agama'         => $request->input('agama') ?: null,
-            'email'         => trim((string) $request->input('email')),
-            'no_hp'         => trim((string) $request->input('no_hp')) ?: null,
-            'nip'           => trim((string) $request->input('nip')) ?: null,
-            'unit_kerja_id' => (int) $request->input('unit_kerja_id') ?: null,
-            'sub_unit_id'   => (int) $request->input('sub_unit_id') ?: null,
-            'profesi_id'    => (int) $request->input('profesi_id') ?: null,
-            'shift_id'      => (int) $request->input('shift_id') ?: null,
-            'role'          => in_array($request->input('role'), ['admin', 'pegawai'], true)
-                               ? $request->input('role') : 'pegawai',
-            'status'        => in_array($request->input('status'), ['aktif', 'nonaktif'], true)
-                               ? $request->input('status') : 'aktif',
-        ];
-        $pass = (string) $request->input('password');
+        $id   = (int) $request->input('id');
+        $data = $request->validated();
 
-        $galat = [];
-        if ($d['nama_lengkap'] === '') $galat[] = 'Nama lengkap wajib diisi.';
-        if (! filter_var($d['email'], FILTER_VALIDATE_EMAIL)) $galat[] = 'Email tidak valid.';
-        if (! $id && strlen($pass) < 6) $galat[] = 'Password minimal 6 karakter untuk pegawai baru.';
-        if ($id && $pass !== '' && strlen($pass) < 6) $galat[] = 'Password baru minimal 6 karakter.';
-
-        $dupe = DB::table('users')->where('email', $d['email'])->where('id', '!=', $id)->count() > 0;
-        if ($dupe) $galat[] = 'Email sudah digunakan pegawai lain.';
-
-        [$kategoriJab, $jabatanId, $galatJab] = $struktur->resolusi(
+        [$data['jabatan_kategori'], $data['jabatan_id'], $galatJab] = $struktur->resolusi(
             (string) $request->input('jabatan_kategori'),
             (int) $request->input('jabatan_id'),
             $id
         );
-        if ($galatJab !== '') $galat[] = $galatJab;
-        $d['jabatan_kategori'] = $kategoriJab;
-        $d['jabatan_id']       = $jabatanId;
+        if ($galatJab !== '') {
+            return back()->with('error', $galatJab);
+        }
 
         $statusPegawai = (string) $request->input('status_pegawai') === 'PNS' ? 'PNS' : 'Non-PNS';
-        [$posisi, $seksiPembinaId, $galatPosisi] = $struktur->resolusiPosisi(
+        [$data['posisi'], $data['seksi_pembina_id'], $galatPosisi] = $struktur->resolusiPosisi(
             (string) $request->input('posisi'),
-            $kategoriJab,
-            $jabatanId,
+            $data['jabatan_kategori'],
+            $data['jabatan_id'],
             (int) $request->input('seksi_pembina_id') ?: null
         );
-        if ($galatPosisi !== '') $galat[] = $galatPosisi;
-        $d['posisi']           = $posisi;
-        $d['status_pegawai']   = $statusPegawai;
-        $d['seksi_pembina_id'] = $seksiPembinaId;
+        if ($galatPosisi !== '') {
+            return back()->with('error', $galatPosisi);
+        }
+        $data['status_pegawai'] = $statusPegawai;
 
-        if ($d['sub_unit_id']) {
-            $sah = DB::table('sub_unit')->where('id', $d['sub_unit_id'])
-                        ->where('unit_kerja_id', $d['unit_kerja_id'])->count() > 0;
-            if (! $sah) $d['sub_unit_id'] = null;
+        if (! empty($data['sub_unit_id']) && ! empty($data['unit_kerja_id'])) {
+            $sah = SubUnit::where('id', $data['sub_unit_id'])
+                        ->where('unit_kerja_id', $data['unit_kerja_id'])->exists();
+            if (! $sah) {
+                $data['sub_unit_id'] = null;
+            }
         }
 
-        if ($galat) {
-            return redirect('admin/pegawai/form' . ($id ? '/' . $id : ''))
-                ->with('flash_gagal', implode(' ', $galat));
-        }
+        $pass = (string) $request->input('password');
+        unset($data['password']);
 
         if ($id) {
-            $lama = DB::table('users')->select('shift_id')->where('id', $id)->first();
+            $user = User::findOrFail($id);
+            $lamaShiftId = $user->shift_id;
+            $user->fill($data);
             if ($pass !== '') {
-                $d['password_hash'] = bcrypt($pass);
+                $user->password_hash = bcrypt($pass);
             }
-            DB::table('users')->where('id', $id)->update($d);
+            $user->save();
 
-            if ($d['shift_id'] && (int) ($lama->shift_id ?? 0) !== (int) $d['shift_id']) {
-                DB::table('jadwal_shift')->insert([
-                    'user_id' => $id, 'shift_id' => $d['shift_id'],
-                    'tanggal_berlaku' => now()->format('Y-m-d'),
-                    'diubah_oleh' => session('uid'), 'created_at' => now(),
+            if (! empty($data['shift_id']) && (int) $lamaShiftId !== (int) $data['shift_id']) {
+                JadwalShift::create([
+                    'user_id'          => $id,
+                    'shift_id'         => $data['shift_id'],
+                    'tanggal_berlaku'  => now()->format('Y-m-d'),
+                    'diubah_oleh'      => session('uid'),
+                    'created_at'       => now(),
                 ]);
             }
-            catat_aktivitas('Ubah Pegawai', $d['nama_lengkap'] . ' (' . $d['email'] . ')');
+            catat_aktivitas('Ubah Pegawai', $data['nama_lengkap'] . ' (' . $data['email'] . ')');
             $pesan = 'Data pegawai diperbarui.';
         } else {
-            $d['password_hash'] = bcrypt($pass);
-            $d['created_at']    = now();
-            DB::table('users')->insert($d);
-            catat_aktivitas('Tambah Pegawai', $d['nama_lengkap'] . ' (' . $d['email'] . ')');
+            $data['password_hash'] = bcrypt($pass);
+            $user = User::create($data);
+            catat_aktivitas('Tambah Pegawai', $data['nama_lengkap'] . ' (' . $data['email'] . ')');
             $pesan = 'Pegawai baru berhasil ditambahkan.';
         }
 
-        return redirect('admin/pegawai')->with('flash_sukses', $pesan);
+        return redirect('admin/pegawai')->with('success', $pesan);
+    }
+
+    public function impor(Request $request, PegawaiImportService $import)
+    {
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:xlsx,xls,csv'],
+        ]);
+
+        $hasil = $import->impor($request->file('file')->getRealPath());
+
+        $pesan = $hasil['sukses'] . ' pegawai berhasil diimpor.';
+        if ($hasil['galat']) {
+            $pesan .= ' ' . count($hasil['galat']) . ' baris gagal: ' . implode(' | ', array_slice($hasil['galat'], 0, 8));
+        }
+        catat_aktivitas('Import Pegawai', $pesan);
+
+        return redirect('admin/pegawai')->with(
+            $hasil['sukses'] ? 'success' : 'error',
+            $pesan
+        );
+    }
+
+    public function template()
+    {
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Pegawai');
+
+        $kolom = [
+            'nama_lengkap', 'email', 'tempat_lahir', 'tanggal_lahir', 'jenis_kelamin',
+            'agama', 'no_hp', 'nip', 'unit_kerja', 'sub_unit', 'profesi',
+            'jabatan_kategori', 'jabatan', 'posisi', 'seksi_pembina', 'status_pegawai',
+            'shift', 'password',
+        ];
+        $contoh = [
+            'Budi Santoso', 'budi@rsud-mrk.id', 'Merauke', '1990-05-14', 'Laki-Laki',
+            'Islam', '081234567890', '198605142010011001', 'Bidang Pelayanan', 'Ruang Rawat Inap',
+            'Perawat', 'Kepala Seksi', 'Kepala Seksi Keperawatan', 'Kepala Seksi/Sub Bagian',
+            '', 'PNS', 'Pagi', 'pegawai123',
+        ];
+
+        foreach ($kolom as $i => $nama) {
+            $huruf = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i + 1);
+            $sheet->setCellValue($huruf . '1', $nama);
+            $sheet->setCellValue($huruf . '2', $contoh[$i]);
+        }
+        $sheet->getStyle('A1:R1')->getFont()->setBold(true);
+        foreach (range('A', 'R') as $huruf) {
+            $sheet->getColumnDimension($huruf)->setAutoSize(true);
+        }
+
+        $writer = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($spreadsheet, 'Xlsx');
+        $temp = tempnam(sys_get_temp_dir(), 'tpl_') . '.xlsx';
+        $writer->save($temp);
+
+        return response()->download($temp, 'template_import_pegawai.xlsx')
+            ->deleteFileAfterSend(true);
     }
 
     public function ubahStatus(Request $request)
@@ -179,15 +218,15 @@ class PegawaiController extends Controller
         $id = (int) $request->input('id');
         if ($id === (int) session('uid')) {
             return redirect('admin/pegawai')
-                ->with('flash_gagal', 'Anda tidak dapat menonaktifkan akun sendiri.');
+                ->with('error', 'Anda tidak dapat menonaktifkan akun sendiri.');
         }
-        $u = DB::table('users')->where('id', $id)->first();
+        $u = User::find($id);
         if ($u) {
             $baru = $u->status === 'aktif' ? 'nonaktif' : 'aktif';
-            DB::table('users')->where('id', $id)->update(['status' => $baru]);
+            $u->update(['status' => $baru]);
             catat_aktivitas('Status Pegawai', $u->nama_lengkap . ' → ' . $baru);
         }
-        return redirect('admin/pegawai')->with('flash_sukses', 'Status pegawai diperbarui.');
+        return redirect('admin/pegawai')->with('success', 'Status pegawai diperbarui.');
     }
 
     public function hapus(Request $request)
@@ -195,14 +234,14 @@ class PegawaiController extends Controller
         $id = (int) $request->input('id');
         if ($id === (int) session('uid')) {
             return redirect('admin/pegawai')
-                ->with('flash_gagal', 'Anda tidak dapat menghapus akun sendiri.');
+                ->with('error', 'Anda tidak dapat menghapus akun sendiri.');
         }
-        $u = DB::table('users')->where('id', $id)->first();
+        $u = User::find($id);
         if ($u) {
-            DB::table('users')->where('id', $id)->delete();
+            $u->delete();
             catat_aktivitas('Hapus Pegawai', $u->nama_lengkap . ' (' . $u->email . ') beserta seluruh data absensinya');
         }
         return redirect('admin/pegawai')
-            ->with('flash_sukses', 'Pegawai beserta seluruh data absensinya telah dihapus.');
+            ->with('success', 'Pegawai beserta seluruh data absensinya telah dihapus.');
     }
 }

@@ -94,7 +94,7 @@
         @if($t->status === 'Dilewati') @continue @endif
         <tr>
           <td>{{ $t->posisi_tahap }}</td>
-          <td>{{ $t->oleh_nama ?? '—' }}</td>
+          <td>{{ $t->user->nama_lengkap ?? '—' }}</td>
           <td>{{ $t->status }}</td>
           <td>{{ $t->waktu ? tgl_id($t->waktu, false) . ' ' . jam_id($t->waktu) : '—' }}</td>
           <td>{{ $t->catatan ?? '—' }}</td>
@@ -110,7 +110,7 @@
     <div class="ttd-blok">Pemohon,<div class="ttd-spasi"></div><strong>{{ $u['nama_lengkap'] }}</strong></div>
     @foreach(array_filter($tahap, fn ($t) => $t->status === 'Disetujui') as $t)
     <div class="ttd-blok">{{ $t->posisi_tahap }},<div class="ttd-spasi"></div>
-      <strong>{{ $t->oleh_nama }}</strong></div>
+      <strong>{{ $t->user->nama_lengkap }}</strong></div>
     @endforeach
   </div>
 </div>

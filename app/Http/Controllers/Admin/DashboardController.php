@@ -3,6 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Absensi;
+use App\Models\Izin;
+use App\Models\UnitKerja;
+use App\Models\User;
 use App\Services\RekapService;
 use Illuminate\Support\Facades\DB;
 
@@ -12,47 +16,42 @@ class DashboardController extends Controller
     {
         $hariIni = now()->format('Y-m-d');
 
-        $totalPegawai = DB::table('users')
-            ->where('role', 'pegawai')->where('status', 'aktif')->count();
+        $totalPegawai = User::where('role', 'pegawai')->where('status', 'aktif')->count();
 
-        $stat = DB::table('absensi as a')
-            ->select(DB::raw("COUNT(*) AS hadir"),
-                     DB::raw("SUM(CASE WHEN a.status_masuk = 'Terlambat' THEN 1 ELSE 0 END) AS terlambat"),
-                     DB::raw("SUM(CASE WHEN a.flag_anomali = 1 THEN 1 ELSE 0 END) AS anomali"))
+        $stat = Absensi::select(DB::raw("COUNT(*) AS hadir"),
+                     DB::raw("SUM(CASE WHEN \"absensi\".\"status_masuk\" = 'Terlambat' THEN 1 ELSE 0 END) AS terlambat"),
+                     DB::raw("SUM(CASE WHEN \"absensi\".\"flag_anomali\" = 1 THEN 1 ELSE 0 END) AS anomali"))
             ->join('users as u', function ($q) {
-                $q->on('u.id', '=', 'a.user_id')->where('u.role', 'pegawai');
+                $q->on('u.id', '=', 'absensi.user_id')->where('u.role', '=', 'pegawai');
             })
-            ->where('a.tanggal', $hariIni)
+            ->where('absensi.tanggal', '=', $hariIni)
             ->first();
 
         $hadir     = (int) ($stat->hadir ?? 0);
         $terlambat = (int) ($stat->terlambat ?? 0);
         $anomali   = (int) ($stat->anomali ?? 0);
 
-        $izinHariIni = (int) DB::table('pengajuan_izin')
-            ->where('status', 'Disetujui')
-            ->where('tanggal_mulai', '<=', $hariIni)->where('tanggal_selesai', '>=', $hariIni)
+        $izinHariIni = (int) Izin::where('status', 'Disetujui')
+            ->where('tanggal_mulai', '<=', $hariIni)
+            ->where('tanggal_selesai', '>=', $hariIni)
             ->count();
 
-        $menunggu = (int) DB::table('pengajuan_izin')
-            ->where('status', 'Menunggu')->count();
+        $menunggu = (int) Izin::where('status', 'Menunggu')->count();
 
         $belum = max(0, $totalPegawai - $hadir - $izinHariIni);
 
-        $terbaru = DB::table('absensi as a')
-            ->select('a.*', 'u.nama_lengkap', 'uk.nama AS unit_nama', 'su.nama AS sub_nama',
+        $terbaru = Absensi::select('absensi.*', 'u.nama_lengkap', 'uk.nama AS unit_nama', 'su.nama AS sub_nama',
                      's.kategori AS shift_kategori', 's.jam_masuk AS shift_masuk', 's.jam_pulang AS shift_pulang')
-            ->join('users as u', 'u.id', '=', 'a.user_id')
+            ->join('users as u', 'u.id', '=', 'absensi.user_id')
             ->leftJoin('unit_kerja as uk', 'uk.id', '=', 'u.unit_kerja_id')
             ->leftJoin('sub_unit as su', 'su.id', '=', 'u.sub_unit_id')
-            ->leftJoin('shift as s', 's.id', '=', 'a.shift_id')
-            ->where('a.tanggal', $hariIni)
-            ->orderBy('a.waktu_masuk', 'DESC')->limit(12)
+            ->leftJoin('shift as s', 's.id', '=', 'absensi.shift_id')
+            ->where('absensi.tanggal', $hariIni)
+            ->orderBy('absensi.waktu_masuk', 'DESC')->limit(12)
             ->get()->all();
 
         $perTanggal = [];
-        foreach (DB::table('absensi')
-                     ->select('tanggal', DB::raw('COUNT(*) AS jml'))
+        foreach (Absensi::select('tanggal', DB::raw('COUNT(*) AS jml'))
                      ->where('tanggal', '>=', now()->subDays(29)->format('Y-m-d'))
                      ->where('tanggal', '<=', $hariIni)
                      ->groupBy('tanggal')->get() as $r) {
@@ -67,10 +66,9 @@ class DashboardController extends Controller
 
         $teladan = [];
         $rekapService = app(RekapService::class);
-        $pegawaiAktif = DB::table('users as u')
-            ->select('u.id', 'u.nama_lengkap', 'uk.nama AS unit_nama')
-            ->leftJoin('unit_kerja as uk', 'uk.id', '=', 'u.unit_kerja_id')
-            ->where('u.role', 'pegawai')->where('u.status', 'aktif')
+        $pegawaiAktif = User::select('users.id', 'users.nama_lengkap', 'uk.nama AS unit_nama')
+            ->leftJoin('unit_kerja as uk', 'uk.id', '=', 'users.unit_kerja_id')
+            ->where('users.role', 'pegawai')->where('users.status', 'aktif')
             ->get()->all();
         foreach ($pegawaiAktif as $pg) {
             $r = $rekapService->hitung((int) $pg->id, (int) now()->month, (int) now()->year);

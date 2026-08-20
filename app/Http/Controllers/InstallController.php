@@ -2,10 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Pengaturan;
+use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\DB;
-use Throwable;
 
 class InstallController extends Controller
 {
@@ -38,7 +37,7 @@ class InstallController extends Controller
         } elseif ($pass !== $pass2) {
             $galat = 'Konfirmasi password tidak sama.';
         } else {
-            DB::table('users')->insert([
+            User::create([
                 'nama_lengkap'  => $nama,
                 'email'         => $email,
                 'password_hash' => bcrypt($pass),
@@ -49,7 +48,7 @@ class InstallController extends Controller
             catat_aktivitas('Pemasangan', 'Aplikasi terpasang; akun admin pertama dibuat: ' . $email);
 
             return redirect('login')
-                ->with('flash_sukses', 'Pemasangan selesai. Silakan masuk menggunakan akun admin Anda.');
+                ->with('success', 'Pemasangan selesai. Silakan masuk menggunakan akun admin Anda.');
         }
 
         return view('install.index', ['tahap' => 'admin', 'galat' => $galat]);
@@ -58,12 +57,11 @@ class InstallController extends Controller
     private function siapkanSkema(): array
     {
         try {
-            $ada = DB::table('pengaturan')->count() > 0;
-
-            $adaAdmin = DB::table('users')->where('role', 'admin')->count() > 0;
+            $ada = Pengaturan::count() > 0;
+            $adaAdmin = User::where('role', 'admin')->count() > 0;
 
             return [$adaAdmin ? 'selesai' : 'admin', ''];
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
             return ['gagal',
                 'Pemasangan gagal: ' . $e->getMessage()
                 . ' — Periksa pengaturan database pada .env dan pastikan layanan MySQL sudah berjalan.'];

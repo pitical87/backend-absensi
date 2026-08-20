@@ -8,8 +8,8 @@
     @csrf
     <input type="hidden" name="aksi" value="tambah_unit">
     <input type="text" name="nama" placeholder="Nama unit kerja baru…" required>
-    <label class="teks-kecil" style="display:flex;align-items:center;gap:6px;white-space:nowrap">
-      <input type="checkbox" name="punya_sub" value="1" style="width:auto"> Memiliki sub unit
+    <label class="teks-kecil flex items-center gap-1.5 whitespace-nowrap">
+      <input type="checkbox" name="punya_sub" value="1" class="w-auto"> Memiliki sub unit
     </label>
     <button type="submit" class="btn btn-primer btn-kecil">+ Tambah</button>
   </form>
@@ -34,18 +34,18 @@
     <input type="hidden" name="aksi" value="ubah_unit">
     <input type="hidden" name="id" value="{{ (int) $uk->id }}">
     <input type="text" name="nama" value="{{ $uk->nama }}" required>
-    <label class="teks-kecil" style="display:flex;align-items:center;gap:6px;white-space:nowrap">
-      <input type="checkbox" name="punya_sub" value="1" style="width:auto" {{ $uk->punya_sub ? 'checked' : '' }}>
+    <label class="teks-kecil flex items-center gap-1.5 whitespace-nowrap">
+      <input type="checkbox" name="punya_sub" value="1" class="w-auto" {{ $uk->punya_sub ? 'checked' : '' }}>
       Memiliki sub unit
     </label>
     <button type="submit" class="btn btn-navy btn-kecil">Simpan</button>
   </form>
 
   @if($uk->punya_sub)
-    <h3 style="margin-top:16px">Sub Unit</h3>
+    <h3 class="mt-4">Sub Unit</h3>
     <div class="tabel-bungkus">
       <table class="tabel">
-        <thead><tr><th>Nama Sub Unit</th><th>Jumlah Pegawai</th><th style="width:110px">Aksi</th></tr></thead>
+        <thead><tr><th>Nama Sub Unit</th><th>Jumlah Pegawai</th><th class="w-[110px]">Aksi</th></tr></thead>
         <tbody>
           @foreach($subPerUnit[(int) $uk->id] ?? [] as $su)
           <tr>
@@ -69,7 +69,7 @@
       </table>
     </div>
 
-    <form method="post" action="{{ url('admin/unit/aksi') }}" class="bilah-alat" style="margin-top:12px">
+    <form method="post" action="{{ url('admin/unit/aksi') }}" class="bilah-alat mt-3">
       @csrf
       <input type="hidden" name="aksi" value="tambah_sub">
       <input type="hidden" name="unit_kerja_id" value="{{ (int) $uk->id }}">

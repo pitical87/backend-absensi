@@ -48,7 +48,7 @@
     </table>
   </div>
 
-  <h3 style="margin-top:18px">Tambah Shift Baru</h3>
+  <h3 class="mt-4">Tambah Shift Baru</h3>
   <form method="post" action="{{ url('admin/shift/aksi') }}" class="bilah-alat">
     @csrf
     <input type="hidden" name="aksi" value="tambah_shift">
@@ -71,8 +71,8 @@
     @csrf
     <input type="hidden" name="aksi" value="izin_pilih">
     <input type="hidden" name="qs" value="{{ $qs }}">
-    <label class="teks-kecil" style="display:flex;align-items:center;gap:8px">
-      <input type="checkbox" name="izinkan" value="1" style="width:auto" {{ $izin ? 'checked' : '' }}>
+    <label class="teks-kecil flex items-center gap-2">
+      <input type="checkbox" name="izinkan" value="1" class="w-auto" {{ $izin ? 'checked' : '' }}>
       Pegawai dapat memilih/mengubah shiftnya sendiri melalui dasbor (terkunci otomatis setelah absen datang)
     </label>
     <button type="submit" class="btn btn-navy btn-kecil">Simpan</button>
@@ -97,7 +97,7 @@
   <div class="tabel-bungkus">
     <table class="tabel">
       <thead>
-        <tr><th>Nama Pegawai</th><th>Unit</th><th>Profesi</th><th style="min-width:240px">Shift Aktif</th></tr>
+        <tr><th>Nama Pegawai</th><th>Unit</th><th>Profesi</th><th class="min-w-[240px]">Shift Aktif</th></tr>
       </thead>
       <tbody>
         @foreach($pegawai as $p)
@@ -106,7 +106,7 @@
           <td>{{ $p->unit_nama ?? '—' }}@if($p->sub_nama) — {{ $p->sub_nama }}@endif</td>
           <td>{{ $p->profesi_nama ?? '—' }}</td>
           <td>
-            <form method="post" action="{{ url('admin/shift/aksi') }}" class="bilah-alat" style="margin:0">
+            <form method="post" action="{{ url('admin/shift/aksi') }}" class="bilah-alat m-0">
               @csrf
               <input type="hidden" name="aksi" value="atur_pegawai">
               <input type="hidden" name="user_id" value="{{ (int) $p->id }}">

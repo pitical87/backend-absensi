@@ -14,7 +14,7 @@
     <table class="tabel">
       <thead>
         <tr><th>Pegawai</th><th>Jenis</th><th>Tanggal</th><th>Lama</th>
-            <th>Alamat</th><th>Alasan</th><th style="min-width:260px">Tindakan</th></tr>
+            <th>Alamat</th><th>Alasan</th>            <th class="min-w-[260px]">Tindakan</th></tr>
       </thead>
       <tbody>
         @foreach($tugasSaya as $r)
@@ -38,10 +38,10 @@
             @endif
           </td>
           <td>
-            <form method="post" action="{{ url('persetujuan/proses') }}" class="bilah-alat" style="margin:0">
+            <form method="post" action="{{ url('persetujuan/proses') }}" class="bilah-alat m-0">
               @csrf
               <input type="hidden" name="id" value="{{ (int) $r->id }}">
-              <input type="text" name="catatan" placeholder="Catatan (opsional)…" style="min-width:120px">
+              <input type="text" name="catatan" placeholder="Catatan (opsional)…" class="min-w-[120px]">
               <button type="submit" name="putusan" value="setuju" class="btn btn-primer btn-kecil">Setujui</button>
               <button type="submit" name="putusan" value="tolak" class="btn btn-bahaya btn-kecil"
                       onclick="return confirm('Tolak pengajuan ini? Seluruh tahap berikutnya akan dibatalkan.');">Tolak</button>

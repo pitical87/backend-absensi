@@ -5,9 +5,15 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Absensi;
 use App\Models\ApiToken;
+use App\Models\HariLibur;
 use App\Models\Izin;
 use App\Models\IzinPersetujuan;
+use App\Models\JadwalShift;
 use App\Models\LoginAttempt;
+use App\Models\Profesi;
+use App\Models\Shift;
+use App\Models\SubUnit;
+use App\Models\UnitKerja;
 use App\Models\User;
 use App\Services\AbsenService;
 use App\Services\AlurIzinService;
@@ -106,11 +112,11 @@ class MobileController extends Controller
         $struktur = app(StrukturService::class);
 
         $sub = [];
-        foreach (DB::table('sub_unit')->orderBy('unit_kerja_id')->orderBy('id')->get() as $s) {
+        foreach (SubUnit::orderBy('unit_kerja_id')->orderBy('id')->get() as $s) {
             $sub[(int) $s->unit_kerja_id][] = ['id' => (int) $s->id, 'nama' => $s->nama];
         }
 
-        $unitList = DB::table('unit_kerja')->orderBy('id')->get()
+        $unitList = UnitKerja::orderBy('id')->get()
             ->map(fn ($u) => [
                 'id'        => (int) $u->id,
                 'nama'      => $u->nama,
@@ -118,7 +124,7 @@ class MobileController extends Controller
             ])
             ->values();
 
-        $profList = DB::table('profesi')->orderBy('id')->get()
+        $profList = Profesi::orderBy('id')->get()
             ->map(fn ($p) => ['id' => (int) $p->id, 'nama' => $p->nama])
             ->values();
 
@@ -175,19 +181,19 @@ class MobileController extends Controller
         }
 
         $unit = $d['unit_kerja_id']
-            ? DB::table('unit_kerja')->where('id', $d['unit_kerja_id'])->first()
+            ? UnitKerja::where('id', $d['unit_kerja_id'])->first()
             : null;
         if (! $unit) {
             $galat[] = 'Tempat kerja wajib dipilih.';
         } elseif ($unit->punya_sub) {
-            $sah = $d['sub_unit_id'] && DB::table('sub_unit')
-                ->where('id', $d['sub_unit_id'])->where('unit_kerja_id', $d['unit_kerja_id'])
+            $sah = $d['sub_unit_id'] && SubUnit::where('id', $d['sub_unit_id'])
+                ->where('unit_kerja_id', $d['unit_kerja_id'])
                 ->count() > 0;
             if (! $sah) $galat[] = 'Sub unit wajib dipilih untuk ' . $unit->nama . '.';
         } else {
             $d['sub_unit_id'] = null;
         }
-        if (! $d['profesi_id'] || DB::table('profesi')->where('id', $d['profesi_id'])->count() === 0) {
+        if (! $d['profesi_id'] || Profesi::where('id', $d['profesi_id'])->count() === 0) {
             $galat[] = 'Profesi wajib dipilih.';
         }
 
@@ -532,14 +538,13 @@ class MobileController extends Controller
         $user = $req->get('user');
         $today = now()->toDateString();
 
-        $jadwal = \Illuminate\Support\Facades\DB::table('jadwal_shift')
-            ->where('user_id', $user->id)
+        $jadwal = JadwalShift::where('user_id', $user->id)
             ->where('tanggal_berlaku', '<=', $today)
             ->orderByDesc('tanggal_berlaku')
             ->first();
 
         $shiftId = $jadwal ? (int) $jadwal->shift_id : $user->shift_id;
-        $shift = $shiftId ? \App\Models\Shift::find($shiftId) : null;
+        $shift = $shiftId ? Shift::find($shiftId) : null;
 
         return response()->json([
             'sukses' => true,
@@ -647,8 +652,8 @@ class MobileController extends Controller
             pastikan_libur_tetap((int) date('Y', strtotime($mulai)));
             pastikan_libur_tetap((int) date('Y', strtotime($selesai)));
             $liburSet = [];
-            foreach (DB::table('hari_libur')->get() as $h) {
-                $liburSet[$h->tanggal] = true;
+            foreach (HariLibur::all() as $h) {
+                $liburSet[$h->tanggal->format('Y-m-d')] = true;
             }
             $mingguLibur = pengaturan('minggu_libur', '0') === '1';
             $lamaHari = hari_kerja_antara($mulai, $selesai, $liburSet, $mingguLibur);

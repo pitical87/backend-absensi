@@ -1,9 +1,403 @@
 @import 'tailwindcss';
 
+@source '../../resources/views/**/*.blade.php';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+  --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --color-navy: #0B3B66;
+  --color-navy-tua: #072A4B;
+  --color-biru: #1568B8;
+  --color-biru-terang: #2F87DE;
+  --color-biru-muda: #E3F0FB;
+  --color-biru-pucat: #F0F7FD;
+  --color-latar: #F3F8FD;
+  --color-putih: #FFFFFF;
+  --color-garis: #D7E5F2;
+  --color-teks: #1C2B3A;
+  --color-teks-redup: #5C7189;
+  --color-hijau: #178A50;
+  --color-hijau-bg: #E5F6EC;
+  --color-amber: #A85B07;
+  --color-amber-bg: #FBF0DC;
+  --color-merah: #C02626;
+  --color-merah-bg: #FCE8E8;
+  --color-oranye: #C2540A;
+  --color-ungu-bg: #F1EBFB;
+  --color-ungu: #6B3FA0;
+  --color-teal-bg: #E2F6F3;
+  --color-teal: #0E7C6B;
+}
+
+/* ── Global CSS variables (for inline style backward compatibility) ── */
+:root {
+  --navy: #0B3B66;
+  --navy-tua: #072A4B;
+  --biru: #1568B8;
+  --biru-terang: #2F87DE;
+  --biru-muda: #E3F0FB;
+  --biru-pucat: #F0F7FD;
+  --latar: #F3F8FD;
+  --putih: #FFFFFF;
+  --garis: #D7E5F2;
+  --teks: #1C2B3A;
+  --teks-redup: #5C7189;
+  --hijau: #178A50;
+  --hijau-bg: #E5F6EC;
+  --amber: #A85B07;
+  --amber-bg: #FBF0DC;
+  --merah: #C02626;
+  --merah-bg: #FCE8E8;
+  --oranye: #C2540A;
+}
+
+/* ── Base ── */
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  @apply m-0 text-[15px] leading-[1.55] text-teks bg-latar;
+}
+.latar-pola {
+  background-color: var(--color-latar);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56'%3E%3Cpath d='M26 22h4v4h4v4h-4v4h-4v-4h-4v-4h4z' fill='%231568B8' fill-opacity='.045'/%3E%3C/svg%3E");
+}
+img { @apply max-w-full; }
+a { @apply text-biru no-underline; }
+a:hover { @apply underline; }
+h1, h2, h3 { @apply leading-tight text-navy mb-1 tracking-tight; }
+h1 { @apply text-[1.45rem]; }
+h2 { @apply text-[1.15rem]; }
+h3 { @apply text-base; }
+
+:focus-visible {
+  @apply outline-3 outline-biru-terang outline-offset-2 rounded;
+}
+
+/* ── Utility classes ── */
+.eyebrow { @apply inline-block text-[0.68rem] font-bold tracking-[0.12em] uppercase text-biru mb-1; }
+.teks-redup { @apply text-teks-redup; }
+.teks-kecil { @apply text-[0.82rem]; }
+.angka { font-variant-numeric: tabular-nums; }
+.tengah { @apply text-center; }
+.mt-0 { @apply mt-0; }
+.mb-0 { @apply mb-0; }
+
+/* ── EKG denyut ── */
+.denyut { @apply block w-full h-[26px] text-biru-terang opacity-90; }
+.denyut-navy { color: rgba(255,255,255,.55); }
+
+/* ── Flash messages ── */
+.flash { @apply px-4 py-3 rounded-[9px] border-[1.5px] font-semibold mb-4; }
+.flash-success { @apply bg-hijau-bg border-[#BCE5CC] text-hijau; }
+.flash-error { @apply bg-merah-bg border-[#F2C4C4] text-merah; }
+.flash-info { @apply bg-biru-muda border-[#C4DCF3] text-biru; }
+
+/* ── Buttons ── */
+.btn {
+  @apply inline-flex items-center justify-center gap-2 py-[10px] px-[18px] font-semibold rounded-[9px]
+         border-[1.5px] border-transparent cursor-pointer no-underline whitespace-nowrap
+         transition-all duration-150;
+}
+.btn:hover { @apply no-underline; }
+.btn:active { @apply translate-y-px; }
+.btn:disabled { @apply opacity-55 cursor-not-allowed; transform: none; }
+
+.btn-primer { @apply bg-biru text-white; }
+.btn-primer:hover { @apply bg-biru-terang; }
+.btn-navy { @apply bg-navy text-white; }
+.btn-navy:hover { @apply bg-navy-tua; }
+.btn-garis { @apply bg-putih text-navy border-garis; }
+.btn-garis:hover { @apply border-biru text-biru; }
+.btn-bahaya { @apply bg-merah-bg text-merah; }
+.btn-bahaya:hover { @apply bg-[#F8D7D7]; }
+.btn-kecil { @apply py-[6px] px-3 text-[0.82rem]; }
+.btn-blok { @apply w-full; }
+
+/* ── Forms ── */
+.form-grup { @apply mb-3.5; }
+.form-grup label { @apply block text-[0.83rem] font-semibold text-navy mb-[5px]; }
+.wajib::after { content: " *"; @apply text-merah; }
+input[type="text"], input[type="email"], input[type="password"],
+input[type="date"], input[type="number"], input[type="tel"],
+input[type="time"], input[type="month"], select, textarea {
+  @apply w-full py-[10px] px-3 text-teks bg-putih border-[1.5px] border-garis
+         rounded-[9px] transition-all duration-150;
+}
+input:focus, select:focus, textarea:focus {
+  @apply outline-none border-biru ring-3 ring-biru/15;
+}
+select { @apply appearance-auto; }
+.form-baris { @apply grid grid-cols-2 gap-x-3.5 gap-y-3; }
+@media (max-width: 560px) { .form-baris { @apply grid-cols-1; } }
+.petunjuk { @apply text-[0.76rem] text-teks-redup mt-1; }
+
+/* ── Wizard langkah (auth/register) ── */
+.stepper { @apply flex items-center justify-between gap-2 mb-5; }
+.stepper-item { @apply flex flex-col items-center gap-1.5 flex-1 text-center relative; }
+.stepper-angka {
+  @apply w-8 h-8 flex items-center justify-center rounded-full text-[0.85rem] font-bold
+         bg-garis text-teks-redup border-[1.5px] border-garis;
+}
+.stepper-label { @apply text-[0.72rem] font-semibold text-teks-redup leading-tight; }
+.stepper-active .stepper-angka { @apply bg-biru text-white border-biru; }
+.stepper-active .stepper-label { @apply text-biru; }
+.stepper-item:not(:last-child)::after {
+  content: "";
+  @apply absolute top-4 left-1/2 w-full h-[2px] bg-garis;
+}
+.stepper-item.stepper-active:not(:last-child)::after { @apply bg-biru; }
+.langkah-judul { @apply text-[0.95rem] text-navy font-bold mb-3 pb-2 border-b border-garis; }
+.langkah-nav .form-grup { @apply mb-0; }
+
+/* ── Cards ── */
+.kartu { @apply bg-putih border border-garis rounded-[14px] shadow-[0_1px_2px_rgba(11,59,102,.06),0_6px_18px_rgba(11,59,102,.07)] p-5 mb-[18px]; }
+.kartu-kepala { @apply flex items-center justify-between gap-2.5 flex-wrap mb-3; }
+.kartu-kepala h2 { @apply m-0 flex items-center gap-2; }
+.kartu-kepala h2 .ikon { @apply text-biru; }
+
+/* ── Badge ── */
+.badge { @apply inline-block py-[3px] px-[9px] rounded-full text-[0.72rem] font-bold whitespace-nowrap; }
+.badge-hijau { @apply bg-hijau-bg text-hijau; }
+.badge-amber { @apply bg-amber-bg text-amber; }
+.badge-merah { @apply bg-merah-bg text-merah; }
+.badge-biru { @apply bg-biru-muda text-biru; }
+.badge-abu { @apply bg-[#EDF2F7] text-teks-redup; }
+.badge-emas { @apply bg-[#FDF3D7] text-[#A87900]; }
+.badge-ungu { @apply bg-ungu-bg text-ungu; }
+.badge-teal { @apply bg-teal-bg text-teal; }
+.teks-bintang { @apply text-[#E8A800] tracking-[1px] text-[0.95rem]; }
+
+/* ── Table ── */
+.tabel-bungkus { @apply overflow-x-auto border border-garis rounded-[9px]; }
+table.tabel { @apply w-full border-collapse text-[0.87rem] min-w-[540px]; }
+.tabel th {
+  @apply bg-biru-pucat text-navy text-[0.72rem] uppercase tracking-[0.07em] text-left
+         py-[9px] px-3 border-b-[1.5px] border-garis whitespace-nowrap;
+}
+.tabel td { @apply py-[9px] px-3 border-b border-[#E9F1F9] align-middle; }
+.tabel tbody tr:last-child td { @apply border-b-0; }
+.tabel tbody tr:hover { @apply bg-[#F7FBFE]; }
+.tabel .angka { font-variant-numeric: tabular-nums; }
+
+/* ── Chips filter ── */
+.chips { @apply flex flex-wrap gap-2 mb-3.5; }
+.chip {
+  @apply inline-flex items-center gap-1.5 py-[6px] px-[13px] rounded-full
+         bg-[#EAF3FC] text-navy text-[0.82rem] font-semibold no-underline
+         border-[1.5px] border-transparent transition-colors;
+}
+.chip:hover { @apply border-[#9CC4E8]; }
+.chip.aktif { @apply bg-navy text-white; }
+.chip .jml { @apply bg-white/25 rounded-full px-2 text-[0.75rem]; }
+.chip:not(.aktif) .jml { @apply bg-white; }
+
+/* ── Pagination ── */
+.paginasi { @apply flex gap-1.5 mt-3.5 items-center flex-wrap; }
+.paginasi a, .paginasi span { @apply py-[6px] px-3 rounded-lg text-[0.84rem] no-underline bg-[#EAF3FC] text-navy font-semibold; }
+.paginasi span.aktif { @apply bg-navy text-white; }
+.paginasi .info { @apply bg-transparent text-teks-redup font-medium; }
+
+/* ── Charts ── */
+.grafik-bungkus { @apply overflow-x-auto; }
+.grafik-bungkus svg { @apply block min-w-[560px] w-full h-auto; }
+.legenda { @apply flex flex-wrap gap-[14px] text-[0.76rem] text-teks-redup mt-2; }
+.legenda span { @apply inline-flex items-center gap-1.5; }
+.legenda i { @apply w-[11px] h-[11px] rounded-[3px] inline-block; }
+
+/* ── Action row ── */
+.aksi-baris { @apply flex gap-1.5 flex-wrap; }
+.aksi-baris form { @apply inline; }
+
+/* ── Divider ── */
+.pembatas { @apply border-none border-t-[1.5px] border-dashed border-garis my-[22px]; }
+
+/* ── Log time ── */
+.log-waktu { @apply whitespace-nowrap text-teks-redup text-[0.8rem]; }
+
+/* ── Kunci API ── */
+.kotak-kunci { @apply flex gap-2 items-center bg-latar border-[1.5px] border-dashed border-[#9CC4E8] rounded-[10px] py-2.5 px-[13px]; }
+.kotak-kunci code { @apply text-[0.85rem] text-navy break-all flex-1; }
+
+/* ── Foto mini ── */
+.foto-mini { @apply flex gap-1.5; }
+.foto-mini a { @apply block w-[44px] h-[44px] rounded-lg overflow-hidden border-[1.5px] border-[#C9DDF0] bg-latar; }
+.foto-mini img { @apply w-full h-full object-cover block; }
+
+/* ── Anomali ── */
+.anomali-baris td { @apply bg-[#FFF9EC]; }
+.catatan-anomali { @apply text-[0.76rem] text-[#8A6100] mt-1 leading-snug; }
+
+/* ── Sidebar nav ── */
+.nav-item {
+  @apply flex items-center gap-[11px] py-2 px-3 rounded-lg text-white/82 text-[0.85rem]
+         font-medium mb-px no-underline transition-colors;
+}
+.nav-item:hover { @apply bg-white/9 text-white no-underline; }
+.nav-item.aktif { @apply bg-white/16 text-white font-semibold; }
+.nav-item .ikon { @apply shrink-0 opacity-90; }
+
+/* ── Stats ── */
+.stat-grid { @apply grid grid-cols-[repeat(auto-fit,minmax(128px,1fr))] gap-2.5; }
+.stat {
+  @apply bg-biru-pucat border border-garis rounded-[9px] py-3 px-3.5;
+}
+.stat span { @apply block text-[0.68rem] uppercase tracking-[0.08em] text-teks-redup; }
+.stat strong { @apply text-[1.35rem] text-navy leading-tight; font-variant-numeric: tabular-nums; }
+.stat.hijau { @apply bg-hijau-bg border-[#BCE5CC]; }
+.stat.hijau strong { @apply text-hijau; }
+.stat.amber { @apply bg-amber-bg border-[#EED9B4]; }
+.stat.amber strong { @apply text-amber; }
+.stat.merah { @apply bg-merah-bg border-[#F2C4C4]; }
+.stat.merah strong { @apply text-merah; }
+
+.stat-admin {
+  @apply grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-3.5 mb-[18px];
+}
+.stat-admin .kartu { @apply m-0 py-4 px-[18px] flex gap-3.5 items-center; }
+.stat-admin .lingkar {
+  @apply shrink-0 w-[46px] h-[46px] rounded-xl grid place-items-center bg-biru-muda text-biru;
+}
+.stat-admin .lingkar.hijau { @apply bg-hijau-bg text-hijau; }
+.stat-admin .lingkar.amber { @apply bg-amber-bg text-amber; }
+.stat-admin .lingkar.merah { @apply bg-merah-bg text-merah; }
+.stat-admin strong { @apply block text-[1.45rem] text-navy leading-tight; font-variant-numeric: tabular-nums; }
+.stat-admin span { @apply text-[0.76rem] text-teks-redup; }
+
+/* ── Bilah alat filter ── */
+.bilah-alat { @apply flex flex-wrap gap-2.5 items-end mb-3.5; }
+.bilah-alat .form-grup { @apply m-0; }
+.bilah-alat input, .bilah-alat select { @apply w-auto min-w-[140px]; }
+
+/* ── Peta ── */
+#peta, #peta-atur {
+  @apply w-full h-[380px] rounded-[9px] border border-garis bg-biru-pucat z-[1];
+}
+.peta-kosong { @apply grid place-items-center h-full text-teks-redup text-[0.85rem] text-center p-5; }
+
+/* ── Identitas pegawai ── */
+.identitas {
+  @apply bg-gradient-to-br from-navy via-[#0F4E8C] to-biru text-white border-none;
+}
+.identitas .eyebrow { @apply text-[#A9D3F7]; }
+.identitas h1 { @apply text-white mb-0.5; }
+.identitas-grid {
+  @apply grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-y-2.5 gap-x-[18px] mt-3;
+}
+.identitas-grid .item span {
+  @apply block text-[0.68rem] uppercase tracking-[0.1em] text-[#A9D3F7];
+}
+.identitas-grid .item strong { @apply text-[0.95rem] font-semibold; }
+
+/* ── Tombol absensi ── */
+.absen-baris { @apply grid grid-cols-2 gap-3.5; }
+@media (max-width: 520px) { .absen-baris { @apply grid-cols-1; } }
+.btn-absen {
+  @apply flex items-center gap-3.5 py-4 px-[18px] rounded-[14px] border-2 border-transparent
+         cursor-pointer text-left transition-all;
+}
+.btn-absen:active { @apply translate-y-px; }
+.btn-absen:disabled { @apply opacity-50 cursor-not-allowed; }
+.btn-absen .lingkar {
+  @apply shrink-0 w-[52px] h-[52px] rounded-full grid place-items-center;
+}
+.btn-absen strong { @apply block text-[1.02rem] tracking-[0.02em]; }
+.btn-absen small { @apply block text-[0.76rem] opacity-85; }
+.btn-datang { @apply bg-biru text-white shadow-[0_8px_20px_rgba(21,104,184,.35)]; }
+.btn-datang:hover:not(:disabled) { @apply bg-biru-terang; }
+.btn-datang .lingkar { @apply bg-white/18; }
+.btn-pulang { @apply bg-putih text-navy border-garis; }
+.btn-pulang:hover:not(:disabled) { @apply border-oranye text-oranye; }
+.btn-pulang .lingkar { @apply bg-[#FBEADD] text-oranye; }
+.btn-absen.mencari .lingkar { animation: denyut-gps 1.2s ease-out infinite; }
+@keyframes denyut-gps {
+  0%   { box-shadow: 0 0 0 0 rgba(47,135,222,.55); }
+  100% { box-shadow: 0 0 0 16px rgba(47,135,222,0); }
+}
+
+/* ── Pesan hasil absen ── */
+.pesan-hasil {
+  @apply mt-3.5 py-3.5 px-4 rounded-[9px] border-[1.5px] flex gap-2.5 items-start font-semibold;
+}
+.pesan-hasil .ikon { @apply shrink-0 mt-0.5; }
+.pesan-hasil small { @apply block font-normal text-inherit opacity-85 mt-0.5; }
+.pesan-sukses { @apply bg-hijau-bg border-[#BCE5CC] text-hijau; }
+.pesan-telat { @apply bg-amber-bg border-[#EED9B4] text-amber; }
+.pesan-gagal { @apply bg-merah-bg border-[#F2C4C4] text-merah; }
+.pesan-info { @apply bg-biru-muda border-[#C4DCF3] text-biru; }
+
+/* ── Status GPS ── */
+.status-gps { @apply flex items-center gap-[7px] text-[0.78rem] text-teks-redup mt-3; }
+.status-gps .titik { @apply w-2 h-2 rounded-full bg-hijau; }
+.status-gps.mati .titik { @apply bg-merah; }
+
+/* ── Jam hari ini ── */
+.jam-hari-ini { @apply grid grid-cols-2 gap-2.5 mt-3.5; }
+.jam-hari-ini .kotak {
+  @apply bg-biru-pucat border border-garis rounded-[9px] py-2.5 px-3 text-center;
+}
+.jam-hari-ini span { @apply block text-[0.7rem] uppercase tracking-[0.09em] text-teks-redup; }
+.jam-hari-ini strong { @apply text-[1.25rem] text-navy; font-variant-numeric: tabular-nums; }
+
+/* ── Modal kamera selfie ── */
+.modal-tirai {
+  @apply fixed inset-0 bg-[rgba(7,26,44,.55)] hidden items-center justify-center z-[60] p-4;
+}
+.modal-tirai.terbuka { @apply flex; }
+.modal-kamera {
+  @apply bg-white rounded-2xl w-full max-w-[420px] shadow-[0_18px_50px_rgba(7,26,44,.35)] overflow-hidden;
+}
+.modal-kamera header {
+  @apply bg-navy text-white py-3 px-[18px] flex items-center gap-[9px] font-bold text-[0.95rem];
+}
+.modal-kamera .isi { @apply py-4 px-[18px] pb-[18px]; }
+.bingkai-kamera {
+  @apply relative rounded-xl overflow-hidden bg-[#0D1B2A] aspect-[4/3];
+}
+.bingkai-kamera video, .bingkai-kamera canvas, .bingkai-kamera img {
+  @apply w-full h-full object-cover block -scale-x-100;
+}
+.bingkai-kamera .garis {
+  @apply absolute inset-3 border-2 border-dashed border-white/45 rounded-[10px] pointer-events-none;
+}
+.modal-kamera .ket { @apply text-[0.8rem] text-teks-redup mt-2.5 mb-3; }
+.modal-kamera .aksi-baris { @apply justify-end; }
+
+/* ── Modal struktur ── */
+.modal-tirai .modal-kamera {
+  @apply bg-white rounded-2xl w-full max-w-[420px] shadow-[0_18px_50px_rgba(7,26,44,.35)] overflow-hidden;
+}
+
+/* ── Footer ── */
+.kaki { @apply text-center text-[0.74rem] text-teks-redup py-2.5 px-4 pb-7; }
+
+/* ── Org structure tree ── */
+.pohon { list-style: none; margin: 0; padding: 0; }
+.pohon ul { list-style: none; margin: 0; padding-left: 26px; position: relative; }
+.pohon ul::before { content: ""; position: absolute; left: 9px; top: 0; bottom: 14px;
+  border-left: 2px solid #C9DDF0; }
+.pohon li { position: relative; padding: 5px 0; }
+.pohon ul li::before { content: ""; position: absolute; left: -17px; top: 26px; width: 16px;
+  border-top: 2px solid #C9DDF0; }
+.simpul { display: inline-flex; align-items: flex-start; gap: 10px; background: #fff;
+  border: 1.5px solid #C9DDF0; border-radius: 12px; padding: 9px 14px; min-width: 240px;
+  box-shadow: 0 1px 4px rgba(11,59,102,.06); }
+.simpul .tanda { width: 9px; height: 9px; border-radius: 50%; margin-top: 6px; flex: none;
+  background: #1568B8; }
+.simpul.direktur { border-color: #0B3B66; background: #0B3B66; color: #fff; }
+.simpul.direktur .tanda { background: #7FE3B0; }
+.simpul.kabid .tanda, .simpul.kabag .tanda { background: #0B3B66; }
+.simpul.kasi .tanda, .simpul.kasubag .tanda { background: #2F87DE; }
+.simpul .isi-simpul { line-height: 1.4; }
+.simpul .nama-jab { font-weight: 700; font-size: .92rem; }
+.simpul .pejabat { font-size: .82rem; }
+.simpul .pejabat small { color: #5C7189; }
+.simpul.direktur .pejabat small { color: #BFD7EC; }
+.simpul .kosong { font-size: .8rem; font-style: italic; color: #98A9BC; }
+.simpul.direktur .kosong { color: #9DBAD6; }
+.simpul .aksi-simpul { margin-left: auto; display: flex; gap: 5px; align-self: center; }
+
+/* ── Accessibility ── */
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }

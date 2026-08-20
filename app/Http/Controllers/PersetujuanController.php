@@ -2,15 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HasPenggunaAktif;
 use App\Models\Izin;
 use App\Models\IzinPersetujuan;
 use App\Models\User;
 use App\Services\AlurIzinService;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class PersetujuanController extends Controller
 {
+    use HasPenggunaAktif;
+
     public function index()
     {
         $u = $this->penggunaAktif();
@@ -19,7 +20,7 @@ class PersetujuanController extends Controller
         }
         if ($u['posisi'] === 'Staf') {
             return redirect('dashboard')
-                ->with('flash_gagal', 'Menu ini hanya tersedia bagi pejabat dalam alur persetujuan.');
+                ->with('error', 'Menu ini hanya tersedia bagi pejabat dalam alur persetujuan.');
         }
 
         $lib = app(AlurIzinService::class);
@@ -36,6 +37,7 @@ class PersetujuanController extends Controller
             ->get();
 
         $tugasSaya = [];
+        $userObj = User::find($u['id']);
         foreach ($kandidat as $r) {
             $pemohon = [
                 'id' => $r->user_id, 'posisi' => $r->user->posisi,
@@ -43,13 +45,12 @@ class PersetujuanController extends Controller
                 'unit_kerja_id' => $r->user->unit_kerja_id, 'sub_unit_id' => $r->user->sub_unit_id,
             ];
             $pengajuanRingkas = ['id' => $r->id, 'tahap_aktif' => $r->tahap_aktif];
-            $userObj =User::find($u['id']);
             if ($lib->bolehBertindak($pengajuanRingkas, $pemohon, $userObj) && $u['role'] !== 'admin') {
                 $tugasSaya[] = $r;
             }
         }
 
-        $riwayatSaya = IzinPersetujuan::with(['pengajuan:user,id,jenis,jenis_cuti,tanggal_mulai,tanggal_selesai', 'pengajuan.user:id,nama_lengkap'])
+        $riwayatSaya = IzinPersetujuan::with(['pengajuan:id,user_id,jenis,jenis_cuti,tanggal_mulai,tanggal_selesai', 'pengajuan.user:id,nama_lengkap'])
             ->where('oleh_user_id', $u['id'])
             ->orderBy('waktu', 'DESC')
             ->limit(30)
@@ -61,7 +62,7 @@ class PersetujuanController extends Controller
         ]);
     }
 
-    public function proses(Request $request)
+    public function proses(\Illuminate\Http\Request $request)
     {
         $u = $this->penggunaAktif();
         if (! $u) {
@@ -75,7 +76,7 @@ class PersetujuanController extends Controller
         $iz = Izin::with('user:id,id,nama_lengkap,unit_kerja_id,sub_unit_id,jabatan_id,seksi_pembina_id,posisi')->find($id);
         if (! $iz || $iz->status !== 'Menunggu' || (int) $iz->tahap_aktif === 0) {
             return redirect('persetujuan')
-                ->with('flash_gagal', 'Pengajuan tidak ditemukan atau sudah diproses.');
+                ->with('error', 'Pengajuan tidak ditemukan atau sudah diproses.');
         }
 
         $lib = app(AlurIzinService::class);
@@ -84,7 +85,7 @@ class PersetujuanController extends Controller
         $userObj = User::find($u['id']);
         if (! $lib->bolehBertindak($izArr, $pemohonArr, $userObj)) {
             return redirect('persetujuan')
-                ->with('flash_gagal', 'Anda tidak berwenang memutus pengajuan ini pada tahap saat ini.');
+                ->with('error', 'Anda tidak berwenang memutus pengajuan ini pada tahap saat ini.');
         }
 
         $hasil = $lib->proses($izArr, $pemohonArr, (int) $u['id'], $putusan, $catatan);
@@ -96,41 +97,6 @@ class PersetujuanController extends Controller
             'Disetujui' => 'Pengajuan disetujui penuh — dokumen resmi kini tersedia untuk pemohon.',
             default     => 'Persetujuan Anda tercatat, pengajuan diteruskan ke tahap berikutnya.',
         };
-        return redirect('persetujuan')->with('flash_sukses', $pesan);
-    }
-
-    private function penggunaAktif(): ?array
-    {
-        static $cache = false;
-        if ($cache !== false) {
-            return $cache;
-        }
-        $uid = (int) (session('uid') ?? 0);
-        if (! $uid) {
-            return $cache = null;
-        }
-        $u = DB::table('users as u')
-            ->select('u.*', 'uk.nama AS unit_nama', 'su.nama AS sub_unit_nama', 'p.nama AS profesi_nama',
-                     's.kategori AS shift_kategori', 's.jam_masuk AS shift_jam_masuk',
-                     's.jam_pulang AS shift_jam_pulang',
-                     'j.nama AS jabatan_nama',
-                     DB::raw('COALESCE(j.unit_label, ji.unit_label) AS jabatan_unit'),
-                     'sp.nama AS seksi_pembina_nama', 'spi.unit_label AS bidang_pembina_label')
-            ->leftJoin('unit_kerja as uk', 'uk.id', '=', 'u.unit_kerja_id')
-            ->leftJoin('sub_unit as su', 'su.id', '=', 'u.sub_unit_id')
-            ->leftJoin('profesi as p', 'p.id', '=', 'u.profesi_id')
-            ->leftJoin('shift as s', 's.id', '=', 'u.shift_id')
-            ->leftJoin('jabatan as j', 'j.id', '=', 'u.jabatan_id')
-            ->leftJoin('jabatan as ji', 'ji.id', '=', 'j.induk_id')
-            ->leftJoin('jabatan as sp', 'sp.id', '=', 'u.seksi_pembina_id')
-            ->leftJoin('jabatan as spi', 'spi.id', '=', 'sp.induk_id')
-            ->where('u.id', $uid)
-            ->first();      
-
-        if (! $u || $u->status !== 'aktif') {
-            session()->flush();
-            return $cache = null;
-        }
-        return $cache = (array) $u;
+        return redirect('persetujuan')->with('success', $pesan);
     }
 }

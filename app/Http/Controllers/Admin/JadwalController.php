@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\JadwalShift;
+use App\Models\Shift;
+use App\Models\SubUnit;
+use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class JadwalController extends Controller
 {
@@ -14,18 +17,16 @@ class JadwalController extends Controller
         $tahun     = (int) $request->get('tahun', now()->year);
         $subUnitId = (int) $request->get('sub_unit');
 
-        $subUnits = DB::table('sub_unit as su')
-            ->join('unit_kerja as uk', 'uk.id', '=', 'su.unit_kerja_id')
-            ->select('su.id', 'su.nama', 'uk.nama as unit_nama')
-            ->orderBy('uk.nama')->orderBy('su.nama')
+        $subUnits = SubUnit::select('sub_unit.id', 'sub_unit.nama', 'uk.nama as unit_nama')
+            ->join('unit_kerja as uk', 'uk.id', '=', 'sub_unit.unit_kerja_id')
+            ->orderBy('uk.nama')->orderBy('sub_unit.nama')
             ->get();
 
         $pegawai  = [];
         $jadwal   = [];
 
         if ($subUnitId) {
-            $pegawai = DB::table('users')
-                ->where('sub_unit_id', $subUnitId)
+            $pegawai = User::where('sub_unit_id', $subUnitId)
                 ->where('role', '!=', 'admin')
                 ->where('status', 'aktif')
                 ->orderBy('nama_lengkap')
@@ -37,8 +38,7 @@ class JadwalController extends Controller
             $akhir = sprintf('%04d-%02d-%02d', $tahun, $bulan,
                 cal_days_in_month(CAL_GREGORIAN, $bulan, $tahun));
 
-            $jadwalRows = DB::table('jadwal_shift')
-                ->whereIn('user_id', $userIds)
+            $jadwalRows = JadwalShift::whereIn('user_id', $userIds)
                 ->where('tanggal_berlaku', '>=', $awal)
                 ->where('tanggal_berlaku', '<=', $akhir)
                 ->get();
@@ -48,7 +48,7 @@ class JadwalController extends Controller
             }
         }
 
-        $shiftList = DB::table('shift')->where('aktif', 1)->orderBy('jam_masuk')->get();
+        $shiftList = Shift::where('aktif', 1)->orderBy('jam_masuk')->get();
 
         $hariDalamBulan = (int) cal_days_in_month(CAL_GREGORIAN, $bulan, $tahun);
 
@@ -77,14 +77,12 @@ class JadwalController extends Controller
         $akhir = sprintf('%04d-%02d-%02d', $tahun, $bulan,
             cal_days_in_month(CAL_GREGORIAN, $bulan, $tahun));
 
-        $userIds = DB::table('users')
-            ->where('sub_unit_id', $subUnitId)
+        $userIds = User::where('sub_unit_id', $subUnitId)
             ->where('role', '!=', 'admin')
             ->pluck('id')
             ->toArray();
 
-        DB::table('jadwal_shift')
-            ->whereIn('user_id', $userIds)
+        JadwalShift::whereIn('user_id', $userIds)
             ->where('tanggal_berlaku', '>=', $awal)
             ->where('tanggal_berlaku', '<=', $akhir)
             ->delete();
@@ -104,7 +102,7 @@ class JadwalController extends Controller
         }
 
         if ($rows) {
-            DB::table('jadwal_shift')->insert($rows);
+            JadwalShift::insert($rows);
         }
 
         $hariDalamBulan = (int) cal_days_in_month(CAL_GREGORIAN, $bulan, $tahun);
@@ -118,14 +116,17 @@ class JadwalController extends Controller
                 }
             }
             if ($lastShift) {
-                DB::table('users')->where('id', $userId)->update(['shift_id' => $lastShift]);
+                User::where('id', $userId)->update(['shift_id' => $lastShift]);
             }
         }
 
-        $subUnitNama = DB::table('sub_unit')->where('id', $subUnitId)->value('nama') ?? '#'.$subUnitId;
+        $subUnitNama = SubUnit::find($subUnitId)?->nama ?? '#' . $subUnitId;
         catat_aktivitas('Atur Jadwal Shift', "Sub Unit $subUnitNama bulan " . BULAN_ID[$bulan] . "/$tahun");
 
-        return redirect(url("admin/jadwal?sub_unit=$subUnitId&bulan=$bulan&tahun=$tahun"))
-            ->with('flash_sukses', 'Jadwal shift berhasil disimpan.');
+        return redirect()->route('admin.jadwal', [
+            'sub_unit' => $subUnitId,
+            'bulan'    => $bulan,
+            'tahun'    => $tahun,
+        ])->with('success', 'Jadwal shift berhasil disimpan.');
     }
 }

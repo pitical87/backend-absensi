@@ -25,12 +25,18 @@
   <form method="post" action="{{ route('izin') }}" enctype="multipart/form-data">
     @csrf
 
+    @if($errors->any())
+      <div class="flash flash-error">
+        @foreach($errors->all() as $pesan)<div>{{ $pesan }}</div>@endforeach
+      </div>
+    @endif
+
     <div class="form-baris">
       <div class="form-grup">
         <label class="wajib">Jenis Pengajuan</label>
         <select name="jenis" id="jenis" required>
           @foreach($jenisList as $j)
-            <option>{{ $j }}</option>
+            <option value="{{ $j }}" {{ old('jenis') === $j ? 'selected' : '' }}>{{ $j }}</option>
           @endforeach
         </select>
         @if(!is_pns((object)$u))
@@ -42,7 +48,7 @@
         <select name="jenis_cuti" id="jenis_cuti">
           <option value="">— Pilih —</option>
           @foreach($jenisCutiList as $jc)
-            <option>{{ $jc }}</option>
+            <option value="{{ $jc }}" {{ old('jenis_cuti') === $jc ? 'selected' : '' }}>{{ $jc }}</option>
           @endforeach
         </select>
       </div>
@@ -51,24 +57,24 @@
     <div class="form-baris">
       <div class="form-grup">
         <label class="wajib">Tanggal Mulai</label>
-        <input type="date" name="tanggal_mulai" id="tanggal_mulai" required value="{{ date('Y-m-d') }}">
+        <input type="date" name="tanggal_mulai" id="tanggal_mulai" required value="{{ old('tanggal_mulai', date('Y-m-d')) }}">
       </div>
       <div class="form-grup">
         <label>Tanggal Selesai</label>
-        <input type="date" name="tanggal_selesai" id="tanggal_selesai">
+        <input type="date" name="tanggal_selesai" id="tanggal_selesai" value="{{ old('tanggal_selesai') }}">
         <div class="petunjuk" id="ket-lama">Kosongkan bila hanya satu hari.</div>
       </div>
     </div>
 
     <div class="form-grup" id="grup-alamat" hidden>
       <label class="wajib">Alamat Selama Izin/Cuti</label>
-      <input type="text" name="alamat_izin" placeholder="cth. Jl. Trikora No. 5, Merauke">
+      <input type="text" name="alamat_izin" placeholder="cth. Jl. Trikora No. 5, Merauke" value="{{ old('alamat_izin') }}">
     </div>
 
     <div class="form-grup">
       <label class="wajib">Alasan / Keperluan</label>
       <textarea name="keterangan" rows="3" required
-        placeholder="cth. Sakit demam, surat keterangan dokter terlampir"></textarea>
+        placeholder="cth. Sakit demam, surat keterangan dokter terlampir">{{ old('keterangan') }}</textarea>
     </div>
 
     <div class="form-grup">
@@ -108,7 +114,7 @@
             @if(! empty($tahapPer[$r->id]))
               @foreach($tahapPer[$r->id] as $t)
                 {!! label_tahap_izin((int) $t->tahap) !!} {!! badge_tahap($t->status) !!}
-                @if($t->oleh_nama)<span class="teks-redup">— {{ $t->oleh_nama }}</span>@endif
+                @if($t->user)<span class="teks-redup">— {{ $t->user->nama_lengkap }}</span>@endif
                 <br>
               @endforeach
             @elseif($r->diproses_oleh)

@@ -5,26 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ $judul ?? 'Sistem Absensi Pegawai RSUD Merauke' }}</title>
 <link rel="icon" type="image/svg+xml" href="{{ asset('assets/img/logo.svg') }}">
-<link rel="stylesheet" href="{{ asset('assets/css/style.css') }}">
+@vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="latar-pola">
-<div class="auth-bungkus">
-  <div class="auth-kartu {{ ! empty($lebar) ? 'lebar' : '' }}">
-    <div class="auth-kepala">
-      <img class="logo" src="{{ asset('assets/img/logo.svg') }}" alt="Logo RSUD Merauke">
-      <h1>{!! $judulKartu ?? 'Sistem Absensi Pegawai<br>RSUD Merauke' !!}</h1>
-      <p>{{ $subJudul ?? 'Kabupaten Merauke — Papua Selatan' }}</p>
-      <svg class="denyut denyut-navy" viewBox="0 0 400 26" preserveAspectRatio="none" aria-hidden="true">
-        <path d="M0 13h130l10-9 14 18 12-14 8 5h226" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
+<div class="min-h-dvh flex items-center justify-center p-7 md:p-4">
+  <div class="w-full {{ (! empty($lebar)) ? 'max-w-[640px]' : 'max-w-[420px]' }} bg-putih border border-garis rounded-xl overflow-hidden">
+    <div class="text-center py-[26px] px-6 pb-[14px]">
+      <img class="w-[76px] h-[76px] mx-auto mb-2.5 block" src="{{ asset('assets/img/logo.svg') }}" alt="Logo RSUD Merauke">
+      <h1 class="text-[1.12rem] text-white m-0">{!! $judulKartu ?? 'Sistem Absensi Pegawai<br>RSUD Merauke' !!}</h1>
+      <p class="mt-0.5 text-[0.8rem] ">{{ $subJudul ?? 'Kabupaten Merauke — Papua Selatan' }}</p>
     </div>
-    <div class="auth-isi">
-      @if(session('flash_sukses'))
-        <div class="flash flash-sukses">{{ session('flash_sukses') }}</div>
+    <div class="p-6">
+      @if(session('success'))
+        <div class="flash flash-success">{{ session('success') }}</div>
       @endif
-      @if(session('flash_gagal'))
-        <div class="flash flash-gagal">{{ session('flash_gagal') }}</div>
+      @if(session('error'))
+        <div class="flash flash-error">{{ session('error') }}</div>
       @endif
       @yield('content')
     </div>

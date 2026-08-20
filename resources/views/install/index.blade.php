@@ -3,11 +3,11 @@
 @section('content')
 
 @if(! empty($galat))
-  <div class="flash flash-gagal">{{ $galat }}</div>
+  <div class="flash flash-error">{{ $galat }}</div>
 @endif
 
 @if($tahap === 'admin')
-  <div class="flash flash-sukses">
+  <div class="flash flash-success">
     Database beserta seluruh tabel dan data master berhasil disiapkan.
     Langkah terakhir: buat akun <strong>Admin</strong> pertama.
   </div>
@@ -35,7 +35,7 @@
   </form>
 
 @elseif($tahap === 'selesai')
-  <div class="flash flash-sukses">Aplikasi <strong>sudah terpasang</strong>. Database dan akun admin tersedia.</div>
+  <div class="flash flash-success">Aplikasi <strong>sudah terpasang</strong>. Database dan akun admin tersedia.</div>
   <p class="teks-kecil teks-redup">Menjalankan halaman ini kembali tidak menghapus data apa pun —
     skema hanya dilengkapi bila ada tabel yang hilang.</p>
   <a href="{{ route('login') }}" class="btn btn-primer btn-blok">{!! ikon('masuk', 17) !!} Ke Halaman Masuk</a>

@@ -3,10 +3,16 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Jabatan;
+use App\Models\JadwalShift;
+use App\Models\Profesi;
+use App\Models\RekapBulanan;
+use App\Models\Shift;
+use App\Models\UnitKerja;
+use App\Models\User;
 use App\Services\RekapService;
 use App\Services\StrukturService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class RekapController extends Controller
 {
@@ -40,20 +46,20 @@ class RekapController extends Controller
     {
         $bagian = [];
         if ($f['unit']) {
-            $u = DB::table('unit_kerja')->where('id', $f['unit'])->first();
+            $u = UnitKerja::find($f['unit']);
             if ($u) $bagian[] = 'Unit ' . $u->nama;
         }
         if ($f['jab']) $bagian[] = 'Jabatan ' . $f['jab'];
         if ($f['njab']) {
-            $j = DB::table('jabatan')->where('id', $f['njab'])->first();
+            $j = Jabatan::find($f['njab']);
             if ($j) $bagian[] = $j->nama;
         }
         if ($f['org']) {
-            $j = DB::table('jabatan')->where('id', $f['org'])->first();
+            $j = Jabatan::find($f['org']);
             if ($j) $bagian[] = $j->unit_label ?: $j->nama;
         }
         if ($f['prof']) {
-            $p = DB::table('profesi')->where('id', $f['prof'])->first();
+            $p = Profesi::find($f['prof']);
             if ($p) $bagian[] = 'Profesi ' . $p->nama;
         }
         return $bagian ? implode(' · ', $bagian) : 'Seluruh Pegawai';
@@ -61,23 +67,22 @@ class RekapController extends Controller
 
     private function daftarPegawai(array $f): array
     {
-        $b = DB::table('users as u')
-            ->select('u.id', 'u.nama_lengkap', 'u.nip', 'u.jabatan_kategori',
+        $b = User::select('users.id', 'users.nama_lengkap', 'users.nip', 'users.jabatan_kategori',
                      'uk.nama AS unit_nama', 'su.nama AS sub_nama', 'p.nama AS profesi_nama',
                      'j.nama AS jabatan_nama')
-            ->leftJoin('unit_kerja as uk', 'uk.id', '=', 'u.unit_kerja_id')
-            ->leftJoin('sub_unit as su', 'su.id', '=', 'u.sub_unit_id')
-            ->leftJoin('profesi as p', 'p.id', '=', 'u.profesi_id')
-            ->leftJoin('jabatan as j', 'j.id', '=', 'u.jabatan_id')
-            ->where('u.role', 'pegawai')->where('u.status', 'aktif');
+            ->leftJoin('unit_kerja as uk', 'uk.id', '=', 'users.unit_kerja_id')
+            ->leftJoin('sub_unit as su', 'su.id', '=', 'users.sub_unit_id')
+            ->leftJoin('profesi as p', 'p.id', '=', 'users.profesi_id')
+            ->leftJoin('jabatan as j', 'j.id', '=', 'users.jabatan_id')
+            ->where('users.role', 'pegawai')->where('users.status', 'aktif');
 
-        if ($f['unit']) $b->where('u.unit_kerja_id', $f['unit']);
-        if ($f['jab'])  $b->where('u.jabatan_kategori', $f['jab']);
-        if ($f['njab']) $b->where('u.jabatan_id', $f['njab']);
-        if ($f['org'])  $b->whereIn('u.jabatan_id', app(StrukturService::class)->keturunan($f['org']));
-        if ($f['prof']) $b->where('u.profesi_id', $f['prof']);
+        if ($f['unit']) $b->where('users.unit_kerja_id', $f['unit']);
+        if ($f['jab'])  $b->where('users.jabatan_kategori', $f['jab']);
+        if ($f['njab']) $b->where('users.jabatan_id', $f['njab']);
+        if ($f['org'])  $b->whereIn('users.jabatan_id', app(StrukturService::class)->keturunan($f['org']));
+        if ($f['prof']) $b->where('users.profesi_id', $f['prof']);
 
-        return $b->orderBy('uk.id')->orderBy('u.nama_lengkap')->get()->all();
+        return $b->orderBy('uk.id')->orderBy('users.nama_lengkap')->get()->all();
     }
 
     private function hitungSemua(array $pegawai, int $bulan, int $tahun): array
@@ -105,8 +110,8 @@ class RekapController extends Controller
             'fUnit'        => $f['unit'],
             'pegawai'      => $pegawai,
             'rekapPer'     => $this->hitungSemua($pegawai, $f['bulan'], $f['tahun']),
-            'unitList'     => DB::table('unit_kerja')->orderBy('id')->get()->all(),
-            'profList'     => DB::table('profesi')->orderBy('id')->get()->all(),
+            'unitList'     => UnitKerja::orderBy('id')->get()->all(),
+            'profList'     => Profesi::orderBy('id')->get()->all(),
             'jabPilihan'   => $lib->pilihan(),
             'orgList'      => $lib->unitOrganisasi(),
             'kategoriJab'  => kategori_jabatan_list(),
@@ -141,15 +146,11 @@ class RekapController extends Controller
                 'bintang_rata_rata'  => $r['bintang_bulanan'],
                 'generated_at'       => now(),
             ];
-            $ada = DB::table('rekap_bulanan')
-                ->where(['user_id' => $uid, 'bulan' => $bulan, 'tahun' => $tahun])
-                ->count() > 0;
+            $ada = RekapBulanan::where(['user_id' => $uid, 'bulan' => $bulan, 'tahun' => $tahun])->count() > 0;
             if ($ada) {
-                DB::table('rekap_bulanan')
-                    ->where(['user_id' => $uid, 'bulan' => $bulan, 'tahun' => $tahun])
-                    ->update($data);
+                RekapBulanan::where(['user_id' => $uid, 'bulan' => $bulan, 'tahun' => $tahun])->update($data);
             } else {
-                DB::table('rekap_bulanan')->insert($data);
+                RekapBulanan::create($data);
             }
         }
         $blnNama = BULAN_ID[$bulan] ?? $bulan;
@@ -157,7 +158,7 @@ class RekapController extends Controller
             . count($rekapPer) . ' pegawai');
 
         return redirect('admin/rekap?' . $this->qsDari($f))
-            ->with('flash_sukses', 'Rekap ' . $blnNama . " {$tahun} untuk "
+            ->with('success', 'Rekap ' . $blnNama . " {$tahun} untuk "
                 . count($rekapPer) . ' pegawai berhasil disimpan sebagai arsip.');
     }
 
@@ -198,14 +199,13 @@ class RekapController extends Controller
                 'rekapPer' => $this->hitungSemua($pegawai, $bulan, $tahun),
             ])->render();
         } else {
-            $b = DB::table('absensi as a')
-                ->select('a.*', 'u.nama_lengkap', 'uk.nama AS unit_nama', 'su.nama AS sub_nama',
+            $b = \App\Models\Absensi::select('absensi.*', 'u.nama_lengkap', 'uk.nama AS unit_nama', 'su.nama AS sub_nama',
                          's.kategori AS shift_kategori', 's.jam_masuk AS shift_masuk', 's.jam_pulang AS shift_pulang')
-                ->join('users as u', 'u.id', '=', 'a.user_id')
+                ->join('users as u', 'u.id', '=', 'absensi.user_id')
                 ->leftJoin('unit_kerja as uk', 'uk.id', '=', 'u.unit_kerja_id')
                 ->leftJoin('sub_unit as su', 'su.id', '=', 'u.sub_unit_id')
-                ->leftJoin('shift as s', 's.id', '=', 'a.shift_id')
-                ->whereMonth('a.tanggal', $bulan)->whereYear('a.tanggal', $tahun);
+                ->leftJoin('shift as s', 's.id', '=', 'absensi.shift_id')
+                ->whereMonth('absensi.tanggal', $bulan)->whereYear('absensi.tanggal', $tahun);
             if ($f['unit']) $b->where('u.unit_kerja_id', $f['unit']);
             if ($f['jab'])  $b->where('u.jabatan_kategori', $f['jab']);
             if ($f['njab']) $b->where('u.jabatan_id', $f['njab']);
@@ -213,7 +213,7 @@ class RekapController extends Controller
             if ($f['prof']) $b->where('u.profesi_id', $f['prof']);
             $isi = view('admin.excel_detail', [
                 'bulan' => $bulan, 'tahun' => $tahun,
-                'rows'  => $b->orderBy('a.tanggal')->orderBy('u.nama_lengkap')->get()->all(),
+                'rows'  => $b->orderBy('absensi.tanggal')->orderBy('u.nama_lengkap')->get()->all(),
             ])->render();
         }
 

@@ -131,8 +131,8 @@
     </div>
 
     <div class="form-grup">
-      <label class="teks-kecil" style="display:flex;align-items:center;gap:8px">
-        <input type="checkbox" name="status_pegawai" value="PNS" style="width:auto"
+      <label class="teks-kecil flex items-center gap-2">
+        <input type="checkbox" name="status_pegawai" value="PNS" class="w-auto"
           {{ ($edit->status_pegawai ?? '') === 'PNS' ? 'checked' : '' }}>
         Pegawai Negeri Sipil (PNS)
       </label>

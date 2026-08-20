@@ -3,7 +3,7 @@
 @section('content')
 
 @if(! empty($galat))
-  <div class="flash flash-gagal">{{ $galat }}</div>
+  <div class="flash flash-error">{{ $galat }}</div>
 @endif
 
 <form method="post" action="{{ route('login') }}">
@@ -19,7 +19,7 @@
   <button type="submit" class="btn btn-primer btn-blok">{!! ikon('masuk', 17) !!} Masuk</button>
 </form>
 
-<div class="pembatas"><span>belum punya akun?</span></div>
-<a href="{{ route('register') }}" class="btn btn-garis btn-blok">Daftar sebagai Pegawai</a>
+{{-- <div class="pembatas"><span>belum punya akun?</span></div>
+<a href="{{ route('register') }}" class="btn btn-garis btn-blok">Daftar sebagai Pegawai</a> --}}
 
 @endsection

@@ -17,8 +17,8 @@
           {{ $uk->nama }}</option>
       @endforeach
     </select>
-    <label class="teks-kecil" style="display:flex;align-items:center;gap:6px;white-space:nowrap">
-      <input type="checkbox" name="anomali" value="1" style="width:auto" {{ $hanyaAnomali ? 'checked' : '' }}>
+    <label class="teks-kecil flex items-center gap-1.5 whitespace-nowrap">
+      <input type="checkbox" name="anomali" value="1" class="w-auto" {{ $hanyaAnomali ? 'checked' : '' }}>
       Hanya anomali GPS
     </label>
     <button type="submit" class="btn btn-navy btn-kecil">Tampilkan</button>

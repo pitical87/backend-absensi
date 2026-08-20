@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\LoginAttempt;
+use App\Models\Pengaturan;
+use App\Models\SubUnit;
+use App\Models\UnitKerja;
 use App\Models\User;
 use App\Services\StrukturService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class AuthController extends Controller
 {
@@ -68,8 +69,7 @@ class AuthController extends Controller
         }
 
         $this->catatPercobaan($email, $ip, true);
-        DB::table('login_attempts')
-            ->where('email', $email)->where('sukses', 0)->delete();
+        \App\Models\LoginAttempt::where('email', $email)->where('sukses', 0)->delete();
 
         session()->regenerate(true);
         session()->put([
@@ -88,7 +88,7 @@ class AuthController extends Controller
         if (! $this->skemaSiap()) {
             return redirect('install');
         }
-        return view('auth.register', $this->dataMaster($struktur));
+        return view('auth.register', $this->dataMaster($struktur) + ['lebar' => true]);
     }
 
     public function prosesRegister(Request $request, StrukturService $struktur)
@@ -117,24 +117,24 @@ class AuthController extends Controller
         if (strlen($pass) < 6) $galat[] = 'Password minimal 6 karakter.';
         if ($pass !== $pass2) $galat[] = 'Konfirmasi password tidak sama.';
 
-        if (DB::table('users')->where('email', $d['email'])->count() > 0) {
+        if (User::where('email', $d['email'])->count() > 0) {
             $galat[] = 'Email sudah terdaftar. Gunakan email lain atau masuk.';
         }
 
         $unit = $d['unit_kerja_id']
-            ? DB::table('unit_kerja')->where('id', $d['unit_kerja_id'])->first()
+            ? UnitKerja::find($d['unit_kerja_id'])
             : null;
         if (! $unit) {
             $galat[] = 'Tempat kerja wajib dipilih.';
         } elseif ($unit->punya_sub) {
-            $sah = $d['sub_unit_id'] && DB::table('sub_unit')
-                ->where('id', $d['sub_unit_id'])->where('unit_kerja_id', $d['unit_kerja_id'])
+            $sah = $d['sub_unit_id'] && SubUnit::where('id', $d['sub_unit_id'])
+                ->where('unit_kerja_id', $d['unit_kerja_id'])
                 ->count() > 0;
             if (! $sah) $galat[] = 'Sub unit wajib dipilih untuk ' . $unit->nama . '.';
         } else {
             $d['sub_unit_id'] = null;
         }
-        if (! $d['profesi_id'] || DB::table('profesi')->where('id', $d['profesi_id'])->count() === 0) {
+        if (! $d['profesi_id'] || \App\Models\Profesi::where('id', $d['profesi_id'])->count() === 0) {
             $galat[] = 'Profesi wajib dipilih.';
         }
 
@@ -162,10 +162,11 @@ class AuthController extends Controller
             return view('auth.register', $this->dataMaster($struktur) + [
                 'galat' => implode(' ', $galat),
                 'lama'  => $request->all(),
+                'lebar' => true,
             ]);
         }
 
-        DB::table('users')->insert($d + [
+        User::create($d + [
             'password_hash' => bcrypt($pass),
             'role'          => 'pegawai',
             'status'        => 'aktif',
@@ -173,7 +174,7 @@ class AuthController extends Controller
         ]);
 
         return redirect('login')
-            ->with('flash_sukses', 'Pendaftaran berhasil. Silakan masuk dengan email dan password Anda.');
+            ->with('success', 'Pendaftaran berhasil. Silakan masuk dengan email dan password Anda.');
     }
 
     public function logout()
@@ -188,7 +189,7 @@ class AuthController extends Controller
     private function skemaSiap(): bool
     {
         try {
-            DB::table('pengaturan')->limit(1)->get();
+            Pengaturan::limit(1)->get();
             return true;
         } catch (\Throwable $e) {
             return false;
@@ -197,14 +198,14 @@ class AuthController extends Controller
 
     private function dataMaster(StrukturService $struktur): array
     {
-        $sub = [];
-        foreach (DB::table('sub_unit')->orderBy('unit_kerja_id')->orderBy('id')->get() as $s) {
-            $sub[(int) $s->unit_kerja_id][] = ['id' => (int) $s->id, 'nama' => $s->nama];
+        $subPerUnit = [];
+        foreach (SubUnit::orderBy('unit_kerja_id')->orderBy('id')->get() as $s) {
+            $subPerUnit[(int) $s->unit_kerja_id][] = ['id' => (int) $s->id, 'nama' => $s->nama];
         }
         return [
-            'unitList'    => DB::table('unit_kerja')->orderBy('id')->get()->all(),
-            'profList'    => DB::table('profesi')->orderBy('id')->get()->all(),
-            'subPerUnit'  => $sub,
+            'unitList'    => UnitKerja::orderBy('id')->get()->all(),
+            'profList'    => \App\Models\Profesi::orderBy('id')->get()->all(),
+            'subPerUnit'  => $subPerUnit,
             'jabPilihan'  => $struktur->pilihan(),
             'kategoriJab' => kategori_jabatan_list(),
             'posisiList'  => posisi_list(),
@@ -217,21 +218,20 @@ class AuthController extends Controller
 
     private function catatPercobaan(string $email, string $ip, bool $sukses): void
     {
-        DB::table('login_attempts')->insert([
+        \App\Models\LoginAttempt::create([
             'email' => mb_substr($email, 0, 150),
             'ip'    => $ip,
             'sukses'=> $sukses ? 1 : 0,
             'waktu' => now(),
         ]);
-        DB::table('login_attempts')
-            ->where('waktu','<', now()->subDays(2))->delete();
+        \App\Models\LoginAttempt::where('waktu', '<', now()->subDays(2))->delete();
     }
 
     private function jumlahGagal(string $email, string $ip): int
     {
         $sejak = now()->subMinutes(self::JENDELA_MNT);
-        return (int) DB::table('login_attempts')
-            ->where('sukses', 0)->where('waktu', '>=', $sejak)
+        return (int) \App\Models\LoginAttempt::where('sukses', 0)
+            ->where('waktu', '>=', $sejak)
             ->where(function ($q) use ($email, $ip) {
                 $q->where('email', $email)->orWhere('ip', $ip);
             })
@@ -249,8 +249,8 @@ class AuthController extends Controller
             return 0;
         }
         $sejak   = now()->subMinutes(self::JENDELA_MNT);
-        $terbaru = DB::table('login_attempts')
-            ->where('sukses', 0)->where('waktu', '>=', $sejak)
+        $terbaru = \App\Models\LoginAttempt::where('sukses', 0)
+            ->where('waktu', '>=', $sejak)
             ->where(function ($q) use ($email, $ip) {
                 $q->where('email', $email)->orWhere('ip', $ip);
             })

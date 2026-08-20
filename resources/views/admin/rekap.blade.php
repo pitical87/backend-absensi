@@ -63,7 +63,7 @@
     beserta Kasi/Kasubag bawahannya). Filter dapat digabung dan ikut terbawa ke Cetak PDF
     maupun Export Excel.</p>
 
-  <div class="aksi-baris" style="margin-bottom:14px">
+  <div class="aksi-baris mb-3.5">
     <form method="post" action="{{ url('admin/rekap/generate') }}">
       @csrf
       <input type="hidden" name="bulan" value="{{ $bulan }}">

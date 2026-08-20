@@ -5,8 +5,21 @@
 <section class="kartu">
   <div class="kartu-kepala">
     <h2>{!! ikon('pegawai') !!} Daftar Pegawai <span class="badge badge-biru">{{ count($pegawai) }}</span></h2>
-    <a class="btn btn-primer btn-kecil" href="{{ url('admin/pegawai/form') }}">+ Tambah Pegawai</a>
+    <div class="flex items-center gap-2">
+      <a class="btn btn-garis btn-kecil" href="{{ route('admin.pegawai.template') }}">{!! ikon('unduh', 15) !!} Template Excel</a>
+      <a class="btn btn-primer btn-kecil" href="{{ url('admin/pegawai/form') }}">+ Tambah Pegawai</a>
+    </div>
   </div>
+
+  <form method="post" action="{{ route('admin.pegawai.import') }}" enctype="multipart/form-data"
+        class="bilah-alat" style="border-top:1px dashed var(--warna-garis);padding-top:12px;margin-top:4px">
+    @csrf
+    <input type="file" name="file" accept=".xlsx,.xls,.csv" required>
+    <button type="submit" class="btn btn-navy btn-kecil">{!! ikon('unduh', 15) !!} Import Excel</button>
+    <span class="teks-kecil teks-redup">
+      Kolom mengikuti template. Baris dengan email yang sudah terdaftar akan dilewati.
+    </span>
+  </form>
 
   <form method="get" action="{{ url('admin/pegawai') }}" class="bilah-alat">
     <input type="text" name="q" placeholder="Cari nama / email…" value="{{ $q }}">
@@ -88,7 +101,7 @@
 
         @if((int) $p->id !== (int) session('uid'))
 
-            <form method="post" action="{{ url('admin/pegawai/status') }}" style="display:inline">
+            <form method="post" action="{{ url('admin/pegawai/status') }}">
                 @csrf
                 <input type="hidden" name="id" value="{{ (int) $p->id }}">
 
@@ -99,7 +112,6 @@
 
             <form method="post"
                   action="{{ url('admin/pegawai/hapus') }}"
-                  style="display:inline"
                   onsubmit="return confirm('Hapus permanen {{ $p->nama_lengkap }}?\nSeluruh data absensinya ikut terhapus dan tidak dapat dikembalikan.');">
                 @csrf
                 <input type="hidden" name="id" value="{{ (int) $p->id }}">

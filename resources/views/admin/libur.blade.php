@@ -5,7 +5,7 @@
 <section class="kartu">
   <div class="kartu-kepala">
     <h2>{!! ikon('kalender') !!} Kalender Hari Libur {{ (int) $tahun }}</h2>
-    <form method="get" action="{{ url('admin/libur') }}" class="bilah-alat" style="margin:0">
+    <form method="get" action="{{ url('admin/libur') }}" class="bilah-alat m-0">
       <select name="tahun" onchange="this.form.submit()">
         @for($t = (int) date('Y') + 1; $t >= 2024; $t--)
           <option {{ $t === (int) $tahun ? 'selected' : '' }}>{{ $t }}</option>
@@ -33,14 +33,14 @@
 
   <div class="tabel-bungkus">
     <table class="tabel">
-      <thead><tr><th>Tanggal</th><th>Keterangan</th><th style="width:100px">Aksi</th></tr></thead>
+      <thead><tr><th>Tanggal</th><th>Keterangan</th><th class="w-[100px]">Aksi</th></tr></thead>
       <tbody>
         @php $tetap = hari_libur_tetap((int) $tahun); @endphp
         @foreach($daftar as $h)
         <tr>
           <td class="angka">{{ tgl_id($h->tanggal) }}</td>
           <td>{{ $h->keterangan }}
-            @if(isset($tetap[$h->tanggal]))
+            @if(isset($tetap[$h->tanggal->format('Y-m-d')]))
               <span class="badge badge-teal teks-kecil">Otomatis</span>
             @endif
           </td>
@@ -68,8 +68,8 @@
   <form method="post" action="{{ url('admin/libur/aksi') }}" class="bilah-alat">
     @csrf
     <input type="hidden" name="aksi" value="minggu">
-    <label class="teks-kecil" style="display:flex;align-items:center;gap:8px">
-      <input type="checkbox" name="minggu_libur" value="1" style="width:auto" {{ $mingguLibur ? 'checked' : '' }}>
+    <label class="teks-kecil flex items-center gap-2">
+      <input type="checkbox" name="minggu_libur" value="1" class="w-auto" {{ $mingguLibur ? 'checked' : '' }}>
       Perlakukan setiap hari Minggu sebagai hari libur
     </label>
     <button type="submit" class="btn btn-navy btn-kecil">Simpan</button>

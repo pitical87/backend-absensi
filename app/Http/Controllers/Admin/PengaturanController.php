@@ -36,7 +36,7 @@ class PengaturanController extends Controller
             || (float) $lat < -90 || (float) $lat > 90
             || (float) $lng < -180 || (float) $lng > 180) {
             return redirect('admin/pengaturan')
-                ->with('flash_gagal', 'Koordinat tidak valid. Gunakan angka desimal, mis. -8.4991120');
+                ->with('error', 'Koordinat tidak valid. Gunakan angka desimal, mis. -8.4991120');
         }
 
         simpan_pengaturan('lokasi_lat', (string) round((float) $lat, 7));
@@ -48,7 +48,7 @@ class PengaturanController extends Controller
         simpan_pengaturan('nama_instansi', $nama !== '' ? $nama : 'RSUD Merauke');
         catat_aktivitas('Ubah Pengaturan', 'Titik/radius GPS, toleransi, atau opsi aplikasi diperbarui');
 
-        return redirect('admin/pengaturan')->with('flash_sukses', 'Pengaturan berhasil disimpan.');
+        return redirect('admin/pengaturan')->with('success', 'Pengaturan berhasil disimpan.');
     }
 
     public function gantiApiKey()
@@ -56,7 +56,7 @@ class PengaturanController extends Controller
         simpan_pengaturan('api_key', bin2hex(random_bytes(20)));
         catat_aktivitas('Ganti Kunci API', 'Kunci API integrasi SIMRS dibuat ulang');
         return redirect('admin/pengaturan')
-            ->with('flash_sukses', 'Kunci API baru telah dibuat. Perbarui konfigurasi pada SIMRS.');
+            ->with('success', 'Kunci API baru telah dibuat. Perbarui konfigurasi pada SIMRS.');
     }
 
     public function backup()

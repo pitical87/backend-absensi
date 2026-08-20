@@ -21,7 +21,7 @@
     <table class="tabel">
       <thead>
         <tr><th>Pegawai</th><th>Jenis</th><th>Tanggal</th><th>Keterangan</th>
-            <th>Alur / Tahap</th><th>Status</th><th style="min-width:260px">Tindakan / Catatan</th></tr>
+            <th>Alur / Tahap</th><th>Status</th><th class="min-w-[260px]">Tindakan / Catatan</th></tr>
       </thead>
       <tbody>
         @foreach($daftar as $r) @php $berjenjang = in_array($r->jenis, ['Izin', 'Cuti'], true); @endphp
@@ -49,11 +49,11 @@
           <td class="teks-kecil">
             @if($berjenjang && ! empty($tahapPer[$r->id]))
               @foreach($tahapPer[$r->id] as $t)
-                @if($t->status === 'Dilewati' && ! $t->oleh_nama)
+                @if($t->status === 'Dilewati' && ! $t->user)
                   <span class="teks-redup">{!! label_tahap_izin((int) $t->tahap) !!}: dilewati</span><br>
                 @else
                   {!! label_tahap_izin((int) $t->tahap) !!} {!! badge_tahap($t->status) !!}
-                  @if($t->oleh_nama)<span class="teks-redup">({{ $t->oleh_nama }})</span>@endif<br>
+                  @if($t->user)<span class="teks-redup">({{ $t->user->nama_lengkap }})</span>@endif<br>
                 @endif
               @endforeach
             @elseif(! $berjenjang)
@@ -63,19 +63,19 @@
           <td>{!! badge_izin($r->status) !!}</td>
           <td>
             @if(! $berjenjang && $r->status === 'Menunggu')
-              <form method="post" action="{{ url('admin/izin/proses') }}" class="bilah-alat" style="margin:0">
+              <form method="post" action="{{ url('admin/izin/proses') }}" class="bilah-alat m-0">
                 @csrf
                 <input type="hidden" name="id" value="{{ (int) $r->id }}">
-                <input type="text" name="catatan" placeholder="Catatan (opsional)…" style="min-width:120px">
+                <input type="text" name="catatan" placeholder="Catatan (opsional)…" class="min-w-[120px]">
                 <button type="submit" name="putusan" value="setuju" class="btn btn-primer btn-kecil">Setujui</button>
                 <button type="submit" name="putusan" value="tolak" class="btn btn-bahaya btn-kecil"
                         onclick="return confirm('Tolak pengajuan ini?');">Tolak</button>
               </form>
             @elseif($berjenjang && $r->status === 'Menunggu')
-              <form method="post" action="{{ url('admin/izin/ambil-alih') }}" class="bilah-alat" style="margin:0">
+              <form method="post" action="{{ url('admin/izin/ambil-alih') }}" class="bilah-alat m-0">
                 @csrf
                 <input type="hidden" name="id" value="{{ (int) $r->id }}">
-                <input type="text" name="catatan" placeholder="Catatan (opsional)…" style="min-width:120px">
+                <input type="text" name="catatan" placeholder="Catatan (opsional)…" class="min-w-[120px]">
                 <button type="submit" name="putusan" value="setuju" class="btn btn-garis btn-kecil">Ambil Alih: Setujui</button>
                 <button type="submit" name="putusan" value="tolak" class="btn btn-bahaya btn-kecil"
                         onclick="return confirm('Tolak pengajuan ini pada tahap saat ini?');">Ambil Alih: Tolak</button>

@@ -28,7 +28,7 @@
       </div>
     </div>
 
-    <div class="aksi-baris" style="margin-bottom:14px">
+    <div class="aksi-baris mb-3.5">
       <button type="button" class="btn btn-navy btn-kecil" id="btn-lokasi-saya">
         {!! ikon('peta', 15) !!} Gunakan Lokasi Perangkat Ini
       </button>
@@ -41,7 +41,7 @@
       dapat disalin dari Google Maps (klik kanan titik RSUD &rarr; salin koordinat).
     </div>
 
-    <div class="form-baris" style="margin-top:16px">
+    <div class="form-baris mt-4">
       <div class="form-grup">
         <label class="wajib">Radius Absensi (meter)</label>
         <input type="number" name="radius_meter" min="10" max="5000" required value="{{ $rad }}">
@@ -55,14 +55,14 @@
     </div>
 
     <div class="form-grup">
-      <label class="teks-kecil" style="display:flex;align-items:center;gap:8px">
-        <input type="checkbox" name="wajib_selfie" value="1" style="width:auto" {{ $selfie ? 'checked' : '' }}>
+      <label class="teks-kecil flex items-center gap-2">
+        <input type="checkbox" name="wajib_selfie" value="1" class="w-auto" {{ $selfie ? 'checked' : '' }}>
         Wajibkan foto selfie pada setiap absensi (mencegah titip absen)
       </label>
     </div>
     <div class="form-grup">
-      <label class="teks-kecil" style="display:flex;align-items:center;gap:8px">
-        <input type="checkbox" name="izinkan_pilih_shift" value="1" style="width:auto" {{ $izin ? 'checked' : '' }}>
+      <label class="teks-kecil flex items-center gap-2">
+        <input type="checkbox" name="izinkan_pilih_shift" value="1" class="w-auto" {{ $izin ? 'checked' : '' }}>
         Izinkan pegawai memilih/mengubah shiftnya sendiri melalui dasbor
       </label>
     </div>
@@ -75,7 +75,7 @@
 
 <section class="kartu">
   <div class="kartu-kepala"><h2>{!! ikon('perisai') !!} Backup Database</h2></div>
-  <p class="teks-kecil teks-redup" style="margin-bottom:12px">
+  <p class="teks-kecil teks-redup mb-3">
     Mengunduh seluruh isi database sebagai berkas <code>.sql</code> yang dapat dipulihkan lewat
     phpMyAdmin. Lakukan secara berkala (mis. setiap akhir pekan) dan simpan di komputer/flashdisk
     terpisah dari server.
@@ -86,7 +86,7 @@
 
 <section class="kartu">
   <div class="kartu-kepala"><h2>{!! ikon('kunci') !!} Integrasi SIMRS — Kunci API</h2></div>
-  <p class="teks-kecil teks-redup" style="margin-bottom:12px">
+  <p class="teks-kecil teks-redup mb-3">
     SIMRS dapat menarik data pegawai, absensi, rekap, dan izin melalui API dengan menyertakan
     header <code>X-API-KEY</code> berikut. Rincian endpoint ada pada README aplikasi.
   </p>
@@ -94,7 +94,7 @@
     <code id="api-key">{{ $apiKey }}</code>
     <button type="button" class="btn btn-garis btn-kecil" id="salin-kunci">Salin</button>
   </div>
-  <div class="aksi-baris" style="margin-top:12px">
+  <div class="aksi-baris mt-3">
     <form method="post" action="{{ url('admin/pengaturan/api-key') }}"
           onsubmit="return confirm('Buat kunci API baru? Kunci lama langsung tidak berlaku dan konfigurasi di SIMRS harus diperbarui.');">
       @csrf
