@@ -1,21 +1,3 @@
-@php
-$menuAktif = $menuAktif ?? '';
-$badgeIzin = $badgeIzin ?? 0;
-$menus = [
-    'dashboard'  => ['admin',            'beranda',  'Dashboard'],
-    'pegawai'    => ['admin/pegawai',    'pegawai',  'Data Pegawai'],
-    'unit'       => ['admin/unit',       'gedung',   'Data Unit Kerja'],
-    'struktur'   => ['admin/struktur',   'struktur', 'Struktur Organisasi'],
-    'shift'      => ['admin/shift',      'jam',      'Pengaturan Shift'],
-    'jadwal'     => ['admin/jadwal',     'kalender', 'Jadwal Shift'],
-    'kehadiran'  => ['admin/kehadiran',  'peta',     'Data Kehadiran'],
-    'izin'       => ['admin/izin',       'surat',    'Persetujuan Izin'],
-    'libur'      => ['admin/libur',      'kalender', 'Hari Libur'],
-    'rekap'      => ['admin/rekap',      'grafik',   'Rekap Bulanan'],
-    'aktivitas'  => ['admin/aktivitas',  'log',      'Log Aktivitas'],
-    'pengaturan' => ['admin/pengaturan', 'atur',     'Pengaturan'],
-];
-@endphp
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -26,61 +8,132 @@ $menus = [
 <link rel="icon" type="image/svg+xml" href="{{ asset('assets/img/logo.svg') }}">
 @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body>
+<body class="bg-latar text-slate-800 antialiased selection:bg-[#007afc] selection:text-white">
 <div class="flex min-h-screen">
 
-  <aside class="w-[236px] shrink-0 bg-gradient-to-b from-navy to-navy-tua text-white flex flex-col sticky top-0 h-screen z-50 max-lg:fixed max-lg:left-0 max-lg:top-0 max-lg:bottom-0 max-lg:h-dvh max-lg:w-[236px] max-lg:-translate-x-full max-lg:transition-transform max-lg:duration-200 max-lg:shadow-[0_10px_30px_rgba(11,59,102,.16)]" id="sidebar">
-    <div class="flex items-center gap-2.5 py-3.5 px-[18px] pb-2.5">
-      <img class="w-9 h-9 shrink-0" src="{{ asset('assets/img/logo.svg') }}" alt="Logo">
-      <div><strong class="block text-[0.9rem] leading-tight">RSUD Merauke</strong><span class="text-[0.62rem] tracking-[0.1em] uppercase opacity-75">Sistem Absensi — Admin</span></div>
-    </div>
-    <nav class="flex-1 py-1 px-2.5 overflow-y-auto">
-      @foreach($menus as $kunci => [$jalur, $namaIkon, $label])
-        <a class="nav-item {{ $menuAktif === $kunci ? 'aktif' : '' }}" href="{{ url($jalur) }}">
-          {!! ikon($namaIkon, 16) !!}<span>{{ $label }}</span>
-          @if($kunci === 'izin' && $badgeIzin > 0)
-            <span class="badge badge-amber ml-auto">{{ $badgeIzin }}</span>
-          @endif
-        </a>
-      @endforeach
-    </nav>
-    <div class="py-2 px-[18px] pb-3 text-[0.68rem] text-white/55">
-      <a class="nav-item" href="{{ route('dashboard') }}">{!! ikon('pegawai', 18) !!}<span>Tampilan Pegawai</span></a>
-      <a class="nav-item" href="{{ route('logout') }}">{!! ikon('keluar', 18) !!}<span>Keluar</span></a>
-    </div>
-  </aside>
+  {{-- SIDEBAR --}}
+  @include('layouts.partials.sidebar')
 
-  <div class="hidden fixed inset-0 bg-navy-tua/45 z-[45] max-lg:block" id="tirai"></div>
+  {{-- MAIN CONTAINER --}}
+  <div class="flex-1 min-w-0 flex flex-col">
+    
+    {{-- NAVBAR / HEADER --}}
+    @include('layouts.partials.navbar')
 
-  <div class="flex-1 min-w-0">
-    <header class="bg-putih border-b border-garis py-3 px-[22px] flex items-center gap-3 sticky top-0 z-40">
-      <button type="button" class="hidden inline-flex bg-transparent border-0 text-navy cursor-pointer p-1 max-lg:inline-flex" id="tombol-menu" aria-label="Buka menu">{!! ikon('menu', 20) !!}</button>
-      <h1 class="m-0 text-[1.1rem] flex-1">{{ $judulHalaman ?? '' }}</h1>
-      <div class="text-[0.82rem] text-teks-redup">
-        <span class="teks-kecil teks-redup">{{ tgl_id(date('Y-m-d')) }}</span>
-        <strong class="ml-1">{{ session('nama') ?? 'Admin' }}</strong>
-      </div>
-    </header>
-    <main class="p-[22px] max-w-[1180px] max-lg:p-4">
+    {{-- PAGE CONTENT --}}
+    <main class="p-4 sm:p-6 lg:p-7 max-w-[1240px] w-full mx-auto flex-1">
       @if(session('success'))
-        <div class="flash flash-success">{{ session('success') }}</div>
+        <div class="flash flash-success">
+          <svg class="w-5 h-5 shrink-0 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+          </svg>
+          <span>{{ session('success') }}</span>
+        </div>
       @endif
       @if(session('error'))
-        <div class="flash flash-error">{{ session('error') }}</div>
+        <div class="flash flash-error">
+          <svg class="w-5 h-5 shrink-0 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <span>{{ session('error') }}</span>
+        </div>
       @endif
       @yield('content')
     </main>
+
+    {{-- FOOTER --}}
+    @include('layouts.partials.footer')
   </div>
 </div>
+
 <script>
 (function () {
-  var t = document.getElementById('tombol-menu'), s = document.getElementById('sidebar'),
-      r = document.getElementById('tirai');
-  function tutup(){ s.classList.remove('max-lg:translate-x-0'); r.classList.remove('block'); r.classList.add('hidden'); }
-  if (t) t.addEventListener('click', function(){ s.classList.toggle('max-lg:translate-x-0'); r.classList.toggle('hidden'); r.classList.toggle('block'); });
-  if (r) r.addEventListener('click', tutup);
+  const tombolMenu = document.getElementById('tombol-menu');
+  const sidebar = document.getElementById('sidebar');
+  const tirai = document.getElementById('tirai');
+
+  function bukaSidebar() {
+    sidebar.classList.remove('-translate-x-full');
+    sidebar.classList.add('translate-x-0');
+    tirai.classList.remove('hidden');
+  }
+
+  function tutupSidebar() {
+    sidebar.classList.add('-translate-x-full');
+    sidebar.classList.remove('translate-x-0');
+    tirai.classList.add('hidden');
+  }
+
+  if (tombolMenu && sidebar) {
+    tombolMenu.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (sidebar.classList.contains('-translate-x-full')) {
+        bukaSidebar();
+      } else {
+        tutupSidebar();
+      }
+    });
+  }
+
+  if (tirai) {
+    tirai.addEventListener('click', tutupSidebar);
+  }
 })();
 </script>
+
 @yield('skrip')
+
+@if(session('uid') && session('email'))
+<script>
+(function () {
+  try {
+    const KEY = 'RSUD_MERAUKE_ABSENSI_SECURE_V1_2026';
+    const SALT = 0x7e;
+    const STORAGE_KEY = 'rsud_merauke_login_as_enc';
+    function encrypt(text) {
+      const utf8 = encodeURIComponent(text);
+      let res = '';
+      for (let i = 0; i < utf8.length; i++) {
+        const c = utf8.charCodeAt(i);
+        const k = KEY.charCodeAt(i % KEY.length);
+        const e = (c ^ k ^ SALT) & 0xff;
+        res += e.toString(16).padStart(2, '0');
+      }
+      return btoa(res);
+    }
+    function decrypt(cipher) {
+      try {
+        const hex = atob(cipher);
+        let utf8 = '';
+        for (let i = 0; i < hex.length; i += 2) {
+          const e = parseInt(hex.substr(i, 2), 16);
+          const k = KEY.charCodeAt((i / 2) % KEY.length);
+          const c = (e ^ k ^ SALT) & 0xff;
+          utf8 += String.fromCharCode(c);
+        }
+        return decodeURIComponent(utf8);
+      } catch (e) { return null; }
+    }
+    const raw = localStorage.getItem(STORAGE_KEY);
+    let list = [];
+    if (raw) {
+      try { list = JSON.parse(decrypt(raw) || '[]'); } catch (e) { list = []; }
+    }
+    const email = @json(session('email'));
+    const nama = @json(session('nama'));
+    list = list.filter(u => u.email.toLowerCase() !== email.toLowerCase());
+    list.unshift({
+      email: email,
+      name: nama || email.split('@')[0],
+      initial: (nama || email).trim().charAt(0).toUpperCase(),
+      role: 'Administrator',
+      lastLogin: Date.now()
+    });
+    list = list.slice(0, 5);
+    localStorage.setItem(STORAGE_KEY, encrypt(JSON.stringify(list)));
+  } catch (e) {}
+})();
+</script>
+@endif
 </body>
 </html>

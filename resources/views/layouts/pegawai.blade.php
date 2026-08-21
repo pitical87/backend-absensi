@@ -8,35 +8,123 @@
 <link rel="icon" type="image/svg+xml" href="{{ asset('assets/img/logo.svg') }}">
 @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="latar-pola">
-<header class="bg-gradient-to-r from-navy to-biru text-white shadow-[0_1px_2px_rgba(11,59,102,.06),0_6px_18px_rgba(11,59,102,.07)] sticky top-0 z-40">
-  <div class="max-w-[820px] mx-auto py-[10px] px-4 flex items-center gap-3">
-    <a class="flex min-w-0 items-center gap-2.5 text-white no-underline hover:no-underline" href="{{ route('dashboard') }}">
-      <img class="w-[38px] h-[38px] shrink-0" src="{{ asset('assets/img/logo.svg') }}" alt="">
+<body class="latar-pola text-slate-800 antialiased min-h-screen flex flex-col justify-between">
+
+{{-- HEADER PEGAWAI DENGAN TEMA BIRU MODERN --}}
+<header class="bg-gradient-to-r from-[#005bbd] via-[#007afc] to-[#0284c7] text-white shadow-md shadow-blue-500/15 sticky top-0 z-40 transition-all">
+  <div class="max-w-[860px] mx-auto py-3 px-4 sm:px-6 flex items-center justify-between gap-3">
+    
+    {{-- Brand Logo & Info --}}
+    <a class="flex min-w-0 items-center gap-3 text-white no-underline hover:no-underline group" href="{{ route('dashboard') }}">
+      <div class="w-10 h-10 rounded-xl bg-white/15 backdrop-blur-md p-1 border border-white/25 flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+        <img class="w-8 h-8 object-contain" src="{{ asset('assets/img/logo.svg') }}" alt="Logo RSUD Merauke">
+      </div>
       <span class="flex flex-col items-start text-white">
-        <span class="block text-[0.7rem] tracking-[0.08em] uppercase text-white">Sistem Absensi</span>
-        <strong class="block text-[0.95rem] leading-tight text-white">RSUD Merauke</strong>
+        <span class="block text-[0.68rem] tracking-[0.1em] uppercase font-semibold text-blue-100/90 leading-tight">Sistem Absensi</span>
+        <strong class="block text-[0.95rem] font-bold leading-tight text-white tracking-tight">RSUD Merauke</strong>
       </span>
     </a>
-    <nav class="aksi-baris ml-auto">
+
+    {{-- Navigasi Aksi Pegawai --}}
+    <nav class="flex items-center gap-2">
       @if(session('posisi') && session('posisi') !== 'Staf')
-        <a class="btn btn-garis btn-kecil" href="{{ route('persetujuan') }}">{!! ikon('centang', 15) !!} Persetujuan</a>
+        <a class="inline-flex items-center gap-1.5 py-2 px-3 text-xs font-semibold text-white bg-white/15 hover:bg-white/25 border border-white/25 rounded-xl backdrop-blur-md shadow-sm no-underline transition-all active:scale-95" href="{{ route('persetujuan') }}">
+          {!! ikon('centang', 14) !!} <span class="hidden sm:inline">Persetujuan</span>
+        </a>
       @endif
-      <a class="btn btn-garis btn-kecil" href="{{ route('izin') }}">{!! ikon('surat', 15) !!} Izin / Cuti</a>
-      <a class="py-[7px] px-3 text-[0.82rem] text-white bg-white/14 border border-white/35 rounded-[9px] hover:bg-white/25 no-underline" href="{{ route('logout') }}">{!! ikon('keluar', 16) !!} Keluar</a>
+      
+      <a class="inline-flex items-center gap-1.5 py-2 px-3 text-xs font-semibold text-white bg-white/15 hover:bg-white/25 border border-white/25 rounded-xl backdrop-blur-md shadow-sm no-underline transition-all active:scale-95" href="{{ route('izin') }}">
+        {!! ikon('surat', 14) !!} <span class="hidden sm:inline">Izin / Cuti</span>
+      </a>
+      
+      <a class="inline-flex items-center gap-1.5 py-2 px-3 text-xs font-semibold text-white/90 bg-white/10 hover:bg-red-500 hover:border-red-400 border border-white/20 rounded-xl backdrop-blur-md shadow-sm no-underline transition-all active:scale-95" href="{{ route('logout') }}" title="Keluar dari sistem">
+        {!! ikon('keluar', 15) !!} <span class="hidden sm:inline">Keluar</span>
+      </a>
     </nav>
   </div>
 </header>
-<main class="max-w-[820px] mx-auto py-[18px] px-4 pb-14">
+
+{{-- KONTEN UTAMA --}}
+<main class="max-w-[860px] w-full mx-auto py-6 px-4 sm:px-6 flex-1">
   @if(session('success'))
-    <div class="flash flash-success">{{ session('success') }}</div>
+    <div class="flash flash-success">
+      <svg class="w-5 h-5 shrink-0 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+      </svg>
+      <span>{{ session('success') }}</span>
+    </div>
   @endif
+
   @if(session('error'))
-    <div class="flash flash-error">{{ session('error') }}</div>
+    <div class="flash flash-error">
+      <svg class="w-5 h-5 shrink-0 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      <span>{{ session('error') }}</span>
+    </div>
   @endif
+
   @yield('content')
 </main>
-<footer class="text-center text-[0.74rem] text-teks-redup py-2.5 px-4 pb-7">Sistem Absensi Pegawai RSUD Merauke · {{ date('Y') }}</footer>
+
+{{-- FOOTER --}}
+<footer class="text-center text-xs text-slate-400 py-4 px-4 pb-8 font-normal">
+  &copy; {{ date('Y') }} PIT RSUD Merauke · Sistem Absensi Pegawai
+</footer>
+
 @yield('skrip')
+
+@if(session('uid') && session('email'))
+<script>
+(function () {
+  try {
+    const KEY = 'RSUD_MERAUKE_ABSENSI_SECURE_V1_2026';
+    const SALT = 0x7e;
+    const STORAGE_KEY = 'rsud_merauke_login_as_enc';
+    function encrypt(text) {
+      const utf8 = encodeURIComponent(text);
+      let res = '';
+      for (let i = 0; i < utf8.length; i++) {
+        const c = utf8.charCodeAt(i);
+        const k = KEY.charCodeAt(i % KEY.length);
+        const e = (c ^ k ^ SALT) & 0xff;
+        res += e.toString(16).padStart(2, '0');
+      }
+      return btoa(res);
+    }
+    function decrypt(cipher) {
+      try {
+        const hex = atob(cipher);
+        let utf8 = '';
+        for (let i = 0; i < hex.length; i += 2) {
+          const e = parseInt(hex.substr(i, 2), 16);
+          const k = KEY.charCodeAt((i / 2) % KEY.length);
+          const c = (e ^ k ^ SALT) & 0xff;
+          utf8 += String.fromCharCode(c);
+        }
+        return decodeURIComponent(utf8);
+      } catch (e) { return null; }
+    }
+    const raw = localStorage.getItem(STORAGE_KEY);
+    let list = [];
+    if (raw) {
+      try { list = JSON.parse(decrypt(raw) || '[]'); } catch (e) { list = []; }
+    }
+    const email = @json(session('email'));
+    const nama = @json(session('nama'));
+    list = list.filter(u => u.email.toLowerCase() !== email.toLowerCase());
+    list.unshift({
+      email: email,
+      name: nama || email.split('@')[0],
+      initial: (nama || email).trim().charAt(0).toUpperCase(),
+      role: @json(session('posisi') ?? 'Pegawai'),
+      lastLogin: Date.now()
+    });
+    list = list.slice(0, 5);
+    localStorage.setItem(STORAGE_KEY, encrypt(JSON.stringify(list)));
+  } catch (e) {}
+})();
+</script>
+@endif
 </body>
 </html>

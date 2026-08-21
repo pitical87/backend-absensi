@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <defs>
+    <linearGradient id="bg-john" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4B5563" />
+      <stop offset="100%" stop-color="#1F2937" />
+    </linearGradient>
+    <clipPath id="circle-clip-john">
+      <circle cx="50" cy="50" r="50" />
+    </clipPath>
+  </defs>
+  <g clip-path="url(#circle-clip-john)">
+    <rect width="100" height="100" fill="url(#bg-john)" />
+    <!-- Background building/outdoor texture -->
+    <path d="M0,0 L100,0 L100,60 L0,50 Z" fill="#374151" opacity="0.6" />
+    <!-- Shoulders / Jacket -->
+    <path d="M10,105 C10,75 25,68 50,68 C75,68 90,75 90,105 Z" fill="#111827" />
+    <path d="M36,70 L50,88 L64,70 Z" fill="#D1D5DB" />
+    <!-- Neck -->
+    <rect x="42" y="52" width="16" height="18" fill="#D29B76" rx="4" />
+    <!-- Face -->
+    <ellipse cx="50" cy="42" rx="19" ry="22" fill="#E2AC8A" />
+    <!-- Beard & Stubble -->
+    <path d="M33,42 C33,58 40,65 50,65 C60,65 67,58 67,42 C67,48 64,58 50,58 C36,58 33,48 33,42 Z" fill="#33241A" opacity="0.8" />
+    <!-- Hair -->
+    <path d="M30,38 C29,22 40,16 50,16 C60,16 71,22 70,38 C66,24 58,22 50,22 C42,22 34,24 30,38 Z" fill="#1F1610" />
+    <!-- Eyes -->
+    <circle cx="43" cy="40" r="2.5" fill="#1F2937" />
+    <circle cx="57" cy="40" r="2.5" fill="#1F2937" />
+    <!-- Eyebrows -->
+    <path d="M39,35 Q44,33 48,36" stroke="#1F1610" stroke-width="2" stroke-linecap="round" />
+    <path d="M61,35 Q56,33 52,36" stroke="#1F1610" stroke-width="2" stroke-linecap="round" />
+    <!-- Nose & Mouth -->
+    <path d="M50,40 L50,47 L47,48" stroke="#B87D59" stroke-width="1.8" stroke-linecap="round" fill="none" />
+    <path d="M45,53 Q50,56 55,53" stroke="#8A4A28" stroke-width="1.8" stroke-linecap="round" fill="none" />
+  </g>
+</svg>

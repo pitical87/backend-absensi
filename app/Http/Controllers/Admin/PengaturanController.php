@@ -106,4 +106,36 @@ class PengaturanController extends Controller
             'Content-Disposition' => 'attachment; filename="' . $nama . '"',
         ]);
     }
+
+    public function ubahPasswordSaya(Request $request)
+    {
+        $passLama = (string) $request->input('password_lama');
+        $passBaru = (string) $request->input('password_baru');
+        $passKonf = (string) $request->input('password_konfirmasi');
+
+        $user = \App\Models\User::find(session('uid'));
+        if (! $user) {
+            return back()->with('error', 'Sesi login tidak valid.');
+        }
+
+        if (! password_verify($passLama, $user->password_hash)) {
+            return back()->with('error', 'Password lama tidak sesuai.');
+        }
+
+        if (strlen($passBaru) < 6) {
+            return back()->with('error', 'Password baru minimal 6 karakter.');
+        }
+
+        if ($passBaru !== $passKonf) {
+            return back()->with('error', 'Konfirmasi password baru tidak cocok.');
+        }
+
+        $user->update([
+            'password_hash' => bcrypt($passBaru),
+        ]);
+
+        catat_aktivitas('Ubah Password', $user->nama_lengkap . ' mengubah password akunnya');
+
+        return back()->with('success', 'Password Anda berhasil diperbarui.');
+    }
 }

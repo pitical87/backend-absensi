@@ -1,0 +1,186 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 480" fill="none" class="w-full h-auto">
+  <defs>
+    <!-- Soft Shadows -->
+    <filter id="cloud-shadow" x="-20%" y="-20%" width="140%" height="140%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#003580" flood-opacity="0.22" />
+    </filter>
+    <filter id="rocket-shadow" x="-30%" y="-30%" width="160%" height="160%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="-10" dy="18" stdDeviation="18" flood-color="#002157" flood-opacity="0.35" />
+    </filter>
+    <filter id="char-shadow" x="-20%" y="-20%" width="140%" height="140%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="-4" dy="8" stdDeviation="8" flood-color="#001845" flood-opacity="0.25" />
+    </filter>
+
+    <!-- Cloud Gradients -->
+    <linearGradient id="cloud-grad-1" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="65%" stop-color="#EDF4FC" />
+      <stop offset="100%" stop-color="#D2E3F8" />
+    </linearGradient>
+    <linearGradient id="cloud-grad-2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#DBE9F8" />
+    </linearGradient>
+
+    <!-- Rocket Gradients -->
+    <linearGradient id="rocket-body" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF6B55" />
+      <stop offset="35%" stop-color="#EE3824" />
+      <stop offset="85%" stop-color="#BF180B" />
+      <stop offset="100%" stop-color="#8E0A00" />
+    </linearGradient>
+    <linearGradient id="rocket-stripe" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="70%" stop-color="#EDF2F7" />
+      <stop offset="100%" stop-color="#CBD5E1" />
+    </linearGradient>
+    <linearGradient id="rocket-tip" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#334155" />
+      <stop offset="60%" stop-color="#1E293B" />
+      <stop offset="100%" stop-color="#0F172A" />
+    </linearGradient>
+    <linearGradient id="fin-left" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFA84A" />
+      <stop offset="100%" stop-color="#D94B06" />
+    </linearGradient>
+    <linearGradient id="fin-bottom" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF5A43" />
+      <stop offset="100%" stop-color="#B81408" />
+    </linearGradient>
+
+    <!-- Character Gradients -->
+    <linearGradient id="skin" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFDEC9" />
+      <stop offset="60%" stop-color="#F7C4A5" />
+      <stop offset="100%" stop-color="#E29E77" />
+    </linearGradient>
+    <linearGradient id="char-shirt" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF7F66" />
+      <stop offset="100%" stop-color="#E33924" />
+    </linearGradient>
+    <linearGradient id="char-pants" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4F759B" />
+      <stop offset="100%" stop-color="#223E63" />
+    </linearGradient>
+    <linearGradient id="char-hair" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3F5268" />
+      <stop offset="100%" stop-color="#1E293B" />
+    </linearGradient>
+    <linearGradient id="char-laptop" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#CBD5E1" />
+    </linearGradient>
+    <linearGradient id="laptop-screen" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#60A5FA" />
+      <stop offset="100%" stop-color="#2563EB" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background Small Float Cloud (Top Left) -->
+  <g opacity="0.95" filter="url(#cloud-shadow)">
+    <circle cx="110" cy="80" r="28" fill="url(#cloud-grad-1)" />
+    <circle cx="140" cy="74" r="38" fill="url(#cloud-grad-1)" />
+    <circle cx="178" cy="82" r="26" fill="url(#cloud-grad-1)" />
+    <rect x="110" y="80" width="70" height="26" rx="13" fill="url(#cloud-grad-1)" />
+  </g>
+
+  <!-- Background Small Cloud (Bottom Right) -->
+  <g opacity="0.9" filter="url(#cloud-shadow)">
+    <circle cx="430" cy="380" r="22" fill="url(#cloud-grad-1)" />
+    <circle cx="455" cy="372" r="30" fill="url(#cloud-grad-1)" />
+    <circle cx="482" cy="380" r="20" fill="url(#cloud-grad-1)" />
+    <rect x="430" y="380" width="54" height="20" rx="10" fill="url(#cloud-grad-1)" />
+  </g>
+
+  <!-- Main Huge 3D Fluffy Cloud Cluster (Behind Rocket Base) -->
+  <g filter="url(#cloud-shadow)">
+    <ellipse cx="140" cy="320" rx="65" ry="60" fill="url(#cloud-grad-1)" />
+    <ellipse cx="205" cy="290" rx="55" ry="50" fill="url(#cloud-grad-1)" />
+    <ellipse cx="225" cy="340" rx="50" ry="45" fill="url(#cloud-grad-2)" />
+    <ellipse cx="115" cy="355" rx="55" ry="48" fill="url(#cloud-grad-1)" />
+    <ellipse cx="170" cy="365" rx="68" ry="48" fill="url(#cloud-grad-2)" />
+  </g>
+
+  <!-- ROCKET + CHARACTER GROUP (Rotated ~40 deg upwards) -->
+  <g transform="translate(320, 230) rotate(-42)">
+
+    <!-- Bottom Exhaust Thruster -->
+    <path d="M-22,110 L22,110 L16,132 L-16,132 Z" fill="#475569" />
+    <ellipse cx="0" cy="132" rx="16" ry="6" fill="#1E293B" />
+
+    <!-- Rocket Back Left Fin -->
+    <path d="M-40,65 L-92,105 L-52,125 L-25,95 Z" fill="url(#fin-bottom)" filter="url(#rocket-shadow)" />
+
+    <!-- Rocket Back Right Fin -->
+    <path d="M40,65 L92,105 L52,125 L25,95 Z" fill="url(#fin-left)" filter="url(#rocket-shadow)" />
+
+    <!-- Rocket Main Fuselage -->
+    <path d="M 0,-130 C 50,-60 62,35 48,105 C 48,110 -48,110 -48,105 C -62,35 -50,-60 0,-130 Z"
+          fill="url(#rocket-body)" filter="url(#rocket-shadow)" />
+
+    <!-- Rocket Diagonal White Stripes -->
+    <g opacity="0.95">
+      <path d="M -43,20 C -20,10 20,10 43,20 L 46,46 C 20,36 -20,36 -46,46 Z" fill="url(#rocket-stripe)" />
+      <path d="M -47,65 C -20,55 20,55 47,65 L 48,85 C 20,75 -20,75 -48,85 Z" fill="url(#rocket-stripe)" />
+    </g>
+
+    <!-- Rocket Dark Tip Nosecone -->
+    <path d="M 0,-130 C 22,-98 32,-70 38,-48 C 15,-55 -15,-55 -38,-48 C -32,-70 -22,-98 0,-130 Z"
+          fill="url(#rocket-tip)" />
+
+    <!-- Central Fin / Spine -->
+    <path d="M -5,-30 L 5,-30 L 7,100 L -7,100 Z" fill="url(#fin-left)" />
+
+    <!-- 3D CHARACTER RIDING ROCKET -->
+    <g transform="translate(10, -50) rotate(42)" filter="url(#char-shadow)">
+      <!-- Left Leg (riding side) -->
+      <path d="M -18,48 C -18,65 -8,85 12,88 C 18,89 22,82 18,76 C 4,72 -4,58 -6,44 Z" fill="url(#char-pants)" />
+      <!-- Left Shoe -->
+      <ellipse cx="18" cy="85" rx="10" ry="6" fill="#FFFFFF" />
+
+      <!-- Body / Torso -->
+      <path d="M -22,0 C -22,-18 -10,-28 8,-28 C 26,-28 36,-18 36,0 C 36,25 24,50 -4,50 C -18,50 -22,25 -22,0 Z" fill="url(#char-shirt)" />
+
+      <!-- Neck -->
+      <rect x="-2" y="-38" width="14" height="14" rx="6" fill="url(#skin)" />
+
+      <!-- Head -->
+      <circle cx="5" cy="-52" r="22" fill="url(#skin)" />
+
+      <!-- Cute Hair Bun -->
+      <ellipse cx="5" cy="-66" rx="20" ry="14" fill="url(#char-hair)" />
+      <circle cx="5" cy="-78" r="11" fill="url(#char-hair)" />
+
+      <!-- Face Details -->
+      <circle cx="16" cy="-52" r="2.5" fill="#1E293B" />
+      <path d="M 12,-44 Q 16,-40 20,-44" stroke="#D97706" stroke-width="2" stroke-linecap="round" fill="none" />
+
+      <!-- Left Arm typing on laptop -->
+      <path d="M -8,-15 C -4,-2 10,12 32,4 C 36,2 38,-4 32,-4 C 18,-2 8,-8 0,-20 Z" fill="url(#skin)" />
+
+      <!-- Right Arm stretching forward excitedly -->
+      <path d="M 16,-18 C 30,-22 52,-18 72,-16 C 78,-15 80,-8 74,-6 C 58,-8 40,-10 24,-6 Z" fill="url(#skin)" />
+      <!-- Thumbs up hand -->
+      <circle cx="76" cy="-14" r="6" fill="url(#skin)" />
+      <path d="M 76,-18 L 76,-24 C 76,-26 79,-26 79,-24 L 79,-18 Z" fill="url(#skin)" />
+
+      <!-- Laptop Open -->
+      <g transform="translate(30, -5) rotate(-15)">
+        <!-- Laptop Base -->
+        <rect x="0" y="8" width="34" height="22" rx="3" fill="url(#char-laptop)" />
+        <rect x="3" y="10" width="28" height="18" rx="2" fill="#94A3B8" />
+        <!-- Laptop Screen -->
+        <path d="M 28,10 L 44,-16 L 16,-16 L 2,10 Z" fill="url(#char-laptop)" />
+        <path d="M 27,8 L 41,-13 L 18,-13 L 6,8 Z" fill="url(#laptop-screen)" />
+      </g>
+    </g>
+
+  </g>
+
+  <!-- Front Foreground Puffy Cloud Cluster (Overlap Rocket Bottom) -->
+  <g filter="url(#cloud-shadow)">
+    <ellipse cx="230" cy="360" rx="42" ry="38" fill="url(#cloud-grad-1)" />
+    <ellipse cx="270" cy="380" rx="48" ry="40" fill="url(#cloud-grad-2)" />
+    <ellipse cx="320" cy="395" rx="36" ry="32" fill="url(#cloud-grad-1)" />
+  </g>
+</svg>

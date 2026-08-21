@@ -69,7 +69,7 @@
           $h = $g['jml'] > 0 ? max(3, $g['jml'] / $maks * 100) : 0;
           @endphp
         @if($h > 0)
-          <rect x="{{ $x }}" y="{{ 120 - $h }}" width="13" height="{{ $h }}" rx="2.5" fill="#1568B8">
+          <rect x="{{ $x }}" y="{{ 120 - $h }}" width="13" height="{{ $h }}" rx="3" fill="#007AFC">
             <title>{{ tgl_id($g['tgl'], false) }}: {{ $g['jml'] }} pegawai</title>
           </rect>
         @else

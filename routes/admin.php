@@ -55,6 +55,7 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::post('pengaturan', [PengaturanController::class, 'simpan'])->name('admin.pengaturan.simpan');
     Route::post('pengaturan/api-key', [PengaturanController::class, 'gantiApiKey'])->name('admin.pengaturan.apikey');
     Route::get('pengaturan/backup', [PengaturanController::class, 'backup'])->name('admin.pengaturan.backup');
+    Route::post('ubah-password', [PengaturanController::class, 'ubahPasswordSaya'])->name('admin.ubah-password');
 
     Route::get('aktivitas', [AktivitasController::class, 'index'])->name('admin.aktivitas');
 });

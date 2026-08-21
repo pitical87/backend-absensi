@@ -77,106 +77,13 @@ class AuthController extends Controller
             'role'   => $u->role,
             'nama'   => $u->nama_lengkap,
             'posisi' => $u->posisi ?? 'Staf',
+            'email'  => $u->email,
         ]);
         catat_aktivitas('Masuk', $u->nama_lengkap . ' (' . $u->role . ') masuk ke sistem');
 
         return redirect($u->role === 'admin' ? 'admin' : 'dashboard');
     }
-
-    public function register(StrukturService $struktur)
-    {
-        if (! $this->skemaSiap()) {
-            return redirect('install');
-        }
-        return view('auth.register', $this->dataMaster($struktur) + ['lebar' => true]);
-    }
-
-    public function prosesRegister(Request $request, StrukturService $struktur)
-    {
-        $d = [
-            'nama_lengkap'  => trim((string) $request->input('nama_lengkap')),
-            'tempat_lahir'  => trim((string) $request->input('tempat_lahir')),
-            'tanggal_lahir' => $request->input('tanggal_lahir') ?: null,
-            'jenis_kelamin' => (string) $request->input('jenis_kelamin'),
-            'agama'         => (string) $request->input('agama'),
-            'email'         => trim((string) $request->input('email')),
-            'no_hp'         => trim((string) $request->input('no_hp')),
-            'nip'           => trim((string) $request->input('nip')) ?: null,
-            'unit_kerja_id' => (int) $request->input('unit_kerja_id') ?: null,
-            'sub_unit_id'   => (int) $request->input('sub_unit_id') ?: null,
-            'profesi_id'    => (int) $request->input('profesi_id') ?: null,
-        ];
-        $pass  = (string) $request->input('password');
-        $pass2 = (string) $request->input('password2');
-
-        $galat = [];
-        if ($d['nama_lengkap'] === '') $galat[] = 'Nama lengkap wajib diisi.';
-        if (! filter_var($d['email'], FILTER_VALIDATE_EMAIL)) $galat[] = 'Email tidak valid.';
-        if (! in_array($d['jenis_kelamin'], ['Laki-Laki', 'Perempuan'], true)) $galat[] = 'Jenis kelamin wajib dipilih.';
-        if (! in_array($d['agama'], ['Katolik', 'Kristen', 'Islam', 'Hindu', 'Budha', 'Lainnya'], true)) $galat[] = 'Agama wajib dipilih.';
-        if (strlen($pass) < 6) $galat[] = 'Password minimal 6 karakter.';
-        if ($pass !== $pass2) $galat[] = 'Konfirmasi password tidak sama.';
-
-        if (User::where('email', $d['email'])->count() > 0) {
-            $galat[] = 'Email sudah terdaftar. Gunakan email lain atau masuk.';
-        }
-
-        $unit = $d['unit_kerja_id']
-            ? UnitKerja::find($d['unit_kerja_id'])
-            : null;
-        if (! $unit) {
-            $galat[] = 'Tempat kerja wajib dipilih.';
-        } elseif ($unit->punya_sub) {
-            $sah = $d['sub_unit_id'] && SubUnit::where('id', $d['sub_unit_id'])
-                ->where('unit_kerja_id', $d['unit_kerja_id'])
-                ->count() > 0;
-            if (! $sah) $galat[] = 'Sub unit wajib dipilih untuk ' . $unit->nama . '.';
-        } else {
-            $d['sub_unit_id'] = null;
-        }
-        if (! $d['profesi_id'] || \App\Models\Profesi::where('id', $d['profesi_id'])->count() === 0) {
-            $galat[] = 'Profesi wajib dipilih.';
-        }
-
-        [$kategoriJab, $jabatanId, $galatJab] = $struktur->resolusi(
-            (string) $request->input('jabatan_kategori'),
-            (int) $request->input('jabatan_id')
-        );
-        if ($galatJab !== '') $galat[] = $galatJab;
-        $d['jabatan_kategori'] = $kategoriJab;
-        $d['jabatan_id']       = $jabatanId;
-
-        $statusPegawai = (string) $request->input('status_pegawai') === 'PNS' ? 'PNS' : 'Non-PNS';
-        [$posisi, $seksiPembinaId, $galatPosisi] = $struktur->resolusiPosisi(
-            (string) $request->input('posisi'),
-            $kategoriJab,
-            $jabatanId,
-            (int) $request->input('seksi_pembina_id') ?: null
-        );
-        if ($galatPosisi !== '') $galat[] = $galatPosisi;
-        $d['posisi']           = $posisi;
-        $d['status_pegawai']   = $statusPegawai;
-        $d['seksi_pembina_id'] = $seksiPembinaId;
-
-        if ($galat) {
-            return view('auth.register', $this->dataMaster($struktur) + [
-                'galat' => implode(' ', $galat),
-                'lama'  => $request->all(),
-                'lebar' => true,
-            ]);
-        }
-
-        User::create($d + [
-            'password_hash' => bcrypt($pass),
-            'role'          => 'pegawai',
-            'status'        => 'aktif',
-            'created_at'    => now(),
-        ]);
-
-        return redirect('login')
-            ->with('success', 'Pendaftaran berhasil. Silakan masuk dengan email dan password Anda.');
-    }
-
+   
     public function logout()
     {
         if (session('uid')) {
