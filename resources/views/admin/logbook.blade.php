@@ -77,7 +77,7 @@
 <div id="modal-simrs" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
   <div class="kartu w-full max-w-xl max-h-[85vh] overflow-auto">
     <div class="kartu-kepala">
-      <h2>Ambil dari SIMRS</h2>
+      <h2>Ambil dari SIMRS <span class="teks-redup teks-kecil">(Tindakan + Lab)</span></h2>
       <button type="button" id="modal-tutup" class="btn btn-garis btn-kecil">&times; Tutup</button>
     </div>
 
@@ -631,7 +631,7 @@
 
     previewB.disabled = true;
     resetPreview();
-    info.innerHTML = '<span class="teks-redup">Mengambil data tindakan dari SIMRS&hellip;</span>';
+    info.innerHTML = '<span class="teks-redup">Mengambil data tindakan &amp; lab dari SIMRS&hellip;</span>';
 
     const params = new URLSearchParams();
     params.set('dari', dari.value);
@@ -640,15 +640,36 @@
       if (o.value) params.append('pegawai[]', o.value);
     });
 
-    fetch('{{ route("admin.simrs.tindakan.ambil") }}?' + params.toString())
-      .then(function (r) { return r.json(); })
-      .then(function (h) {
-        if (! h.sukses) {
-          info.innerHTML = '<span class="text-red-600">' + (h.pesan || 'Gagal mengambil data.') + '</span>';
+    const urlT = '{{ route("admin.simrs.tindakan.ambil") }}?' + params.toString();
+    const urlL = '{{ route("admin.simrs.lab.ambil") }}?' + params.toString();
+
+    Promise.all([
+      fetch(urlT).then(function (r) { return r.json(); }),
+      fetch(urlL).then(function (r) { return r.json(); }),
+    ])
+      .then(function ([ht, hl]) {
+        const tindakan = ht && ht.sukses ? (ht.data || []) : [];
+        const lab      = hl && hl.sukses ? (hl.data || []) : [];
+
+        if (! ht.sukses && ! hl.sukses) {
+          info.innerHTML = '<span class="text-red-600">'
+            + esc((ht && ht.pesan) || 'Gagal mengambil data tindakan.') + '<br>'
+            + esc((hl && hl.pesan) || 'Gagal mengambil data lab.') + '</span>';
           return;
         }
-        dataSimrs = h.data || [];
-        info.innerHTML = '<strong>' + dataSimrs.length + '</strong> tindakan ditemukan ';
+
+        dataSimrs = tindakan.concat(lab).sort(function (a, b) {
+          if (a.tanggal !== b.tanggal) return a.tanggal < b.tanggal ? -1 : 1;
+          if (a.jam !== b.jam) return a.jam < b.jam ? -1 : 1;
+          return 0;
+        });
+
+        let teks = '<strong>' + tindakan.length + '</strong> tindakan + <strong>'
+                 + lab.length + '</strong> pemeriksaan lab ditemukan ';
+        if (! ht.sukses) teks += '<br><span class="text-amber-600">' + esc(ht.pesan || 'Data tindakan gagal diambil.') + '</span>';
+        if (! hl.sukses) teks += '<br><span class="text-amber-600">' + esc(hl.pesan || 'Data lab gagal diambil.') + '</span>';
+        info.innerHTML = teks;
+
         dataSimrs.forEach(function (r) {
           const li = document.createElement('li');
           li.textContent = r.tanggal + ' - ' + r.jam + ' — ' + r.isi;

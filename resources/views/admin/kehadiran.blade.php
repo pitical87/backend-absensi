@@ -5,7 +5,12 @@
 <section class="kartu">
   <div class="kartu-kepala">
     <h2>{!! ikon('kalender') !!} Kehadiran — {{ tgl_id($tanggal) }}</h2>
-    <span class="badge badge-biru">{{ count($rows) }} catatan</span>
+    <div class="flex items-center gap-3">
+      <span class="badge badge-biru">{{ count($rows) }} catatan</span>
+      <button type="button" id="tombol-peta" class="btn btn-navy btn-kecil">
+        {!! ikon('peta', 14) !!} Peta Sebaran Absen
+      </button>
+    </div>
   </div>
 
   <form method="get" action="{{ url('admin/kehadiran') }}" class="bilah-alat">
@@ -118,18 +123,26 @@
 </section>
 @endif
 
-<section class="kartu">
-  <div class="kartu-kepala">
-    <h2>{!! ikon('peta') !!} Peta Posisi Absensi</h2>
-    <span class="teks-redup teks-kecil">lingkaran = radius {{ number_format($radius, 0, ',', '.') }} m ·
-      hijau = datang · navy = pulang · merah = anomali</span>
-  </div>
-  <div id="peta"></div>
-  <div class="peta-kosong" id="peta-kosong" hidden>
-    Peta tidak dapat dimuat (memerlukan koneksi internet untuk pustaka peta &amp; ubin peta).
-    Gunakan tautan koordinat pada tabel di atas untuk membuka lokasi di Google Maps.
-  </div>
-</section>
+{{-- Modal Peta Sebaran Absen --}}
+<div id="modal-peta-absen" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
+  <section class="kartu w-full max-w-4xl">
+    <div class="kartu-kepala">
+      <h2>{!! ikon('peta') !!} Peta Posisi Absensi</h2>
+      <div class="flex items-center gap-3">
+        <span class="teks-redup teks-kecil hidden md:inline">lingkaran = radius {{ number_format($radius, 0, ',', '.') }} m ·
+          hijau = datang · navy = pulang · merah = anomali</span>
+        <button type="button" id="modal-peta-tutup" class="btn btn-garis btn-kecil">&times;</button>
+      </div>
+    </div>
+    <div class="px-3 pb-3">
+      <div id="peta"></div>
+      <div class="peta-kosong" id="peta-kosong" hidden>
+        Peta tidak dapat dimuat (memerlukan koneksi internet untuk pustaka peta &amp; ubin peta).
+        Gunakan tautan koordinat pada tabel di atas untuk membuka lokasi di Google Maps.
+      </div>
+    </div>
+  </section>
+</div>
 
 @endsection
 
@@ -140,43 +153,76 @@
 (function () {
   var el     = document.getElementById('peta');
   var kosong = document.getElementById('peta-kosong');
-  if (typeof window.L === 'undefined') {
-    el.hidden = true;
-    kosong.hidden = false;
-    return;
+  var tombol = document.getElementById('tombol-peta');
+  var modal  = document.getElementById('modal-peta-absen');
+  var tutup  = document.getElementById('modal-peta-tutup');
+  var peta   = null;
+  var sudahInit = false;
+
+  function initPeta() {
+    if (typeof window.L === 'undefined') {
+      el.hidden = true;
+      kosong.hidden = false;
+      return false;
+    }
+    var rs     = [@json($rsLat), @json($rsLng)];
+    var radius = @json($radius);
+    var titik  = @json($titik);
+
+    peta = L.map(el).setView(rs, 16);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19, attribution: '&copy; OpenStreetMap'
+    }).addTo(peta);
+
+    L.circle(rs, { radius: radius, color: '#1568B8', fillColor: '#1568B8', fillOpacity: .08, weight: 1.5 }).addTo(peta);
+    L.marker(rs).addTo(peta).bindPopup('<strong>Titik RSUD Merauke</strong>');
+
+    function esk(s) {
+      var d = document.createElement('div');
+      d.textContent = String(s == null ? '' : s);
+      return d.innerHTML;
+    }
+
+    var batas = [rs];
+    titik.forEach(function (t) {
+      var warna = t.anomali ? '#B3312D' : (t.tipe === 'Datang' ? '#178A50' : '#0B3B66');
+      L.circleMarker([t.lat, t.lng], {
+        radius: 7, color: warna, fillColor: warna, fillOpacity: .85, weight: 1.5
+      }).addTo(peta).bindPopup(
+        '<strong>' + esk(t.nama) + '</strong><br>Absen ' + esk(t.tipe) + ' · pukul ' + esk(t.jam)
+        + (t.anomali ? '<br><em>⚠ terindikasi anomali GPS</em>' : '')
+      );
+      batas.push([t.lat, t.lng]);
+    });
+    if (batas.length > 1) {
+      peta.fitBounds(batas, { padding: [30, 30], maxZoom: 17 });
+    }
+    return true;
   }
-  var rs     = [@json($rsLat), @json($rsLng)];
-  var radius = @json($radius);
-  var titik  = @json($titik);
 
-  var peta = L.map(el).setView(rs, 16);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19, attribution: '&copy; OpenStreetMap'
-  }).addTo(peta);
-
-  L.circle(rs, { radius: radius, color: '#1568B8', fillColor: '#1568B8', fillOpacity: .08, weight: 1.5 }).addTo(peta);
-  L.marker(rs).addTo(peta).bindPopup('<strong>Titik RSUD Merauke</strong>');
-
-  function esk(s) {
-    var d = document.createElement('div');
-    d.textContent = String(s == null ? '' : s);
-    return d.innerHTML;
+  function bukaPeta() {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    if (! sudahInit) {
+      sudahInit = initPeta();
+      if (! sudahInit) return;
+    }
+    setTimeout(function () { if (peta) peta.invalidateSize(); }, 60);
   }
 
-  var batas = [rs];
-  titik.forEach(function (t) {
-    var warna = t.anomali ? '#B3312D' : (t.tipe === 'Datang' ? '#178A50' : '#0B3B66');
-    L.circleMarker([t.lat, t.lng], {
-      radius: 7, color: warna, fillColor: warna, fillOpacity: .85, weight: 1.5
-    }).addTo(peta).bindPopup(
-      '<strong>' + esk(t.nama) + '</strong><br>Absen ' + esk(t.tipe) + ' · pukul ' + esk(t.jam)
-      + (t.anomali ? '<br><em>⚠ terindikasi anomali GPS</em>' : '')
-    );
-    batas.push([t.lat, t.lng]);
+  function tutupPeta() {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+
+  tombol.addEventListener('click', bukaPeta);
+  tutup.addEventListener('click', tutupPeta);
+  modal.addEventListener('click', function (e) {
+    if (e.target === modal) tutupPeta();
   });
-  if (batas.length > 1) {
-    peta.fitBounds(batas, { padding: [30, 30], maxZoom: 17 });
-  }
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && ! modal.classList.contains('hidden')) tutupPeta();
+  });
 })();
 </script>
 @endsection

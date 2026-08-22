@@ -54,6 +54,41 @@ class SimrsController extends Controller
         );
     }
 
+    public function lab()
+    {
+        return view('admin.simrs_lab', [
+            'judulHalaman' => 'Data Lab SIMRS',
+            'menuAktif' => 'lab_simrs',
+            'pegawai' => $this->pegawaiTerMapping(),
+        ]);
+    }
+
+    public function ambilLab(Request $request, SimrsService $simrs)
+    {
+        $data = $request->validate([
+            'dari' => ['required', 'date_format:Y-m-d'],
+            'sampai' => ['required', 'date_format:Y-m-d', 'after_or_equal:dari'],
+            'pegawai' => ['nullable', 'array'],
+            'pegawai.*' => ['integer'],
+        ], [
+            'dari.required' => 'Tanggal awal wajib diisi.',
+            'dari.date_format' => 'Format tanggal awal harus YYYY-MM-DD.',
+            'sampai.required' => 'Tanggal akhir wajib diisi.',
+            'sampai.date_format' => 'Format tanggal akhir harus YYYY-MM-DD.',
+            'sampai.after_or_equal' => 'Tanggal akhir tidak boleh sebelum tanggal awal.',
+        ]);
+
+        $query = MappingSIMRSAccount::query();
+        if (! empty($data['pegawai'])) {
+            $query->whereIn('user_id', $data['pegawai']);
+        }
+        $ids = $query->pluck('simrs_user_id')->all();
+
+        return response()->json(
+            $simrs->cariLab($ids, $data['dari'], $data['sampai'])
+        );
+    }
+
     private function pegawaiTerMapping(): array
     {
         return MappingSIMRSAccount::query()

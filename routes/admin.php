@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\MappingSIMRSController;
 use App\Http\Controllers\Admin\PegawaiController;
 use App\Http\Controllers\Admin\PengaturanController;
 use App\Http\Controllers\Admin\RekapController;
+use App\Http\Controllers\Admin\RekapLogbookController;
 use App\Http\Controllers\Admin\ShiftController;
 use App\Http\Controllers\Admin\SimrsController;
 use App\Http\Controllers\Admin\StrukturController;
@@ -28,6 +29,9 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::get('simrs', [SimrsController::class, 'koneksi'])->name('admin.simrs.koneksi');
     Route::get('simrs/tindakan', [SimrsController::class, 'tindakan'])->name('admin.simrs.tindakan');
     Route::get('simrs/tindakan/ambil', [SimrsController::class, 'ambilTindakan'])->name('admin.simrs.tindakan.ambil');
+
+    Route::get('simrs/lab', [SimrsController::class, 'lab'])->name('admin.simrs.lab');
+    Route::get('simrs/lab/ambil', [SimrsController::class, 'ambilLab'])->name('admin.simrs.lab.ambil');
 
     Route::get('logbook', [LogbookController::class, 'index'])->name('admin.logbook');
     Route::post('logbook', [LogbookController::class, 'simpan'])->name('admin.logbook.simpan');
@@ -67,6 +71,9 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::post('libur/aksi', [LiburController::class, 'aksi'])->name('admin.libur.aksi');
 
     Route::get('rekap', [RekapController::class, 'index'])->name('admin.rekap');
+    Route::get('rekap_logbook', [RekapLogbookController::class, 'index'])->name('admin.rekap_logbook');
+    Route::get('rekap_logbook/cetak', [RekapLogbookController::class, 'cetak'])->name('admin.rekap_logbook.cetak');
+    Route::get('rekap_logbook/detail', [RekapLogbookController::class, 'detail'])->name('admin.rekap_logbook.detail');
     Route::post('rekap/generate', [RekapController::class, 'generate'])->name('admin.rekap.generate');
     Route::get('rekap/cetak', [RekapController::class, 'cetak'])->name('admin.rekap.cetak');
     Route::get('rekap/excel', [RekapController::class, 'excel'])->name('admin.rekap.excel');

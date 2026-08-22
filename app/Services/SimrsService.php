@@ -227,6 +227,63 @@ class SimrsService
         }
     }
 
+    /**
+     * Cari data pemeriksaan laboratorium pegawai yang dimapping pada
+     * tabel periksa_lab SIMRS berdasarkan daftar ID dan rentang tanggal.
+     *
+     * @param  array<int, string>  $daftarId  simrs_user_id dari tabel mapping_simrs_accounts
+     * @return array{sukses: bool, pesan?: string, total?: int, data?: array}
+     */
+    public function cariLab(array $daftarId, string $dari, string $sampai): array
+    {
+        $daftarId = array_values(array_unique(array_filter(array_map('trim', $daftarId))));
+        if ($daftarId === []) {
+            return ['sukses' => false, 'pesan' => 'Belum ada pegawai yang dimapping ke SIMRS.'];
+        }
+
+        $ph = implode(',', array_fill(0, count($daftarId), '?'));
+
+        try {
+            $pdo = $this->pdo();
+
+            $lab = $pdo->prepare(
+                "SELECT r.nip, r.kd_dokter, r.no_rawat, r.tgl_periksa, r.jam, j.nm_perawatan, j.kategori
+                 FROM periksa_lab r
+                 JOIN jns_perawatan_lab j ON j.kd_jenis_prw = r.kd_jenis_prw
+                 WHERE (r.nip IN ($ph) OR r.kd_dokter IN ($ph))
+                   AND r.tgl_periksa BETWEEN ? AND ?"
+            );
+            $lab->execute(array_merge($daftarId, $daftarId, [$dari, $sampai]));
+
+            $hasil = [];
+            foreach ($lab->fetchAll(PDO::FETCH_ASSOC) as $b) {
+                $jam = substr((string) $b['jam'], 0, 5);
+                $tanggal = (string) $b['tgl_periksa'];
+                $nmPerawatan = (string) $b['nm_perawatan'];
+                $kategori = (string) $b['kategori'];
+                $hasil[] = [
+                    'tanggal' => $tanggal,
+                    'jam' => $jam,
+                    'isi' => "Melakukan Pemeriksaan lab {$kategori} - {$nmPerawatan} ",
+                    'pesan' => "Pada jam {$jam} melakukan Pemeriksaan lab {$kategori} -  {$nmPerawatan} ",
+                    '_urut' => [$tanggal, $jam],
+                ];
+            }
+
+            usort($hasil, fn ($a, $b) => $a['_urut'] <=> $b['_urut']);
+
+            return [
+                'sukses' => true,
+                'total' => count($hasil),
+                'data' => array_map(fn ($r) => array_diff_key($r, ['_urut' => null]), $hasil),
+            ];
+        } catch (Throwable $e) {
+            Log::warning('Cari lab SIMRS gagal: '.$e->getMessage());
+
+            return ['sukses' => false, 'pesan' => 'Gagal terhubung ke database SIMRS. Periksa konfigurasi koneksi.'];
+        }
+    }
+
     private function pdo(): PDO
     {
         if ($this->pdo instanceof PDO) {

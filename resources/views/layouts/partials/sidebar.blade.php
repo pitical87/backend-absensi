@@ -31,7 +31,7 @@ $grupMenu = [
       'kehadiran' => ['admin/kehadiran', 'peta',     'Data Kehadiran'],
       'izin'      => ['admin/izin',      'surat',    'Persetujuan Izin'],
       'libur'     => ['admin/libur',     'kalender', 'Hari Libur'],
-      'rekap'     => ['admin/rekap',     'grafik',   'Rekap Bulanan'],
+      
     ],
   ],
   [
@@ -42,6 +42,16 @@ $grupMenu = [
       'cek_simrs'      => ['admin/simrs',          'centang', 'Cek Koneksi'],
       'mapping_simrs'  => ['admin/mapping_simrs',  'log',     'Mapping Akun'],
       'tindakan_simrs' => ['admin/simrs/tindakan', 'jam',     'Data Tindakan'],
+      'lab_simrs'      => ['admin/simrs/lab',      'log',     'Data Lab'],
+    ],
+  ],
+  [
+    'id'    => 'grp-rekap',
+    'label' => 'Laporan',
+    'ikon'  => 'grafik',
+    'items' => [
+      'rekap'         => ['admin/rekap',         'grafik',   'Rekap Absen'],
+      'rekap_logbook' => ['admin/rekap_logbook', 'log',      'Rekap Logbook'],
     ],
   ],
   [
