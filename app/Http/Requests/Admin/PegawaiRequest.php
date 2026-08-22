@@ -3,6 +3,8 @@
 namespace App\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+use Illuminate\Database\Query\Builder;
 
 class PegawaiRequest extends FormRequest
 {
@@ -19,7 +21,7 @@ class PegawaiRequest extends FormRequest
             'nama_lengkap'   => ['required', 'string', 'max:255'],
             'tempat_lahir'   => ['nullable', 'string', 'max:255'],
             'tanggal_lahir'  => ['nullable', 'date'],
-            'jenis_kelamin'  => ['nullable', 'in:L,P'],
+            'jenis_kelamin'  => ['nullable', 'in:Laki-Laki,Perempuan'],
             'agama'          => ['nullable', 'in:Katolik,Kristen,Islam,Hindu,Budha,Lainnya'],
             'email'          => array_merge(
                 ['required', 'email:rfc,dns', 'max:255'],
@@ -28,7 +30,9 @@ class PegawaiRequest extends FormRequest
             'no_hp'          => ['nullable', 'string', 'max:20'],
             'nip'            => ['nullable', 'string', 'max:30'],
             'unit_kerja_id'  => ['required', 'integer', 'exists:unit_kerja,id'],
-            'sub_unit_id'    => ['nullable', 'integer'],
+            'sub_unit_id'    => ['nullable', Rule::exists('sub_unit', 'id')->where(
+                fn (Builder $q) => $q->where('unit_kerja_id', (int) $this->input('unit_kerja_id'))
+            )],
             'profesi_id'     => ['required', 'integer', 'exists:profesi,id'],
             'shift_id'       => ['nullable', 'integer', 'exists:shift,id'],
             'role'           => ['in:admin,pegawai'],
@@ -51,10 +55,12 @@ class PegawaiRequest extends FormRequest
             'email.required'        => 'Email wajib diisi.',
             'email.email'           => 'Format email tidak valid.',
             'email.unique'          => 'Email sudah digunakan pegawai lain.',
+            'jenis_kelamin.in'      => 'Jenis kelamin tidak valid.',
             'password.required'     => 'Password wajib diisi untuk pegawai baru.',
             'password.min'          => 'Password minimal 6 karakter.',
             'unit_kerja_id.required' => 'Tempat kerja wajib dipilih.',
             'unit_kerja_id.exists'  => 'Unit kerja tidak valid.',
+            'sub_unit_id.exists'    => 'Sub unit tidak sesuai dengan unit kerja yang dipilih.',
             'profesi_id.required'   => 'Profesi wajib dipilih.',
             'profesi_id.exists'     => 'Profesi tidak valid.',
         ];

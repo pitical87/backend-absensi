@@ -100,11 +100,11 @@
       </tbody>
     </table>
   </div>
-  <p class="petunjuk">Izin/Sakit/Cuti yang <strong>disetujui</strong> otomatis tidak dihitung sebagai
+  {{-- <p class="petunjuk">Izin/Sakit/Cuti yang <strong>disetujui</strong> otomatis tidak dihitung sebagai
     Alpa dan tidak menurunkan persentase kehadiran; <strong>Dinas Luar</strong> dihitung sebagai hadir.
     <strong>Izin</strong> dan <strong>Cuti</strong> berjalan melalui alur berjenjang (Koordinator → Kepala
     Seksi/Sub Bagian → Kepala Bidang/Bagian → HRD) yang diputus pejabat terkait di menu Persetujuan mereka;
-    kolom "Ambil Alih" di sini hanya untuk keadaan darurat.</p>
+    kolom "Ambil Alih" di sini hanya untuk keadaan darurat.</p> --}}
 </section>
 
 @endsection

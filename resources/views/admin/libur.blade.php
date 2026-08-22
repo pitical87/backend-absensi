@@ -21,7 +21,7 @@
     <input type="text" name="keterangan" placeholder="cth. Hari Kemerdekaan RI / Cuti Bersama…" required>
     <button type="submit" class="btn btn-primer btn-kecil">+ Tambah Hari Libur</button>
   </form>
-  <p class="petunjuk">Tanggal yang terdaftar di sini tidak dihitung sebagai Alpa bagi pegawai yang
+  {{-- <p class="petunjuk">Tanggal yang terdaftar di sini tidak dihitung sebagai Alpa bagi pegawai yang
     tidak absen, sehingga rekap bulanan tetap adil. Pegawai yang tetap masuk pada hari libur
     tetap tercatat hadir beserta jam kerjanya.</p>
   <p class="petunjuk">Tanggal 1 Januari, 1 Mei, 1 Juni, 17 Agustus, dan 25 Desember
@@ -29,7 +29,7 @@
     di bawah). Hari libur nasional/cuti bersama lain yang mengikuti penanggalan Hijriah, Imlek,
     Saka, atau Paskah (Idulfitri, Iduladha, Nyepi, Imlek, Waisak, dll.) baru diumumkan pemerintah
     lewat SKB 3 Menteri sekitar 3–4 bulan sebelum tahun berjalan, sehingga perlu ditambahkan manual
-    begitu SKB terbit — tanggal tahun {{ (int) date('Y') }} sudah dimasukkan sejak pemasangan.</p>
+    begitu SKB terbit — tanggal tahun {{ (int) date('Y') }} sudah dimasukkan sejak pemasangan.</p> --}}
 
   <div class="tabel-bungkus">
     <table class="tabel">

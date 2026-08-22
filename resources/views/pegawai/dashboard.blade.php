@@ -282,7 +282,7 @@ $warna = ['tepat' => '#178A50', 'telat' => '#D9930D', 'jalan' => '#2F87DE',
 
 @endsection
 
-@section('skrip')
+@section('script')
 <script>
 const ABSEN_CFG = {
   urlAbsen: @json(url('absen')),

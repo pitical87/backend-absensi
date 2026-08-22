@@ -11,6 +11,9 @@ class InstallController extends Controller
     public function index()
     {
         [$tahap, $galat] = $this->siapkanSkema();
+        if($tahap === 'selesai'){
+            return redirect('login');
+        }
 
         return view('install.index', [
             'tahap' => $tahap,

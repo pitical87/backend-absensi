@@ -59,9 +59,9 @@
     </select>
     <button type="submit" class="btn btn-navy btn-kecil">Tampilkan</button>
   </form>
-  <p class="petunjuk">Filter Bidang/Bagian mencakup pejabat struktural di dalamnya (Kabid/Kabag
+  {{-- <p class="petunjuk">Filter Bidang/Bagian mencakup pejabat struktural di dalamnya (Kabid/Kabag
     beserta Kasi/Kasubag bawahannya). Filter dapat digabung dan ikut terbawa ke Cetak PDF
-    maupun Export Excel.</p>
+    maupun Export Excel.</p> --}}
 
   <div class="aksi-baris mb-3.5">
     <form method="post" action="{{ url('admin/rekap/generate') }}">

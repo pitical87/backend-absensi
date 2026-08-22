@@ -105,7 +105,7 @@
 
 @endsection
 
-@section('skrip')
+@section('script')
 <script>
 function ubahJabatan(id, nama, unit) {
   document.getElementById('uj-id').value   = id;

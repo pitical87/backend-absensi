@@ -52,17 +52,10 @@
         </div>
 
         {{-- BOTTOM LOGIN AS SECTION (Dynamically Loaded from Encrypted localStorage) --}}
-        <div id="login-as-section" class="hidden pt-8 lg:pt-14 mt-4 transition-all duration-300">
+        <div id="login-as-section" class="hidden pt-4 lg:pt-4 mt-4 transition-all duration-300">
           <div class="flex items-center justify-between mb-3 max-w-md">
-            <h3 class="text-sm font-semibold text-slate-800 tracking-wide">Login as</h3>
-            <button 
-              type="button" 
-              id="clear-saved-users-btn" 
-              class="text-[11px] text-slate-400 hover:text-red-500 transition cursor-pointer"
-              title="Hapus riwayat login tersimpan"
-            >
-              Hapus riwayat
-            </button>
+            <h3 class="text-sm font-semibold text-slate-800 tracking-wide">Last login</h3>
+            
           </div>
           
           <div id="login-as-list" class="flex flex-wrap gap-4 items-center">
@@ -112,7 +105,6 @@
                 Sign in with Google
               </span>
             </button>
-
           </div>
 
           {{-- FLASH / ERROR MESSAGES --}}

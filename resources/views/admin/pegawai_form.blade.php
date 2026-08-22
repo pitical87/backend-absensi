@@ -1,7 +1,26 @@
-@php $v = fn ($k, $def = '') => $edit->$k ?? $def; @endphp
+@php $v = fn ($k, $def = '') => old($k, $edit->$k ?? $def); @endphp
 @extends('layouts.admin')
 
 @section('content')
+
+@if ($errors->any())
+<section class="kartu border-red-300 mb-4">
+  <div class="flex items-start gap-3 text-red-700">
+    <svg class="w-5 h-5 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+        d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+    </svg>
+    <div>
+      <p class="font-semibold">Periksa kembali isian formulir:</p>
+      <ul class="list-disc list-inside mt-1">
+        @foreach ($errors->all() as $galat)
+          <li>{{ $galat }}</li>
+        @endforeach
+      </ul>
+    </div>
+  </div>
+</section>
+@endif
 
 <section class="kartu">
   <div class="kartu-kepala">
@@ -36,7 +55,7 @@
         <select name="jenis_kelamin">
           <option value="">— Pilih —</option>
           @foreach(['Laki-Laki', 'Perempuan'] as $jk)
-            <option {{ ($edit->jenis_kelamin ?? '') === $jk ? 'selected' : '' }}>{{ $jk }}</option>
+            <option {{ old('jenis_kelamin', $edit->jenis_kelamin ?? '') === $jk ? 'selected' : '' }}>{{ $jk }}</option>
           @endforeach
         </select>
       </div>
@@ -45,7 +64,7 @@
         <select name="agama">
           <option value="">— Pilih —</option>
           @foreach($agamaList as $ag)
-            <option {{ ($edit->agama ?? '') === $ag ? 'selected' : '' }}>{{ $ag }}</option>
+            <option {{ old('agama', $edit->agama ?? '') === $ag ? 'selected' : '' }}>{{ $ag }}</option>
           @endforeach
         </select>
       </div>
@@ -74,7 +93,7 @@
           <option value="">— Pilih —</option>
           @foreach($unitList as $uk)
             <option value="{{ (int) $uk->id }}" data-sub="{{ (int) $uk->punya_sub }}"
-              {{ (int) ($edit->unit_kerja_id ?? 0) === (int) $uk->id ? 'selected' : '' }}>
+              {{ (int) old('unit_kerja_id', $edit->unit_kerja_id ?? 0) === (int) $uk->id ? 'selected' : '' }}>
               {{ $uk->nama }}
             </option>
           @endforeach
@@ -93,7 +112,7 @@
         <label class="wajib">Jabatan</label>
         <select name="jabatan_kategori" id="jabatan_kategori" required>
           @foreach($kategoriJab as $k)
-            <option {{ ($edit->jabatan_kategori ?? 'Staf/Pelaksana') === $k ? 'selected' : '' }}>{{ $k }}</option>
+            <option {{ old('jabatan_kategori', $edit->jabatan_kategori ?? 'Staf/Pelaksana') === $k ? 'selected' : '' }}>{{ $k }}</option>
           @endforeach
         </select>
       </div>
@@ -110,7 +129,7 @@
         <label class="wajib">Posisi</label>
         <select name="posisi" id="posisi" required>
           @foreach($posisiList as $ps)
-            <option {{ ($edit->posisi ?? 'Staf') === $ps ? 'selected' : '' }}>{{ $ps }}</option>
+            <option {{ old('posisi', $edit->posisi ?? 'Staf') === $ps ? 'selected' : '' }}>{{ $ps }}</option>
           @endforeach
         </select>
         <div class="petunjuk">Menentukan alur persetujuan izin/cuti. Untuk Kepala Seksi/Sub Bagian,
@@ -122,7 +141,7 @@
           <option value="">— Belum ditetapkan —</option>
           @foreach($seksiPembinaPilihan as $sp)
             <option value="{{ (int) $sp['id'] }}"
-              {{ (int) ($edit->seksi_pembina_id ?? 0) === (int) $sp['id'] ? 'selected' : '' }}>
+              {{ (int) old('seksi_pembina_id', $edit->seksi_pembina_id ?? 0) === (int) $sp['id'] ? 'selected' : '' }}>
               {{ $sp['nama'] }}</option>
           @endforeach
         </select>
@@ -133,7 +152,7 @@
     <div class="form-grup">
       <label class="teks-kecil flex items-center gap-2">
         <input type="checkbox" name="status_pegawai" value="PNS" class="w-auto"
-          {{ ($edit->status_pegawai ?? '') === 'PNS' ? 'checked' : '' }}>
+          {{ old('status_pegawai', $edit->status_pegawai ?? '') === 'PNS' ? 'checked' : '' }}>
         Pegawai Negeri Sipil (PNS)
       </label>
       <div class="petunjuk">Hanya pegawai berstatus PNS yang dapat mengajukan Cuti.</div>
@@ -146,7 +165,7 @@
           <option value="">— Pilih —</option>
           @foreach($profList as $p)
             <option value="{{ (int) $p->id }}"
-              {{ (int) ($edit->profesi_id ?? 0) === (int) $p->id ? 'selected' : '' }}>
+              {{ (int) old('profesi_id', $edit->profesi_id ?? 0) === (int) $p->id ? 'selected' : '' }}>
               {{ $p->nama }}
             </option>
           @endforeach
@@ -160,7 +179,7 @@
             <optgroup label="Shift {{ $kategori }}">
               @foreach($daftar as $s)
                 <option value="{{ (int) $s->id }}"
-                  {{ (int) ($edit->shift_id ?? 0) === (int) $s->id ? 'selected' : '' }}>
+                  {{ (int) old('shift_id', $edit->shift_id ?? 0) === (int) $s->id ? 'selected' : '' }}>
                   {{ jam_singkat($s->jam_masuk) }} - {{ jam_singkat($s->jam_pulang) }}
                 </option>
               @endforeach
@@ -174,15 +193,15 @@
       <div class="form-grup">
         <label>Peran</label>
         <select name="role">
-          <option value="pegawai" {{ ($edit->role ?? 'pegawai') === 'pegawai' ? 'selected' : '' }}>Pegawai</option>
-          <option value="admin"   {{ ($edit->role ?? '') === 'admin' ? 'selected' : '' }}>Admin</option>
+          <option value="pegawai" {{ old('role', $edit->role ?? 'pegawai') === 'pegawai' ? 'selected' : '' }}>Pegawai</option>
+          <option value="admin"   {{ old('role', $edit->role ?? '') === 'admin' ? 'selected' : '' }}>Admin</option>
         </select>
       </div>
       <div class="form-grup">
         <label>Status Akun</label>
         <select name="status">
-          <option value="aktif"    {{ ($edit->status ?? 'aktif') === 'aktif' ? 'selected' : '' }}>Aktif</option>
-          <option value="nonaktif" {{ ($edit->status ?? '') === 'nonaktif' ? 'selected' : '' }}>Nonaktif</option>
+          <option value="aktif"    {{ old('status', $edit->status ?? 'aktif') === 'aktif' ? 'selected' : '' }}>Aktif</option>
+          <option value="nonaktif" {{ old('status', $edit->status ?? '') === 'nonaktif' ? 'selected' : '' }}>Nonaktif</option>
         </select>
       </div>
     </div>
@@ -202,10 +221,10 @@
 
 @endsection
 
-@section('skrip')
+@section('script')
 <script>
 const SUB_UNIT = @json($subPerUnit);
-const SUB_TERPILIH = {{ (int) ($edit->sub_unit_id ?? 0) }};
+const SUB_TERPILIH = {{ (int) old('sub_unit_id', $edit->sub_unit_id ?? 0) }};
 (function () {
   const unit = document.getElementById('unit_kerja_id');
   const sub  = document.getElementById('sub_unit_id');
@@ -229,7 +248,7 @@ const SUB_TERPILIH = {{ (int) ($edit->sub_unit_id ?? 0) }};
 })();
 
 const JAB = @json($jabPilihan);
-const JAB_TERPILIH = {{ (int) ($edit->jabatan_id ?? 0) }};
+const JAB_TERPILIH = {{ (int) old('jabatan_id', $edit->jabatan_id ?? 0) }};
 const TANPA_NAMA = ['Direktur', 'Staf/Pelaksana'];
 (function () {
   var kat  = document.getElementById('jabatan_kategori');

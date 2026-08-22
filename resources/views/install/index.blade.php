@@ -33,12 +33,5 @@
     </div>
     <button type="submit" class="btn btn-primer btn-blok">{!! ikon('centang', 17) !!} Selesaikan Pemasangan</button>
   </form>
-
-@elseif($tahap === 'selesai')
-  <div class="flash flash-success">Aplikasi <strong>sudah terpasang</strong>. Database dan akun admin tersedia.</div>
-  <p class="teks-kecil teks-redup">Menjalankan halaman ini kembali tidak menghapus data apa pun —
-    skema hanya dilengkapi bila ada tabel yang hilang.</p>
-  <a href="{{ route('login') }}" class="btn btn-primer btn-blok">{!! ikon('masuk', 17) !!} Ke Halaman Masuk</a>
 @endif
-
 @endsection

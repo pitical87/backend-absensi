@@ -129,7 +129,7 @@
 
 @endsection
 
-@section('skrip')
+@section('script')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   // Isi Semua: set semua select tanggal untuk user ini

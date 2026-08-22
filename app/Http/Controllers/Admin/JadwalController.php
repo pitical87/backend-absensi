@@ -13,8 +13,8 @@ class JadwalController extends Controller
 {
     public function index(Request $request)
     {
-        $bulan     = (int) $request->get('bulan', now()->month);
-        $tahun     = (int) $request->get('tahun', now()->year);
+        $bulan = (int) $request->get('bulan', now()->month);
+        $tahun = (int) $request->get('tahun', now()->year);
         $subUnitId = (int) $request->get('sub_unit');
 
         $subUnits = SubUnit::select('sub_unit.id', 'sub_unit.nama', 'uk.nama as unit_nama')
@@ -22,8 +22,8 @@ class JadwalController extends Controller
             ->orderBy('uk.nama')->orderBy('sub_unit.nama')
             ->get();
 
-        $pegawai  = [];
-        $jadwal   = [];
+        $pegawai = [];
+        $jadwal = [];
 
         if ($subUnitId) {
             $pegawai = User::where('sub_unit_id', $subUnitId)
@@ -34,7 +34,7 @@ class JadwalController extends Controller
 
             $userIds = collect($pegawai)->pluck('id')->toArray();
 
-            $awal  = sprintf('%04d-%02d-01', $tahun, $bulan);
+            $awal = sprintf('%04d-%02d-01', $tahun, $bulan);
             $akhir = sprintf('%04d-%02d-%02d', $tahun, $bulan,
                 cal_days_in_month(CAL_GREGORIAN, $bulan, $tahun));
 
@@ -44,7 +44,7 @@ class JadwalController extends Controller
                 ->get();
 
             foreach ($jadwalRows as $j) {
-                $jadwal[$j->user_id][$j->tanggal_berlaku] = (int) $j->shift_id;
+                $jadwal[$j->user_id][$j->tanggal_berlaku->toDateString()] = (int) $j->shift_id;
             }
         }
 
@@ -53,15 +53,15 @@ class JadwalController extends Controller
         $hariDalamBulan = (int) cal_days_in_month(CAL_GREGORIAN, $bulan, $tahun);
 
         return view('admin.jadwal', [
-            'judulHalaman'   => 'Jadwal Shift per Sub Unit',
-            'menuAktif'      => 'jadwal',
-            'subUnits'       => $subUnits,
-            'subUnitId'      => $subUnitId,
-            'bulan'          => $bulan,
-            'tahun'          => $tahun,
-            'pegawai'        => $pegawai,
-            'jadwal'         => $jadwal,
-            'shiftList'      => $shiftList,
+            'judulHalaman' => 'Jadwal Shift per Sub Unit',
+            'menuAktif' => 'jadwal',
+            'subUnits' => $subUnits,
+            'subUnitId' => $subUnitId,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'pegawai' => $pegawai,
+            'jadwal' => $jadwal,
+            'shiftList' => $shiftList,
             'hariDalamBulan' => $hariDalamBulan,
         ]);
     }
@@ -69,11 +69,11 @@ class JadwalController extends Controller
     public function aksi(Request $request)
     {
         $subUnitId = (int) $request->input('sub_unit_id');
-        $bulan     = (int) $request->input('bulan');
-        $tahun     = (int) $request->input('tahun');
-        $grid      = $request->input('grid', []);
+        $bulan = (int) $request->input('bulan');
+        $tahun = (int) $request->input('tahun');
+        $grid = $request->input('grid', []);
 
-        $awal  = sprintf('%04d-%02d-01', $tahun, $bulan);
+        $awal = sprintf('%04d-%02d-01', $tahun, $bulan);
         $akhir = sprintf('%04d-%02d-%02d', $tahun, $bulan,
             cal_days_in_month(CAL_GREGORIAN, $bulan, $tahun));
 
@@ -90,13 +90,15 @@ class JadwalController extends Controller
         $rows = [];
         foreach ($grid as $userId => $dates) {
             foreach ($dates as $tanggal => $shiftId) {
-                if (!$shiftId) continue;
+                if (! $shiftId) {
+                    continue;
+                }
                 $rows[] = [
-                    'user_id'         => (int) $userId,
-                    'shift_id'        => (int) $shiftId,
+                    'user_id' => (int) $userId,
+                    'shift_id' => (int) $shiftId,
                     'tanggal_berlaku' => $tanggal,
-                    'diubah_oleh'     => session('uid'),
-                    'created_at'      => now(),
+                    'diubah_oleh' => session('uid'),
+                    'created_at' => now(),
                 ];
             }
         }
@@ -120,13 +122,13 @@ class JadwalController extends Controller
             }
         }
 
-        $subUnitNama = SubUnit::find($subUnitId)?->nama ?? '#' . $subUnitId;
-        catat_aktivitas('Atur Jadwal Shift', "Sub Unit $subUnitNama bulan " . BULAN_ID[$bulan] . "/$tahun");
+        $subUnitNama = SubUnit::find($subUnitId)?->nama ?? '#'.$subUnitId;
+        catat_aktivitas('Atur Jadwal Shift', "Sub Unit $subUnitNama bulan ".BULAN_ID[$bulan]."/$tahun");
 
         return redirect()->route('admin.jadwal', [
             'sub_unit' => $subUnitId,
-            'bulan'    => $bulan,
-            'tahun'    => $tahun,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
         ])->with('success', 'Jadwal shift berhasil disimpan.');
     }
 }

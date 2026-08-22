@@ -72,7 +72,7 @@
   &copy; {{ date('Y') }} PIT RSUD Merauke · Sistem Absensi Pegawai
 </footer>
 
-@yield('skrip')
+@yield('script')
 
 @if(session('uid') && session('email'))
 <script>

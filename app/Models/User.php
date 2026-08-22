@@ -13,7 +13,7 @@ class User extends Authenticatable
     use HasFactory;
 
     protected $table = 'users';
-    public $timestamps = false;
+    // public $timestamps = false;
 
     protected $fillable = [
         'nama_lengkap', 'tempat_lahir', 'tanggal_lahir', 'jenis_kelamin',
@@ -30,6 +30,7 @@ class User extends Authenticatable
         return [
             'tanggal_lahir' => 'date',
             'created_at' => 'datetime',
+            'updated_at' => 'datetime',
         ];
     }
 
@@ -107,6 +108,7 @@ class User extends Authenticatable
     {
         return $this->status === 'aktif';
     }
+
     protected function jabatanUnit(): Attribute
     {
         return Attribute::get(

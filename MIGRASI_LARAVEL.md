@@ -324,7 +324,7 @@ app/
 
 ## Timeline Estimasi
 
-| Tahap | Estimasi | Deskripsi |
+| Tahap | Estimasi | Descriptsi |
 |-------|----------|-----------|
 | 1 | 1 sesi | Setup Laravel + Tailwind + assets |
 | 2 | 1 sesi | Models + Relationships |

@@ -40,7 +40,7 @@
     <table class="tabel">
       <thead>
         <tr><th>Nama</th><th>Email</th><th>Unit / Sub Unit</th><th>Profesi</th>
-            <th>Shift</th><th>Peran</th><th>Status</th><th>Aksi</th></tr>
+            <th>Shift</th><th>Role</th><th>Status</th><th>Aksi</th></tr>
       </thead>
       <tbody>
         @foreach($pegawai as $p)

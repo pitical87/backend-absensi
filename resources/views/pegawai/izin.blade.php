@@ -148,7 +148,7 @@
 
 @endsection
 
-@section('skrip')
+@section('script')
 <script>
 (function () {
   var jenis   = document.getElementById('jenis');

@@ -98,12 +98,19 @@ class PegawaiImportService
                 }
             }
 
-            $kategoriJab = (string) ($d['jabatan_kategori'] ?? 'Staf/Pelaksana');
+            $kategoriJab = $this->normalKategori($d['jabatan_kategori'] ?? null) ?? 'Staf/Pelaksana';
+            $namaJab = trim((string) ($d['jabatan'] ?? ''));
             $jabatanId = null;
-            if (! empty($d['jabatan']) && in_array($kategoriJab, ['Kepala Bidang', 'Kepala Bagian', 'Kepala Seksi', 'Kepala Sub Bagian'], true)) {
-                $jabatanId = $jabNama->get($d['jabatan']);
+            if ($namaJab !== '') {
+                $jabatanId = $jabNama->get($namaJab);
                 if (! $jabatanId) {
-                    $galat[] = 'Baris ' . $i . ': Jabatan "' . $d['jabatan'] . '" tidak dikenal pada struktur.';
+                    $galat[] = 'Baris ' . $i . ': Jabatan "' . $namaJab . '" tidak dikenal pada struktur.';
+                    continue;
+                }
+                if (! in_array($kategoriJab, ['Kepala Bidang', 'Kepala Bagian', 'Kepala Seksi', 'Kepala Sub Bagian'], true)) {
+                    $galat[] = 'Baris ' . $i . ': Kategori "' . $kategoriJab . '" tidak memiliki nama jabatan.'
+                        . ' Gunakan kategori Kepala Seksi/Kepala Sub Bagian/Kepala Bidang/Kepala Bagian'
+                        . ' atau kosongkan kolom Jabatan.';
                     continue;
                 }
             }
@@ -115,11 +122,20 @@ class PegawaiImportService
             }
 
             $statusPegawai = strtoupper(trim((string) ($d['status_pegawai'] ?? ''))) === 'PNS' ? 'PNS' : 'Non-PNS';
+            $namaSeksi = trim((string) ($d['seksi_pembina'] ?? ''));
+            $seksiPembinaId = null;
+            if ($namaSeksi !== '') {
+                $seksiPembinaId = $this->cariSeksiPembina($namaSeksi);
+                if (! $seksiPembinaId) {
+                    $galat[] = 'Baris ' . $i . ': Seksi/Sub Bagian pembina "' . $namaSeksi . '" tidak dikenal.';
+                    continue;
+                }
+            }
             [$posisi, $seksiPembinaId, $galatPosisi] = $struktur->resolusiPosisi(
                 (string) ($d['posisi'] ?? 'Staf'),
                 $kategoriJab,
                 $jabatanId,
-                $this->cariSeksiPembina((string) ($d['seksi_pembina'] ?? ''))
+                $seksiPembinaId
             );
             if ($galatPosisi !== '') {
                 $galat[] = 'Baris ' . $i . ': ' . $galatPosisi;
@@ -183,8 +199,8 @@ class PegawaiImportService
             'unit_kerja'      => ['TEMPAT KERJA', 'UNIT', 'UNIT KERJA', 'INSTANSI'],
             'sub_unit'        => ['SUB UNIT', 'SUBUNIT', 'RUANGAN', 'RUANG', 'INSTALASI'],
             'profesi'         => ['PROFESI', 'JABATAN FUNGSIONAL'],
-            'jabatan_kategori'=> ['JABATAN KATEGORI', 'KATEGORI JABATAN', 'JENIS JABATAN', 'JABATAN'],
-            'jabatan'         => ['NAMA JABATAN', 'JABATAN STRUKTUR', 'STRUKTUR'],
+            'jabatan_kategori'=> ['JABATAN KATEGORI', 'KATEGORI JABATAN', 'JENIS JABATAN'],
+            'jabatan'         => ['NAMA JABATAN', 'JABATAN STRUKTUR', 'STRUKTUR', 'JABATAN'],
             'posisi'          => ['POSISI'],
             'seksi_pembina'   => ['SEKSI PEMBINA', 'SUB BAGIAN PEMBINA', 'PEMBINA'],
             'status_pegawai'  => ['STATUS PEGAWAI', 'STATUS'],
@@ -251,9 +267,26 @@ class PegawaiImportService
         if ((string) ($d['agama'] ?? '') !== '' && ! $agama) {
             return 'Agama tidak valid.';
         }
-        $kategori = (string) ($d['jabatan_kategori'] ?? 'Staf/Pelaksana');
-        if (! in_array($kategori, kategori_jabatan_list(), true)) {
-            return 'Kategori jabatan tidak valid.';
+        if (trim((string) ($d['tanggal_lahir'] ?? '')) !== '' && $this->normalTanggal($d['tanggal_lahir']) === null) {
+            return 'Tanggal lahir tidak valid (gunakan format YYYY-MM-DD).';
+        }
+        $kategori = $this->normalKategori($d['jabatan_kategori'] ?? null);
+        if ((string) ($d['jabatan_kategori'] ?? '') !== '' && $kategori === '') {
+            return 'Kategori jabatan tidak valid. Gunakan: ' . implode(', ', kategori_jabatan_list()) . '.';
+        }
+        return '';
+    }
+
+    private function normalKategori(?string $kategori): ?string
+    {
+        $k = trim((string) $kategori);
+        if ($k === '') {
+            return null;
+        }
+        foreach (kategori_jabatan_list() as $valid) {
+            if (strcasecmp($k, $valid) === 0) {
+                return $valid;
+            }
         }
         return '';
     }
