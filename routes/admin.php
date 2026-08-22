@@ -6,16 +6,25 @@ use App\Http\Controllers\Admin\IzinController;
 use App\Http\Controllers\Admin\JadwalController;
 use App\Http\Controllers\Admin\KehadiranController;
 use App\Http\Controllers\Admin\LiburController;
+use App\Http\Controllers\Admin\MappingSIMRSController;
 use App\Http\Controllers\Admin\PegawaiController;
 use App\Http\Controllers\Admin\PengaturanController;
 use App\Http\Controllers\Admin\RekapController;
 use App\Http\Controllers\Admin\ShiftController;
+use App\Http\Controllers\Admin\SimrsController;
 use App\Http\Controllers\Admin\StrukturController;
 use App\Http\Controllers\Admin\UnitController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('admin')->middleware('admin')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('admin.dashboard');
+
+    Route::get('mapping_simrs', [MappingSIMRSController::class, 'index'])->name('admin.mapping_simrs');
+    Route::get('mapping_simrs/cek', [MappingSIMRSController::class, 'cek'])->name('admin.mapping_simrs.cek');
+    Route::get('mapping_simrs/cari', [MappingSIMRSController::class, 'cari'])->name('admin.mapping_simrs.cari');
+    Route::post('mapping_simrs/simpan', [MappingSIMRSController::class, 'simpan'])->name('admin.mapping_simrs.simpan');
+
+    Route::get('simrs', [SimrsController::class, 'koneksi'])->name('admin.simrs.koneksi');
 
     Route::get('pegawai', [PegawaiController::class, 'index'])->name('admin.pegawai');
     Route::get('pegawai/form/{id?}', [PegawaiController::class, 'form'])->name('admin.pegawai.form');

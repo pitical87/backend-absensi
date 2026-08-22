@@ -35,6 +35,15 @@ $grupMenu = [
     ],
   ],
   [
+    'id'    => 'grp-simrs',
+    'label' => 'Integrasi SIMRS',
+    'ikon'  => 'integrasi',
+    'items' => [
+      'cek_simrs'      => ['admin/simrs',          'centang', 'Cek Koneksi'],
+      'mapping_simrs'  => ['admin/mapping_simrs',  'log',     'Mapping Akun'],
+    ],
+  ],
+  [
     'id'    => 'grp-sistem',
     'label' => 'Sistem',
     'ikon'  => 'atur',

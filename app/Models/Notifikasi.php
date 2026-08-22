@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Notifikasi extends Model
 {
-    protected $table = 'notifikasis';
+    protected $guarded = [];
 
     public function user(): BelongsTo
     {

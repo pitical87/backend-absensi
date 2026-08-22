@@ -39,8 +39,8 @@
   <div class="tabel-bungkus">
     <table class="tabel">
       <thead>
-        <tr><th>Nama</th><th>Email</th><th>Unit / Sub Unit</th><th>Profesi</th>
-            <th>Shift</th><th>Role</th><th>Status</th><th>Aksi</th></tr>
+        <tr><th>Nama</th><th>Email</th><th>Unit / Sub Unit</th>
+            <th>Status</th><th>Aksi</th></tr>
       </thead>
       <tbody>
         @foreach($pegawai as $p)
@@ -62,28 +62,7 @@
     @if($p->sub_nama)
         — {{ $p->sub_nama }}
     @endif
-</td>
-
-<td>{{ $p->profesi_nama ?? '—' }}</td>
-
-<td>
-    {{
-        label_shift(
-            $p->shift_id
-                ? (object) [
-                    'kategori'  => $p->shift_kategori,
-                    'jam_masuk' => $p->shift_masuk,
-                    'jam_pulang'=> $p->shift_pulang,
-                ]
-                : null
-        )
-    }}
-</td>
-
-<td>
-    {!! $p->role === 'admin'
-        ? '<span class="badge badge-biru">Admin</span>'
-        : 'Pegawai' !!}
+    <br><span class="badge badge-hijau">{{ $p->profesi_nama ?? '—' }}</span>
 </td>
 
 <td>
@@ -127,7 +106,7 @@
         </tr>
         @endforeach
         @if(! $pegawai)
-        <tr><td colspan="8" class="tengah teks-redup">Tidak ada data pegawai.</td></tr>
+        <tr><td colspan="5" class="tengah teks-redup">Tidak ada data pegawai.</td></tr>
         @endif
       </tbody>
     </table>
