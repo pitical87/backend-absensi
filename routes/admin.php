@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AktivitasController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\IzinController;
+use App\Http\Controllers\Admin\LogbookController;
 use App\Http\Controllers\Admin\JadwalController;
 use App\Http\Controllers\Admin\KehadiranController;
 use App\Http\Controllers\Admin\LiburController;
@@ -25,6 +26,16 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::post('mapping_simrs/simpan', [MappingSIMRSController::class, 'simpan'])->name('admin.mapping_simrs.simpan');
 
     Route::get('simrs', [SimrsController::class, 'koneksi'])->name('admin.simrs.koneksi');
+    Route::get('simrs/tindakan', [SimrsController::class, 'tindakan'])->name('admin.simrs.tindakan');
+    Route::get('simrs/tindakan/ambil', [SimrsController::class, 'ambilTindakan'])->name('admin.simrs.tindakan.ambil');
+
+    Route::get('logbook', [LogbookController::class, 'index'])->name('admin.logbook');
+    Route::post('logbook', [LogbookController::class, 'simpan'])->name('admin.logbook.simpan');
+    Route::get('logbook/data', [LogbookController::class, 'data'])->name('admin.logbook.data');
+    Route::post('logbook/hapus', [LogbookController::class, 'hapus'])->name('admin.logbook.hapus');
+    Route::post('logbook/ubah', [LogbookController::class, 'ubah'])->name('admin.logbook.ubah');
+    Route::post('logbook/template', [LogbookController::class, 'simpanTemplate'])->name('admin.logbook.template.simpan');
+    Route::post('logbook/template/hapus', [LogbookController::class, 'hapusTemplate'])->name('admin.logbook.template.hapus');
 
     Route::get('pegawai', [PegawaiController::class, 'index'])->name('admin.pegawai');
     Route::get('pegawai/form/{id?}', [PegawaiController::class, 'form'])->name('admin.pegawai.form');

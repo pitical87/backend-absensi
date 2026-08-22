@@ -160,6 +160,73 @@ class SimrsService
         }
     }
 
+    /**
+     * Cari data tindakan pegawai yang dimapping pada rawat jalan dan
+     * rawat inap SIMRS berdasarkan daftar ID dan rentang tanggal.
+     *
+     * @param  array<int, string>  $daftarId  simrs_user_id dari tabel mapping_simrs_accounts
+     * @return array{sukses: bool, pesan?: string, total?: int, data?: array}
+     */
+    public function cariTindakan(array $daftarId, string $dari, string $sampai): array
+    {
+        $daftarId = array_values(array_unique(array_filter(array_map('trim', $daftarId))));
+        if ($daftarId === []) {
+            return ['sukses' => false, 'pesan' => 'Belum ada pegawai yang dimapping ke SIMRS.'];
+        }
+
+        $ph = implode(',', array_fill(0, count($daftarId), '?'));
+
+        try {
+            $pdo = $this->pdo();
+
+            $jl = $pdo->prepare(
+                "SELECT r.nip, r.kd_dokter, r.no_rawat, r.tgl_perawatan, r.jam_rawat, j.nm_perawatan
+                 FROM rawat_jl_drpr r
+                 JOIN jns_perawatan j ON j.kd_jenis_prw = r.kd_jenis_prw
+                 WHERE (r.nip IN ($ph) OR r.kd_dokter IN ($ph))
+                   AND r.tgl_perawatan BETWEEN ? AND ?"
+            );
+            $jl->execute(array_merge($daftarId, $daftarId, [$dari, $sampai]));
+
+            $inap = $pdo->prepare(
+                "SELECT r.nip, r.kd_dokter, r.no_rawat, r.tgl_perawatan, r.jam_rawat, j.nm_perawatan
+                 FROM rawat_inap_drpr r
+                 JOIN jns_perawatan_inap j ON j.kd_jenis_prw = r.kd_jenis_prw
+                 WHERE (r.nip IN ($ph) OR r.kd_dokter IN ($ph))
+                   AND r.tgl_perawatan BETWEEN ? AND ?"
+            );
+            $inap->execute(array_merge($daftarId, $daftarId, [$dari, $sampai]));
+
+            $hasil = [];
+            foreach (['Rawat Jalan' => $jl, 'Rawat Inap' => $inap] as $sumber => $stmt) {
+                foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $b) {
+                    $jam = substr((string) $b['jam_rawat'], 0, 5);
+                    $tanggal = (string) $b['tgl_perawatan'];
+                    $nmPerawatan = (string) $b['nm_perawatan'];
+                    $hasil[] = [
+                        'tanggal' => $tanggal,
+                        'jam' => $jam,
+                        'isi' => "Melakukan tindakan {$nmPerawatan}",
+                        'pesan' => "Pada jam {$jam} melakukan tindakan {$nmPerawatan}",
+                        '_urut' => [$tanggal, $jam],
+                    ];
+                }
+            }
+
+            usort($hasil, fn ($a, $b) => $a['_urut'] <=> $b['_urut']);
+
+            return [
+                'sukses' => true,
+                'total' => count($hasil),
+                'data' => array_map(fn ($r) => array_diff_key($r, ['_urut' => null]), $hasil),
+            ];
+        } catch (Throwable $e) {
+            Log::warning('Cari tindakan SIMRS gagal: '.$e->getMessage());
+
+            return ['sukses' => false, 'pesan' => 'Gagal terhubung ke database SIMRS. Periksa konfigurasi koneksi.'];
+        }
+    }
+
     private function pdo(): PDO
     {
         if ($this->pdo instanceof PDO) {

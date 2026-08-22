@@ -41,6 +41,7 @@ $grupMenu = [
     'items' => [
       'cek_simrs'      => ['admin/simrs',          'centang', 'Cek Koneksi'],
       'mapping_simrs'  => ['admin/mapping_simrs',  'log',     'Mapping Akun'],
+      'tindakan_simrs' => ['admin/simrs/tindakan', 'jam',     'Data Tindakan'],
     ],
   ],
   [
@@ -102,6 +103,14 @@ $grupMenu = [
        data-label="dashboard">
       {!! ikon('beranda', 16) !!}
       <span class="flex-1 truncate">Dashboard</span>
+    </a>
+
+    {{-- Standalone --}}
+    <a class="nav-item {{ $menuAktif === 'logbook' ? 'aktif' : '' }} mb-1"
+       href="{{ url('admin/logbook') }}"
+       data-label="logbook">
+      {!! ikon('surat', 16) !!}
+      <span class="flex-1 truncate">Logbook</span>
     </a>
 
     {{-- Accordion Groups --}}
@@ -267,13 +276,12 @@ $grupMenu = [
       }
     });
 
-    // Dashboard standalone
-    var dashboard = nav.querySelector('a[data-label="dashboard"]');
-    if (dashboard) {
-      var match = 'dashboard'.includes(q);
-      dashboard.style.display = match ? '' : 'none';
+    // Item standalone (Dashboard, Logbook, dll)
+    nav.querySelectorAll(':scope > a[data-label]').forEach(function (a) {
+      var match = (a.dataset.label || '').includes(q);
+      a.style.display = match ? '' : 'none';
       if (match) visible++;
-    }
+    });
 
     empty.classList.toggle('hidden', visible > 0);
   }

@@ -137,6 +137,7 @@ if (! function_exists('ikon')) {
             'log' => '<path d="M6 3h12v18H6z"/><path d="M9 7h6M9 11h6M9 15h4"/>',
             'struktur' => '<rect x="9" y="3" width="6" height="4.6" rx="1"/><rect x="3" y="16" width="5.4" height="4.6" rx="1"/><rect x="9.3" y="16" width="5.4" height="4.6" rx="1"/><rect x="15.6" y="16" width="5.4" height="4.6" rx="1"/><path d="M12 7.6V12M12 12H5.7v4M12 12v4M12 12h6.3v4"/>',
             'kunci' => '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/><path d="M12 15v2"/>',
+            'hapus' => '<path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="m6 7 1 13h10l1-13"/><path d="M10 11v5M14 11v5"/>',
             'bintang' => '<path d="m12 3.5 2.5 5.2 5.7.8-4.1 4 1 5.7-5.1-2.7-5.1 2.7 1-5.7-4.1-4 5.7-.8L12 3.5Z"/>',
         ];
         $p = $paths[$nama] ?? $paths['info'];
