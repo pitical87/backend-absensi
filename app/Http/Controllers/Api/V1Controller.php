@@ -56,7 +56,7 @@ class V1Controller extends Controller
             ->leftJoin('unit_kerja as uk', 'uk.id', '=', 'users.unit_kerja_id')
             ->leftJoin('sub_unit as su', 'su.id', '=', 'users.sub_unit_id')
             ->leftJoin('profesi as p', 'p.id', '=', 'users.profesi_id')
-            ->leftJoin('shift as s', 's.id', '=', 'users.shift_id')
+            ->leftJoin('jadwal_shift as js', function ($join) { $join->on('users.id', '=', 'js.user_id')->where('js.tanggal_berlaku', now()->toDateString()); })->leftJoin('shift as s', 's.id', '=', 'js.shift_id')
             ->leftJoin('jabatan as j', 'j.id', '=', 'users.jabatan_id')
             ->where('users.role', 'pegawai')
             ->orderBy('users.nama_lengkap')->get()->all();
@@ -76,7 +76,7 @@ class V1Controller extends Controller
             ->leftJoin('unit_kerja as uk', 'uk.id', '=', 'users.unit_kerja_id')
             ->leftJoin('sub_unit as su', 'su.id', '=', 'users.sub_unit_id')
             ->leftJoin('profesi as p', 'p.id', '=', 'users.profesi_id')
-            ->leftJoin('shift as s', 's.id', '=', 'users.shift_id')
+            ->leftJoin('jadwal_shift as js', function ($join) { $join->on('users.id', '=', 'js.user_id')->where('js.tanggal_berlaku', now()->toDateString()); })->leftJoin('shift as s', 's.id', '=', 'js.shift_id')
             ->leftJoin('jabatan as j', 'j.id', '=', 'users.jabatan_id')
             ->where('users.role', 'pegawai')
             ->where('users.id', $id)

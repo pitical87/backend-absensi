@@ -27,6 +27,7 @@ class UnitController extends Controller
             'menuAktif'    => 'unit',
             'unitList'     => $unitList,
             'subPerUnit'   => $subPerUnit,
+            'pegawaiPilihan' => User::where('role', '!=', 'admin')->orderBy('nama_lengkap')->get(['id', 'nama_lengkap']),
         ]);
     }
 
@@ -35,6 +36,7 @@ class UnitController extends Controller
         $aksi = (string) $request->input('aksi');
         $id   = (int) $request->input('id');
         $nama = trim((string) $request->input('nama'));
+        $atasanId = (int) $request->input('atasan_id') ?: null;
 
         switch ($aksi) {
             case 'tambah_unit':
@@ -53,6 +55,7 @@ class UnitController extends Controller
                     UnitKerja::where('id', $id)->update([
                         'nama' => $nama,
                         'punya_sub' => $request->input('punya_sub') ? 1 : 0,
+                        'atasan_id' => $atasanId,
                     ]);
                     catat_aktivitas('Ubah Unit', $nama);
                 }
@@ -72,11 +75,18 @@ class UnitController extends Controller
             case 'tambah_sub':
                 $unitId = (int) $request->input('unit_kerja_id');
                 if ($unitId && $nama !== '') {
-                    SubUnit::create(['unit_kerja_id' => $unitId, 'nama' => $nama]);
+                    SubUnit::create(['unit_kerja_id' => $unitId, 'nama' => $nama, 'atasan_id' => $atasanId]);
                     UnitKerja::where('id', $unitId)->update(['punya_sub' => 1]);
                     catat_aktivitas('Tambah Sub Unit', $nama);
                 }
                 return $this->kembali('success', 'Sub unit ditambahkan.');
+
+            case 'ubah_sub':
+                if ($nama !== '') {
+                    SubUnit::where('id', $id)->update(['nama' => $nama, 'atasan_id' => $atasanId]);
+                    catat_aktivitas('Ubah Sub Unit', $nama);
+                }
+                return $this->kembali('success', 'Sub unit diperbarui.');
 
             case 'hapus_sub':
                 $dipakai = User::where('sub_unit_id', $id)->count() > 0;

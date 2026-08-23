@@ -5,12 +5,14 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\PegawaiRequest;
 use App\Models\JadwalShift;
+use App\Models\AtasanLangsung;
 use App\Models\Jabatan;
 use App\Models\Profesi;
 use App\Models\Shift;
 use App\Models\SubUnit;
 use App\Models\UnitKerja;
 use App\Models\User;
+use App\Services\AtasanLangsungService;
 use App\Services\PegawaiImportService;
 use App\Services\StrukturService;
 use Illuminate\Http\Request;
@@ -39,7 +41,11 @@ class PegawaiController extends Controller
             ->leftJoin('unit_kerja as uk', 'uk.id', '=', 'users.unit_kerja_id')
             ->leftJoin('sub_unit as su', 'su.id', '=', 'users.sub_unit_id')
             ->leftJoin('profesi as p', 'p.id', '=', 'users.profesi_id')
-            ->leftJoin('shift as s', 's.id', '=', 'users.shift_id')
+            ->leftJoin('jadwal_shift as js', function ($join) {
+                $join->on('js.user_id', '=', 'users.id')
+                    ->where('js.tanggal_berlaku', now()->toDateString());
+            })
+            ->leftJoin('shift as s', 's.id', '=', 'js.shift_id')
             ->leftJoin('jabatan as j', 'j.id', '=', 'users.jabatan_id');
         if ($q !== '') {
             $b->where(function ($qry) use ($q) {
@@ -80,10 +86,18 @@ class PegawaiController extends Controller
             $shiftGrup[$s->kategori][] = $s;
         }
 
+        $shiftAktifId = null;
+        if ($edit) {
+            $shiftAktifId = JadwalShift::where('user_id', $edit->id)
+                ->where('tanggal_berlaku', now()->toDateString())
+                ->value('shift_id');
+        }
+
         return view('admin.pegawai_form', [
             'judulHalaman' => $edit ? 'Ubah Data Pegawai' : 'Tambah Pegawai',
             'menuAktif' => 'pegawai',
             'edit' => $edit,
+            'shiftAktifId' => $shiftAktifId,
             'unitList' => UnitKerja::orderBy('id')->get()->all(),
             'profList' => Profesi::orderBy('id')->get()->all(),
             'subPerUnit' => $sub,
@@ -96,10 +110,18 @@ class PegawaiController extends Controller
                 $struktur->pilihan()['Kepala Seksi'] ?? [],
                 $struktur->pilihan()['Kepala Sub Bagian'] ?? []
             ),
+            'atasanPilihan' => User::where('role', '!=', 'admin')
+                ->when($edit, fn ($q) => $q->where('id', '!=', $edit->id))
+                ->orderBy('nama_lengkap')->get(['id', 'nama_lengkap']),
+            'atasanTerpilih' => $edit
+                ? AtasanLangsung::where('user_id', $edit->id)->pluck('atasan_id')->map(fn ($v) => (int) $v)->all()
+                : [],
+            'atasanUnitMap' => UnitKerja::pluck('atasan_id', 'id'),
+            'atasanSubMap' => SubUnit::pluck('atasan_id', 'id'),
         ]);
     }
 
-    public function simpan(PegawaiRequest $request, StrukturService $struktur)
+    public function simpan(PegawaiRequest $request, StrukturService $struktur, AtasanLangsungService $atasanServis)
     {
         $id = (int) $request->input('id');
         $data = $request->validated();
@@ -126,12 +148,12 @@ class PegawaiController extends Controller
         $data['status_pegawai'] = $request->boolean('status_pegawai') ? 'PNS' : 'Non-PNS';
 
         $password = (string) $request->input('password');
-        unset($data['password']);
+        $shiftHariIni = (int) ($data['shift_id'] ?? 0) ?: null;
+        unset($data['password'], $data['shift_id']);
 
-        $pesan = DB::transaction(function () use ($id, $data, $password) {
+        $pesan = DB::transaction(function () use ($id, $data, $password, $shiftHariIni, $atasanServis) {
             if ($id) {
                 $user = User::findOrFail($id);
-                $shiftLamaId = $user->shift_id;
 
                 $user->fill($data);
                 if ($password !== '') {
@@ -139,14 +161,11 @@ class PegawaiController extends Controller
                 }
                 $user->save();
 
-                if (! empty($data['shift_id']) && (int) $shiftLamaId !== (int) $data['shift_id']) {
-                    JadwalShift::create([
-                        'user_id' => $user->id,
-                        'shift_id' => $data['shift_id'],
-                        'tanggal_berlaku' => now()->toDateString(),
-                        'diubah_oleh' => session('uid'),
-                        'created_at' => now(),
-                    ]);
+                self::aturJadwalHariIni($user->id, $shiftHariIni);
+                if ($request->has('atasan')) {
+                    $atasanServis->sinkron($user->id, (array) $request->input('atasan'));
+                } else {
+                    $atasanServis->warisiOtomatis($user);
                 }
                 catat_aktivitas('Ubah Pegawai', $data['nama_lengkap'].' ('.$data['email'].')');
 
@@ -155,12 +174,40 @@ class PegawaiController extends Controller
 
             $data['password_hash'] = Hash::make($password);
             $user = User::create($data);
+
+            self::aturJadwalHariIni($user->id, $shiftHariIni);
+            if ($request->has('atasan')) {
+                $atasanServis->sinkron($user->id, (array) $request->input('atasan'));
+            } else {
+                $atasanServis->warisiOtomatis($user);
+            }
             catat_aktivitas('Tambah Pegawai', $data['nama_lengkap'].' ('.$data['email'].')');
 
             return 'Pegawai baru berhasil ditambahkan.';
         });
 
         return redirect('admin/pegawai')->with('success', $pesan);
+    }
+
+    /**
+     * Set ulang baris jadwal_shift milik pegawai untuk tanggal hari ini.
+     * Jadwal hari lain tetap diatur lewat menu Atur Jadwal Shift.
+     */
+    private static function aturJadwalHariIni(int $userId, ?int $shiftId): void
+    {
+        JadwalShift::where('user_id', $userId)
+            ->where('tanggal_berlaku', now()->toDateString())
+            ->delete();
+
+        if ($shiftId) {
+            JadwalShift::create([
+                'user_id' => $userId,
+                'shift_id' => $shiftId,
+                'tanggal_berlaku' => now()->toDateString(),
+                'diubah_oleh' => session('uid'),
+                'created_at' => now(),
+            ]);
+        }
     }
 
     public function impor(Request $request, PegawaiImportService $import)

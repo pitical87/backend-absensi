@@ -13,7 +13,7 @@ class SubUnit extends Model
 
     protected $table = 'sub_unit';
 
-    protected $fillable = ['unit_kerja_id', 'nama'];
+    protected $fillable = ['unit_kerja_id', 'nama', 'atasan_id'];
 
     public function unitKerja(): BelongsTo
     {
@@ -23,5 +23,10 @@ class SubUnit extends Model
     public function users(): HasMany
     {
         return $this->hasMany(User::class);
+    }
+
+    public function atasan(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'atasan_id');
     }
 }

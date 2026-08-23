@@ -15,7 +15,7 @@ class ProfilController extends Controller
 
     public function form()
     {
-        $u = User::with(['unitKerja', 'subUnit', 'profesi', 'jabatan', 'shift', 'mappingSimrs'])
+        $u = User::with(['unitKerja', 'subUnit', 'profesi', 'jabatan', 'mappingSimrs'])
             ->find(session('uid'));
 
         if (! $u) {

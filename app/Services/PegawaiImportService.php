@@ -3,11 +3,13 @@
 namespace App\Services;
 
 use App\Models\Jabatan;
+use App\Models\JadwalShift;
 use App\Models\Profesi;
 use App\Models\Shift;
 use App\Models\SubUnit;
 use App\Models\UnitKerja;
 use App\Models\User;
+use App\Services\AtasanLangsungService;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class PegawaiImportService
@@ -154,7 +156,7 @@ class PegawaiImportService
             $pass = (string) ($d['password'] ?? '');
             $pass = $pass !== '' ? $pass : 'pegawai123';
 
-            User::create([
+            $baru = User::create([
                 'nama_lengkap'    => $nama,
                 'tempat_lahir'    => trim((string) ($d['tempat_lahir'] ?? '')) ?: null,
                 'tanggal_lahir'   => $this->normalTanggal($d['tanggal_lahir'] ?? null),
@@ -171,12 +173,23 @@ class PegawaiImportService
                 'posisi'          => $posisi,
                 'status_pegawai'  => $statusPegawai,
                 'seksi_pembina_id'=> $seksiPembinaId,
-                'shift_id'        => $shiftId,
                 'password_hash'   => bcrypt($pass),
                 'role'            => 'pegawai',
                 'status'          => 'aktif',
                 'created_at'      => now(),
             ]);
+
+            if ($shiftId) {
+                JadwalShift::create([
+                    'user_id'         => $baru->id,
+                    'shift_id'        => $shiftId,
+                    'tanggal_berlaku' => now()->toDateString(),
+                    'diubah_oleh'     => session('uid'),
+                    'created_at'      => now(),
+                ]);
+            }
+
+            app(AtasanLangsungService::class)->warisiOtomatis($baru);
 
             catat_aktivitas('Import Pegawai', $nama . ' (' . $email . ')');
             $sukses++;

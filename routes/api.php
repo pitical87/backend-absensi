@@ -1,43 +1,65 @@
 <?php
 
-use App\Http\Controllers\Api\MobileController;
+use App\Http\Controllers\Api\AbsenController;
+use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\IzinController;
+use App\Http\Controllers\Api\JadwalController;
+use App\Http\Controllers\Api\LogbookController;
+use App\Http\Controllers\Api\RekapController;
 use App\Http\Controllers\Api\V1Controller;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('mobile')->group(function (){
-    Route::post('login',[MobileController::class, 'login']);
-    Route::get('register/master',[MobileController::class, 'registerDataMaster']);
-    Route::post('register',[MobileController::class, 'register']);
+    // Auth
+    Route::post('login',[AuthController::class, 'login']);
+    Route::get('register/master',[AuthController::class, 'registerDataMaster']);
+    Route::post('register',[AuthController::class, 'register']);
     Route::middleware('mobile.auth')->group(function(){
-        Route::get('me',[MobileController::class, 'me']);
-        Route::post('logout',[MobileController::class, 'logout']);
-        Route::post('absen',[MobileController::class, 'absen']);
-        Route::get('status',[MobileController::class,'status']);
-        Route::get('riwayat',[MobileController::class,'riwayatAbsensi']);
-        Route::get('statistik', [MobileController::class, 'statistik']);
-        Route::get('performa/bulan', [MobileController::class, 'performaBulan']);
-        Route::get('jadwal', [MobileController::class, 'jadwal']);
-        Route::get('izin',[MobileController::class,"riwayatIzin"]);
-        Route::post('izin',[MobileController::class,"pengajuanIzin"]);
-        Route::delete('izin/{id}',[MobileController::class,"deleteIzin"]);
-        Route::get('izin/today',[MobileController::class,"getTodayIzin"]);
-        Route::get('izin/total',[MobileController::class,"getIzinMenungguTotal"]);
-        Route::get('izin/detail',[MobileController::class,"getDetailIzinMenunggu"]);
-        Route::post('izin/proses',[MobileController::class,"prosesIzinMenunggu"]);
-        Route::get('izin/riwayat-persetujuan',[MobileController::class,"getRiwayatPersetujuan"]);
-        Route::get('logbook/simrs',[MobileController::class,"logbookSimrs"]);
-        Route::get('logbook/simrs/{jenis}',[MobileController::class,"logbookSimrs"]);
-        Route::get('logbook',[MobileController::class,"logbookData"]);
-        Route::post('logbook/simpan',[MobileController::class,"logbookSimpan"]);
-        Route::post('logbook/simpan-bulk',[MobileController::class,"logbookSimpanBulk"]);
-        Route::post('logbook/ubah',[MobileController::class,"logbookUbah"]);
-        Route::delete('logbook/template/{id}',[MobileController::class,"templateHapus"]);
-        Route::post('logbook/template',[MobileController::class,"templateSimpan"]);
-        Route::post('logbook/template/ubah',[MobileController::class,"templateUbah"]);
-        Route::delete('logbook/{id}',[MobileController::class,"logbookHapus"]);
+        Route::get('me',[AuthController::class, 'me']);
+        Route::post('logout',[AuthController::class, 'logout']);
+
+        // Absensi
+        Route::post('absen',[AbsenController::class, 'absen']);
+        Route::get('status',[AbsenController::class,'status']);
+        Route::get('riwayat',[AbsenController::class,'riwayatAbsensi']);
+
+        // Rekap & statistik
+        Route::get('statistik', [RekapController::class, 'statistik']);
+        Route::get('performa/bulan', [RekapController::class, 'performaBulan']);
+        Route::get('rekap', [RekapController::class, 'rekapBulanan']);
+        Route::get('keterlambatan', [RekapController::class, 'rekapKeterlambatan']);
+        Route::get('pegawai-teladan', [RekapController::class, 'pegawaiTeladan']);
+
+        // Jadwal shift
+        Route::get('jadwal', [JadwalController::class, 'jadwal']);
+        Route::get('jadwal/hari-ini', [JadwalController::class, 'jadwalHariIni']);
+        Route::get('jadwal/mingguan', [JadwalController::class, 'jadwalMingguan']);
+        Route::get('jadwal/bulanan', [JadwalController::class, 'jadwalBulanan']);
+
+        // Izin / cuti / sakit
+        Route::get('izin',[IzinController::class,"riwayatIzin"]);
+        Route::post('izin',[IzinController::class,"pengajuanIzin"]);
+        Route::delete('izin/{id}',[IzinController::class,"deleteIzin"]);
+        Route::get('izin/today',[IzinController::class,"getTodayIzin"]);
+        Route::get('izin/total',[IzinController::class,"getIzinMenungguTotal"]);
+        Route::get('izin/detail',[IzinController::class,"getDetailIzinMenunggu"]);
+        Route::post('izin/proses',[IzinController::class,"prosesIzinMenunggu"]);
+        Route::get('izin/riwayat-persetujuan',[IzinController::class,"getRiwayatPersetujuan"]);
+
+        // Logbook & template
+        Route::get('logbook/simrs',[LogbookController::class,"logbookSimrs"]);
+        Route::get('logbook/simrs/{jenis}',[LogbookController::class,"logbookSimrs"]);
+        Route::get('logbook',[LogbookController::class,"logbookData"]);
+        Route::post('logbook/simpan',[LogbookController::class,"logbookSimpan"]);
+        Route::post('logbook/simpan-bulk',[LogbookController::class,"logbookSimpanBulk"]);
+        Route::post('logbook/ubah',[LogbookController::class,"logbookUbah"]);
+        Route::get('logbook/template',[LogbookController::class,"templateData"]);
+        Route::delete('logbook/template/{id}',[LogbookController::class,"templateHapus"]);
+        Route::post('logbook/template',[LogbookController::class,"templateSimpan"]);
+        Route::post('logbook/template/ubah',[LogbookController::class,"templateUbah"]);
+        Route::delete('logbook/{id}',[LogbookController::class,"logbookHapus"]);
     });
 });
-
 
 Route::prefix('api/v1')->middleware('api.key')->group(function () {
     Route::get('ping', [V1Controller::class, 'ping'])->name('api.ping');
@@ -47,4 +69,3 @@ Route::prefix('api/v1')->middleware('api.key')->group(function () {
     Route::get('rekap', [V1Controller::class, 'rekap'])->name('api.rekap');
     Route::get('izin', [V1Controller::class, 'izin'])->name('api.izin');
 });
-

@@ -1,20 +1,6 @@
 @extends('layouts.admin')
 
 @section('content')
-
-<section class="kartu">
-  <div class="kartu-kepala">
-    <h2>{!! ikon('struktur') !!} Bagan Organisasi RSUD Merauke</h2>
-    <a class="btn btn-garis btn-kecil" href="{{ route('struktur') }}" target="_blank"
-       rel="noopener">Tampilan Pegawai</a>
-  </div>
-  <div class="tabel-bungkus">
-    @include('partials.pohon', ['cabang' => $pohon, 'kelola' => true, 'akar' => true])
-  </div>
-  <p class="petunjuk">Pemegang jabatan ditetapkan melalui <strong>Data Pegawai</strong> (field
-    Jabatan &amp; Nama Jabatan). Satu jabatan struktural hanya dapat dipegang satu pegawai aktif.</p>
-</section>
-
 <section class="kartu">
   <div class="kartu-kepala"><h2>{!! ikon('atur') !!} Tambah Jabatan pada Struktur</h2></div>
   <form method="post" action="{{ url('admin/struktur/aksi') }}" class="bilah-alat">
@@ -41,40 +27,21 @@
 </section>
 
 <section class="kartu">
-  <div class="kartu-kepala"><h2>{!! ikon('pegawai') !!} Pengelompokan Pegawai</h2></div>
-  <div class="form-baris">
-    <div>
-      <h3>Per Kategori Jabatan</h3>
-      <div class="tabel-bungkus">
-        <table class="tabel">
-          <thead><tr><th>Jabatan</th><th>Jumlah Pegawai Aktif</th></tr></thead>
-          <tbody>
-            @foreach(kategori_jabatan_list() as $k)
-            <tr><td>{{ $k }}</td>
-                <td class="angka">{{ (int) ($perKategori[$k] ?? 0) }}</td></tr>
-            @endforeach
-          </tbody>
-        </table>
-      </div>
-    </div>
-    <div>
-      <h3>Per Tempat Kerja</h3>
-      <div class="tabel-bungkus">
-        <table class="tabel">
-          <thead><tr><th>Unit Kerja</th><th>Jumlah Pegawai Aktif</th></tr></thead>
-          <tbody>
-            @foreach($perUnit as $u)
-            <tr><td>{{ $u->nama }}</td><td class="angka">{{ (int) $u->jml }}</td></tr>
-            @endforeach
-            @if(! $perUnit)
-            <tr><td colspan="2" class="tengah teks-redup">Belum ada pegawai.</td></tr>
-            @endif
-          </tbody>
-        </table>
-      </div>
-    </div>
+  <div class="kartu-kepala">
+    <h2>{!! ikon('struktur') !!} Bagan Organisasi RSUD Merauke</h2>
+    <a class="btn btn-garis btn-kecil" href="{{ route('struktur') }}" target="_blank"
+       rel="noopener">Tampilan Pegawai</a>
   </div>
+  <div class="tabel-bungkus">
+    @include('partials.pohon', ['cabang' => $pohon, 'kelola' => true, 'akar' => true])
+  </div>
+  <p class="petunjuk">Pemegang jabatan ditetapkan melalui <strong>Data Pegawai</strong> (field
+    Jabatan &amp; Nama Jabatan). Satu jabatan struktural hanya dapat dipegang satu pegawai aktif.</p>
 </section>
+
+
+
+
 
 <!-- Modal sederhana ubah nama jabatan -->
 <div class="modal-tirai" id="modal-jabatan">

@@ -26,7 +26,6 @@ return new class extends Migration
             $table->string('posisi', 50)->default('Staf');
             $table->string('status_pegawai', 20)->default('Non-PNS');
             $table->foreignId('seksi_pembina_id')->nullable()->constrained('jabatan')->nullOnDelete()->comment('Seksi/Sub Bagian pembina - jalur persetujuan Staf & Koordinator');
-            $table->foreignId('shift_id')->nullable()->constrained('shift')->nullOnDelete()->nullOnUpdate();
             $table->string('password_hash', 255);
             $table->enum('role', ['admin', 'pegawai'])->default('pegawai');
             $table->enum('status', ['aktif', 'nonaktif'])->default('aktif');

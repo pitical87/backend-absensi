@@ -35,8 +35,7 @@ class PegawaiRequest extends FormRequest
             )],
             'profesi_id'     => ['required', 'integer', 'exists:profesi,id'],
             'shift_id'       => ['nullable', 'integer', 'exists:shift,id'],
-            'role'           => ['in:admin,pegawai'],
-            'status'         => ['in:aktif,nonaktif'],
+            'role'           => ['in:admin,pegawai'],            'status'         => ['in:aktif,nonaktif'],
             'password'       => $id
                 ? ['nullable', 'string', 'min:6']
                 : ['required', 'string', 'min:6'],

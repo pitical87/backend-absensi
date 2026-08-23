@@ -107,6 +107,28 @@
       </div>
     </div>
 
+    @php $atTerpilih = array_map('intval', (array) old('atasan', $atasanTerpilih)); @endphp
+    <div class="form-grup">
+      <label>Atasan Langsung</label>
+      <input type="text" id="cari-atasan-form" placeholder="Cari nama pegawai…" class="mb-2"
+             oninput="saringAtasanForm(this.value)">
+      <div id="daftar-atasan-form" class="max-h-44 overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100">
+        @foreach($atasanPilihan as $opt)
+          <label class="baris-at flex items-center gap-2.5 py-2 px-3 cursor-pointer hover:bg-slate-50"
+                 data-nama="{{ strtolower($opt->nama_lengkap) }}">
+            <input type="checkbox" name="atasan[]" value="{{ (int) $opt->id }}" class="chk-at w-auto"
+              {{ in_array((int) $opt->id, $atTerpilih, true) ? 'checked' : '' }}>
+            <span class="text-sm">{{ $opt->nama_lengkap }}</span>
+          </label>
+        @endforeach
+        @if(count($atasanPilihan) === 0)
+          <div class="py-4 tengah teks-redup text-sm">Belum ada kandidat atasan.</div>
+        @endif
+      </div>
+      <div class="petunjuk">Otomatis terpilih mengikuti sub unit / unit kerja saat pilihan di atas berubah.
+        Boleh memilih lebih dari satu atasan.</div>
+    </div>
+
     <div class="form-baris">
       <div class="form-grup">
         <label class="wajib">Jabatan</label>
@@ -172,14 +194,14 @@
         </select>
       </div>
       <div class="form-grup">
-        <label>Shift Kerja</label>
+        <label>Shift Kerja (berlaku hari ini)</label>
         <select name="shift_id">
           <option value="">— Belum diatur —</option>
           @foreach($shiftGrup as $kategori => $daftar)
             <optgroup label="Shift {{ $kategori }}">
               @foreach($daftar as $s)
                 <option value="{{ (int) $s->id }}"
-                  {{ (int) old('shift_id', $edit->shift_id ?? 0) === (int) $s->id ? 'selected' : '' }}>
+                  {{ (int) old('shift_id', $shiftAktifId ?? 0) === (int) $s->id ? 'selected' : '' }}>
                   {{ jam_singkat($s->jam_masuk) }} - {{ jam_singkat($s->jam_pulang) }}
                 </option>
               @endforeach
@@ -225,6 +247,27 @@
 <script>
 const SUB_UNIT = @json($subPerUnit);
 const SUB_TERPILIH = {{ (int) old('sub_unit_id', $edit->sub_unit_id ?? 0) }};
+const ATASAN_UNIT = @json($atasanUnitMap);
+const ATASAN_SUB = @json($atasanSubMap);
+
+function terapkanWarisanAtasan() {
+  const unit = document.getElementById('unit_kerja_id');
+  const sub = document.getElementById('sub_unit_id');
+  let target = null;
+  if (sub && sub.value && ATASAN_SUB[sub.value]) target = Number(ATASAN_SUB[sub.value]);
+  if (target === null && unit && unit.value && ATASAN_UNIT[unit.value]) target = Number(ATASAN_UNIT[unit.value]);
+  document.querySelectorAll('.chk-at').forEach(function (c) {
+    c.checked = target !== null && Number(c.value) === target;
+  });
+}
+
+function saringAtasanForm(kata) {
+  kata = kata.toLowerCase();
+  document.querySelectorAll('#daftar-atasan-form .baris-at').forEach(function (b) {
+    b.style.display = b.dataset.nama.includes(kata) ? '' : 'none';
+  });
+}
+
 (function () {
   const unit = document.getElementById('unit_kerja_id');
   const sub  = document.getElementById('sub_unit_id');
@@ -243,7 +286,8 @@ const SUB_TERPILIH = {{ (int) old('sub_unit_id', $edit->sub_unit_id ?? 0) }};
       });
     }
   }
-  unit.addEventListener('change', function () { segarkan(0); });
+  unit.addEventListener('change', function () { segarkan(0); terapkanWarisanAtasan(); });
+  sub.addEventListener('change', terapkanWarisanAtasan);
   segarkan(SUB_TERPILIH);
 })();
 

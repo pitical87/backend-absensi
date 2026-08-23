@@ -11,6 +11,7 @@ $grupMenu = [
     'items' => [
       'pegawai'  => ['admin/pegawai',  'pegawai',  'Data Pegawai'],
       'unit'     => ['admin/unit',     'gedung',   'Data Unit Kerja'],
+      'atasan_langsung' => ['admin/atasan_langsung', 'struktur', 'Atasan Langsung'],
       'struktur' => ['admin/struktur', 'struktur', 'Struktur Organisasi'],
     ],
   ],
@@ -51,6 +52,8 @@ $grupMenu = [
     'ikon'  => 'grafik',
     'items' => [
       'rekap'         => ['admin/rekap',         'grafik',   'Rekap Absen'],
+      'rekap_keterlambatan' => ['admin/rekap_keterlambatan', 'jam', 'Rekap Keterlambatan'],
+      'pegawai_teladan'     => ['admin/pegawai_teladan', 'bintang', 'Pegawai Teladan'],
       'rekap_logbook' => ['admin/rekap_logbook', 'log',      'Rekap Logbook'],
     ],
   ],

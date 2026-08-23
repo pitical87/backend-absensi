@@ -14,15 +14,8 @@ class User extends Authenticatable
     use HasFactory;
 
     protected $table = 'users';
-    // public $timestamps = false;
 
-    protected $fillable = [
-        'nama_lengkap', 'tempat_lahir', 'tanggal_lahir', 'jenis_kelamin',
-        'agama', 'email', 'no_hp', 'nip', 'unit_kerja_id', 'sub_unit_id',
-        'profesi_id', 'jabatan_kategori', 'jabatan_id', 'posisi',
-        'status_pegawai', 'seksi_pembina_id', 'shift_id', 'password_hash',
-        'role', 'status', 'created_at',
-    ];
+    protected $guarded = [];
 
     protected $hidden = ['password_hash'];
 
@@ -30,8 +23,6 @@ class User extends Authenticatable
     {
         return [
             'tanggal_lahir' => 'date',
-            'created_at' => 'datetime',
-            'updated_at' => 'datetime',
         ];
     }
 
@@ -53,11 +44,6 @@ class User extends Authenticatable
     public function profesi(): BelongsTo
     {
         return $this->belongsTo(Profesi::class);
-    }
-
-    public function shift(): BelongsTo
-    {
-        return $this->belongsTo(Shift::class);
     }
 
     public function jabatan(): BelongsTo
@@ -83,6 +69,30 @@ class User extends Authenticatable
     public function jadwalShift(): HasMany
     {
         return $this->hasMany(JadwalShift::class);
+    }
+
+    /**
+     * Shift aktif pegawai diambil dari tabel jadwal_shift:
+     * baris dengan tanggal_berlaku = hari ini; bila belum jam 12 siang
+     * dan hari ini tidak ada jadwal, cek jadwal kemarin (lanjutan shift malam).
+     */
+    protected function shift(): Attribute
+    {
+        return Attribute::get(function () {
+            $hariIni = now()->toDateString();
+
+            $query = JadwalShift::with('shift:id,kategori,jam_masuk,jam_pulang,lintas_hari,aktif')
+                ->where('user_id', $this->id);
+
+            $jadwal = (clone $query)->where('tanggal_berlaku', $hariIni)->first();
+
+            if (! $jadwal && (int) now()->format('G') < 12) {
+                $jadwal = (clone $query)
+                    ->where('tanggal_berlaku', now()->subDay()->toDateString())->first();
+            }
+
+            return $jadwal?->shift;
+        });
     }
 
     public function logLokasi(): HasMany

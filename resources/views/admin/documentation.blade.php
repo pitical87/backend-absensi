@@ -101,7 +101,7 @@ JSON,
     'endpoints' => [
       [
         'metode' => 'POST', 'jalur' => '/absen', 'akses' => 'Token',
-        'deskripsi' => 'Catat absen datang/pulang. Ditolak bila berada di luar radius RSUD; foto selfie base64 wajib bila pengaturan wajib_selfie aktif.',
+        'deskripsi' => 'Catat absen datang/pulang. Ditolak bila berada di luar radius RSUD; foto selfie base64 wajib bila pengaturan wajib_selfie aktif. Respons memuat blok keterlambatan (menit dibulatkan ke atas). Bintang: masuk lebih awal atau pulang melewati jam jadwal -> 5; tepat waktu -> 4; pelanggaran efektif setelah toleransi 10 menit -> <=5\' 4, <=10\' 3, <=15\' 2, <=30\' 1, >30\' 0. total_bintang = rata-rata bintang masuk & pulang.',
         'parameter' => [
           ['tipe', 'body', 'string', true, 'datang atau pulang.'],
           ['lat · lng', 'body', 'float', true, 'Koordinat GPS perangkat.'],
@@ -111,21 +111,38 @@ JSON,
         'status' => '200 (lihat field sukses) · 422 data tidak lengkap',
         'respons' => <<<'JSON'
 {
-  "sukses": false,
-  "pesan": "Absensi ditolak. Anda berada di luar area RSUD Merauke.",
-  "keterangan": "Jarak 1.250 m (maks 100 m)"
+  "sukses": true,
+  "jenis": "telat",
+  "pesan": "Anda terlambat datang sebanyak 13 menit",
+  "keterangan": "Absen datang tercatat pukul 08.12 · jarak 5 m dari titik RSUD.",
+  "status": "Terlambat",
+  "menit": 13,
+  "bintang": 2,
+  "keterlambatan": { "menit_telat": 13, "bintang_masuk": 4 },
+  "jam": "08.12"
+}
+
+Absen pulang — blok keterlambatan berisi sisi pulang + total:
+{
+  "sukses": true,
+  "jenis": "awal",
+  "pesan": "Anda pulang lebih awal sebanyak 10 menit",
+  "status": "Lebih Awal",
+  "menit": 10,
+  "keterlambatan": { "menit_pulang_awal": 10, "bintang_pulang": 4, "total_bintang": 4 },
+  "jam": "13.50"
 }
 JSON,
       ],
       [
         'metode' => 'GET', 'jalur' => '/status', 'akses' => 'Token',
-        'deskripsi' => 'Status absen hari ini (masuk/pulang) termasuk keterlambatan, menit pulang awal, dan bintang.',
+        'deskripsi' => 'Status absen hari ini (masuk/pulang) termasuk keterlambatan, menit pulang awal, dan bintang (tepat 4 · lebih awal masuk / pulang lewat jam 5).',
         'respons' => <<<'JSON'
 {
   "sukses": true,
-  "absen_masuk": { "waktu": "07:52", "status": "Tepat Waktu", "menit_terlambat": 0, "bintang": 1 },
-  "absen_pulang": { "waktu": "14:03", "status": "Tepat Waktu", "menit_awal": 0, "bintang": 1 },
-  "bintang_harian": 2
+  "absen_masuk": { "waktu": "07:52", "status": "Tepat Waktu", "menit_terlambat": 0, "bintang": 4 },
+  "absen_pulang": { "waktu": "14:03", "status": "Tepat Waktu", "menit_awal": 0, "bintang": 4 },
+  "bintang_harian": 4
 }
 JSON,
       ],
@@ -173,6 +190,80 @@ JSON,
 JSON,
       ],
       [
+        'metode' => 'GET', 'jalur' => '/rekap?bulan=&tahun=', 'akses' => 'Token',
+        'deskripsi' => 'Rekap absensi pribadi per bulan + tahun: ringkasan kehadiran/keterlambatan/jam kerja/bintang beserta detail harian (termasuk izin, libur, alpa).',
+        'parameter' => [
+          ['bulan', 'query', 'int 1-12', false, 'Default bulan berjalan.'],
+          ['tahun', 'query', 'int', false, 'Default tahun berjalan.'],
+        ],
+        'status' => '200 sukses · 422 parameter tidak valid',
+        'respons' => <<<'JSON'
+{
+  "sukses": true,
+  "periode": { "bulan": 8, "tahun": 2026, "label": "Agustus 2026", "hari_dalam_bulan": 31, "hari_berjalan": 23, "hari_efektif": 19 },
+  "ringkasan": {
+    "hadir": 16, "tepat_masuk": 14, "terlambat": 2, "total_menit_telat": 26,
+    "tepat_pulang": 15, "pulang_awal": 1, "total_menit_pulang_awal": 12,
+    "izin": 0, "sakit": 1, "cuti": 0, "dinas_luar": 1, "libur": 5, "alpa": 0,
+    "anomali": 0, "persen_kehadiran": 94.1, "total_jam_kerja": 121.3,
+    "bintang_bulanan": 4.2
+  },
+  "detail": [{
+    "tanggal": "2026-08-03", "hari": "Senin", "status": "Tepat Waktu", "keterangan": null,
+    "jam_masuk": "07:55", "jam_pulang": "14:02",
+    "menit_telat": 0, "menit_pulang_awal": 0, "total_jam_kerja": 6.1,
+    "bintang_masuk": 4, "bintang_pulang": 4, "bintang_harian": 4
+  }]
+}
+JSON,
+      ],
+      [
+        'metode' => 'GET', 'jalur' => '/keterlambatan?bulan=&tahun=', 'akses' => 'Token',
+        'deskripsi' => 'Rekap keterlambatan pribadi per bulan + tahun: ringkasan menit telat/pulang awal dan rata-rata bintang beserta detail per hari dari catatan absensi.',
+        'parameter' => [
+          ['bulan', 'query', 'int 1-12', false, 'Default bulan berjalan.'],
+          ['tahun', 'query', 'int', false, 'Default tahun berjalan.'],
+        ],
+        'status' => '200 sukses · 422 parameter tidak valid',
+        'respons' => <<<'JSON'
+{
+  "sukses": true,
+  "periode": { "bulan": 8, "tahun": 2026, "label": "Agustus 2026" },
+  "ringkasan": {
+    "tercatat": 16, "terlambat": 2, "total_menit_telat": 26,
+    "rata_menit_telat": 13.0, "terlama_menit_telat": 15,
+    "pulang_awal": 1, "total_menit_pulang_awal": 12,
+    "rata_bintang_masuk": 4.1, "rata_bintang_pulang": 4.2, "rata_bintang_total": 4.2
+  },
+  "detail": [{
+    "tanggal": "2026-08-10", "hari": "Senin", "jam_masuk": "08:12", "jam_pulang": "13:50",
+    "menit_telat": 13,     "bintang_masuk": 4, "menit_pulang_awal": 10,
+    "bintang_pulang": 4, "total_bintang": 4
+  }]
+}
+JSON,
+      ],
+      [
+        'metode' => 'GET', 'jalur' => '/pegawai-teladan?bulan=&tahun=', 'akses' => 'Token',
+        'deskripsi' => 'Peringkat pegawai teladan bulan tertentu berdasarkan akumulasi total bintang absensi (maksimal 10 teratas).',
+        'parameter' => [
+          ['bulan', 'query', 'int 1-12', false, 'Default bulan berjalan.'],
+          ['tahun', 'query', 'int', false, 'Default tahun berjalan.'],
+        ],
+        'status' => '200 sukses · 422 parameter tidak valid',
+        'respons' => <<<'JSON'
+{
+  "sukses": true,
+  "periode": { "bulan": 8, "tahun": 2026, "label": "Agustus 2026" },
+  "daftar": [{
+    "peringkat": 1, "pegawai_id": 12, "nama": "Budi Santoso", "unit": "Keperawatan",
+    "hari_tercatat": 19, "total_bintang": 92.0, "rata_bintang": 4.84,
+    "jumlah_telat": 0, "hari_bintang_lima": 7
+  }]
+}
+JSON,
+      ],
+      [
         'metode' => 'GET', 'jalur' => '/jadwal', 'akses' => 'Token',
         'deskripsi' => 'Shift efektif hari ini (dari jadwal shift bila ada, fallback shift profil) dan flag boleh memilih shift sendiri.',
         'respons' => <<<'JSON'
@@ -180,6 +271,50 @@ JSON,
   "sukses": true,
   "shift": { "id": 2, "kategori": "Siang", "jam_masuk": "14:00", "jam_pulang": "21:00" },
   "izinkan_pilih": true
+}
+JSON,
+      ],
+      [
+        'metode' => 'GET', 'jalur' => '/jadwal/hari-ini', 'akses' => 'Token',
+        'deskripsi' => 'Jadwal shift hari ini dari jadwal shift yang dipasangkan (tanpa fallback profil).',
+        'respons' => <<<'JSON'
+{
+  "sukses": true,
+  "data": [{ "tanggal": "2026-08-23", "hari": "Minggu", "shift": { "id": 11, "kategori": "Pagi", "jam_masuk": "08:00", "jam_pulang": "14:00" } }]
+}
+JSON,
+      ],
+      [
+        'metode' => 'GET', 'jalur' => '/jadwal/mingguan?mulai=', 'akses' => 'Token',
+        'deskripsi' => 'Jadwal 7 hari. Default mulai Senin minggu berjalan; isi mulai=YYYY-MM-DD untuk minggu lain. Hari tanpa jadwal bernilai null.',
+        'parameter' => [
+          ['mulai', 'query', 'YYYY-MM-DD', false, 'Default Senin minggu ini.'],
+        ],
+        'status' => '200 sukses · 422 format tanggal tidak valid',
+        'respons' => <<<'JSON'
+{
+  "sukses": true,
+  "periode": { "mulai": "2026-08-17", "sampai": "2026-08-23" },
+  "data": [
+    { "tanggal": "2026-08-17", "hari": "Senin", "shift": { "id": 3, "kategori": "Pagi", "jam_masuk": "05:00", "jam_pulang": "12:00" } },
+    { "tanggal": "2026-08-18", "hari": "Selasa", "shift": null }
+  ]
+}
+JSON,
+      ],
+      [
+        'metode' => 'GET', 'jalur' => '/jadwal/bulanan?bulan=&tahun=', 'akses' => 'Token',
+        'deskripsi' => 'Jadwal seluruh hari dalam satu bulan + tahun.',
+        'parameter' => [
+          ['bulan', 'query', 'int 1-12', false, 'Default bulan berjalan.'],
+          ['tahun', 'query', 'int', false, 'Default tahun berjalan.'],
+        ],
+        'status' => '200 sukses · 422 parameter tidak valid',
+        'respons' => <<<'JSON'
+{
+  "sukses": true,
+  "periode": { "bulan": 8, "tahun": 2026, "label": "Agustus 2026" },
+  "data": [{ "tanggal": "2026-08-01", "hari": "Sabtu", "shift": { "id": 12, "kategori": "Sore", "jam_masuk": "14:00", "jam_pulang": "20:00" } }]
 }
 JSON,
       ],
@@ -207,7 +342,7 @@ JSON,
       ],
       [
         'metode' => 'POST', 'jalur' => '/izin', 'akses' => 'Token',
-        'deskripsi' => 'Ajukan Izin/Sakit/Cuti/Dinas Luar. Izin & Cuti berjenjang (mengikuti alur persetujuan), Sakit & Dinas Luar langsung ke admin. Cuti hanya PNS, memotong kuota cuti tahunan bila jenisnya Cuti Tahunan. Rentang maksimal 60 hari.',
+        'deskripsi' => 'Ajukan Izin/Sakit/Cuti/Dinas Luar. Izin & Cuti berjenjang (mengikuti alur persetujuan), Sakit & Dinas Luar langsung ke admin. Cuti hanya PNS, memotong kuota cuti tahunan bila jenisnya Cuti Tahunan. Rentang maksimal 60 hari. Respons memuat keterangan pengajuan ke atasan langsung (dari menu Atasan Langsung).',
         'parameter' => [
           ['jenis_pengajuan', 'body', 'string', true, 'Izin / Sakit / Cuti / Dinas Luar.'],
           ['jenis_cuti', 'body', 'string', 'Kadang', 'Wajib untuk jenis Cuti.'],
@@ -220,8 +355,10 @@ JSON,
         'respons' => <<<'JSON'
 {
   "sukses": true,
-  "pesan": "Pengajuan Cuti terkirim dan menunggu persetujuan Kepala Unit.",
-  "izin_id": 12
+  "pesan": "Pengajuan Cuti terkirim dan menunggu persetujuan Kepala Unit. Pengajuan telah diajukan ke atasan langsung Anda: Firmansyah Diana.",
+  "izin_id": 12,
+  "atasan_langsung": ["Firmansyah Diana"],
+  "keterangan_atasan": "Pengajuan telah diajukan ke atasan langsung Anda: Firmansyah Diana."
 }
 JSON,
       ],
@@ -422,6 +559,20 @@ JSON,
   [
     'id' => 'template-logbook', 'judul' => 'Template Logbook', 'ikon' => 'surat',
     'endpoints' => [
+      [
+        'metode' => 'GET', 'jalur' => '/logbook/template', 'akses' => 'Token',
+        'deskripsi' => 'Daftar template yang bisa dipakai user: template milik sendiri (type=user) dan template umum dari admin (type=all). milik_sendiri menandai boleh ubah/hapus.',
+        'respons' => <<<'JSON'
+{
+  "sukses": true,
+  "jumlah": 2,
+  "data": [
+    { "id": 7, "isi": "Melayani pemeriksaan pasien rawat jalan", "type": "all", "milik_sendiri": false, "dibuat": "2026-08-20 09:00" },
+    { "id": 5, "isi": "Tindakan kateterisasi pada pasien kamar 3", "type": "user", "milik_sendiri": true, "dibuat": "2026-08-22 14:30" }
+  ]
+}
+JSON,
+      ],
       [
         'metode' => 'POST', 'jalur' => '/logbook/template', 'akses' => 'Token',
         'deskripsi' => 'Menambah template pribadi untuk mengisi logbook lebih cepat. Template selalu bertipe user dan hanya tampil untuk pemiliknya.',

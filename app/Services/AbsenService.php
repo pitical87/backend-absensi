@@ -96,6 +96,7 @@ class AbsenService
             'catatan_anomali' => $alasanAnomali ? implode(' | ', $alasanAnomali) : null,
         ]);
         $this->catatLog($u['id'], $absensiId, 'datang', $lat, $lng, $akurasi, $jarak, $now);
+        $ket = app(KeterlambatanService::class)->catatDatang($absensiId, (int) ceil($selisih));
 
         return response()->json([
             'sukses'     => true,
@@ -106,6 +107,10 @@ class AbsenService
             'status'     => $status,
             'menit'      => $menit,
             'bintang'    => $bintangMasuk,
+            'keterlambatan' => [
+                'menit_telat'   => $ket->menit_telat,
+                'bintang_masuk' => $ket->bintang_masuk,
+            ],
             'jam'        => $now->format('H.i'),
         ]);
     }
@@ -162,6 +167,7 @@ class AbsenService
                                     ])), ' |') ?: null,
         ]);
         $this->catatLog($u['id'], (int) $rec->id, 'pulang', $lat, $lng, $akurasi, $jarak, $now);
+        $ket = app(KeterlambatanService::class)->catatPulang((int) $rec->id, (int) $menitAwal);
 
         $jenis = 'sukses';
         $pesan = 'Terima kasih atas dedikasi Anda hari ini';
@@ -179,6 +185,11 @@ class AbsenService
             'status'     => $statusPulang,
             'menit'      => $menitAwal,
             'bintang'    => $bintangHarian,
+            'keterlambatan' => [
+                'menit_pulang_awal' => $ket->menit_awal_pulang,
+                'bintang_pulang'    => $ket->bintang_pulang,
+                'total_bintang'     => $ket->total_bintang,
+            ],
             'jam'        => $now->format('H.i'),
         ]);
     }

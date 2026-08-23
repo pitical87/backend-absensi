@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -12,7 +13,7 @@ class Shift extends Model
 
     protected $table = 'shift';
 
-    protected $fillable = ['kategori', 'jam_masuk', 'jam_pulang', 'lintas_hari', 'aktif'];
+    protected $guarded = [];
 
     protected function casts(): array
     {
@@ -22,11 +23,6 @@ class Shift extends Model
             'lintas_hari' => 'boolean',
             'aktif' => 'boolean',
         ];
-    }
-
-    public function users(): HasMany
-    {
-        return $this->hasMany(User::class);
     }
 
     public function absensi(): HasMany
@@ -41,8 +37,9 @@ class Shift extends Model
 
     public function label(): string
     {
-        $masuk = \Carbon\Carbon::parse($this->jam_masuk)->format('H.i');
-        $pulang = \Carbon\Carbon::parse($this->jam_pulang)->format('H.i');
+        $masuk = Carbon::parse($this->jam_masuk)->format('H.i');
+        $pulang = Carbon::parse($this->jam_pulang)->format('H.i');
+
         return "{$this->kategori} ({$masuk} - {$pulang})";
     }
 }

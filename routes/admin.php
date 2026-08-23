@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AktivitasController;
+use App\Http\Controllers\Admin\AtasanLangsungController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DokumentasiController;
 use App\Http\Controllers\Admin\IzinController;
@@ -10,6 +11,8 @@ use App\Http\Controllers\Admin\KehadiranController;
 use App\Http\Controllers\Admin\LiburController;
 use App\Http\Controllers\Admin\MappingSIMRSController;
 use App\Http\Controllers\Admin\PegawaiController;
+use App\Http\Controllers\Admin\PegawaiTeladanController;
+use App\Http\Controllers\Admin\RekapKeterlambatanController;
 use App\Http\Controllers\Admin\PengaturanController;
 use App\Http\Controllers\Admin\RekapController;
 use App\Http\Controllers\Admin\RekapLogbookController;
@@ -53,6 +56,9 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::get('unit', [UnitController::class, 'index'])->name('admin.unit');
     Route::post('unit/aksi', [UnitController::class, 'aksi'])->name('admin.unit.aksi');
 
+    Route::get('atasan_langsung', [AtasanLangsungController::class, 'index'])->name('admin.atasan_langsung');
+    Route::post('atasan_langsung/aksi', [AtasanLangsungController::class, 'aksi'])->name('admin.atasan_langsung.aksi');
+
     Route::get('struktur', [StrukturController::class, 'index'])->name('admin.struktur');
     Route::post('struktur/aksi', [StrukturController::class, 'aksi'])->name('admin.struktur.aksi');
 
@@ -61,6 +67,7 @@ Route::prefix('admin')->middleware('admin')->group(function () {
 
     Route::get('jadwal', [JadwalController::class, 'index'])->name('admin.jadwal');
     Route::post('jadwal/aksi', [JadwalController::class, 'aksi'])->name('admin.jadwal.aksi');
+    Route::post('jadwal/aksi-pegawai', [JadwalController::class, 'aksiPegawai'])->name('admin.jadwal.pegawai');
 
     Route::get('kehadiran', [KehadiranController::class, 'index'])->name('admin.kehadiran');
 
@@ -72,6 +79,8 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::post('libur/aksi', [LiburController::class, 'aksi'])->name('admin.libur.aksi');
 
     Route::get('rekap', [RekapController::class, 'index'])->name('admin.rekap');
+    Route::get('rekap_keterlambatan', [RekapKeterlambatanController::class, 'index'])->name('admin.rekap_keterlambatan');
+    Route::get('pegawai_teladan', [PegawaiTeladanController::class, 'index'])->name('admin.pegawai_teladan');
     Route::get('rekap_logbook', [RekapLogbookController::class, 'index'])->name('admin.rekap_logbook');
     Route::get('rekap_logbook/cetak', [RekapLogbookController::class, 'cetak'])->name('admin.rekap_logbook.cetak');
     Route::get('rekap_logbook/detail', [RekapLogbookController::class, 'detail'])->name('admin.rekap_logbook.detail');

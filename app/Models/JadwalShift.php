@@ -12,12 +12,13 @@ class JadwalShift extends Model
 
     protected $table = 'jadwal_shift';
 
+    public $timestamps = false;
+
     protected $fillable = ['user_id', 'shift_id', 'tanggal_berlaku', 'diubah_oleh', 'created_at'];
 
     protected function casts(): array
     {
         return [
-            'tanggal_berlaku' => 'date',
             'created_at' => 'datetime',
         ];
     }

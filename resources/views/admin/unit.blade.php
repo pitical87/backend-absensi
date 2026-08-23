@@ -126,6 +126,12 @@ if (!array_key_exists($activeTab, $tabs)) $activeTab = 'semua';
       <input type="checkbox" name="punya_sub" value="1" class="w-auto" {{ $uk->punya_sub ? 'checked' : '' }}>
       Memiliki sub unit
     </label>
+    <select name="atasan_id" class="w-auto min-w-[170px] text-sm" title="Atasan default pegawai unit ini">
+      <option value="">— Atasan unit —</option>
+      @foreach($pegawaiPilihan as $opt)
+        <option value="{{ (int) $opt->id }}" {{ (int) $uk->atasan_id === (int) $opt->id ? 'selected' : '' }}>{{ $opt->nama_lengkap }}</option>
+      @endforeach
+    </select>
     <button type="submit" class="btn btn-navy btn-kecil">Simpan</button>
   </form>
 
@@ -136,6 +142,7 @@ if (!array_key_exists($activeTab, $tabs)) $activeTab = 'semua';
         <thead>
           <tr>
             <th>Nama Sub Unit</th>
+            <th>Atasan Sub Unit</th>
             <th>Jumlah Pegawai</th>
             <th class="w-[110px]">Aksi</th>
           </tr>
@@ -144,6 +151,20 @@ if (!array_key_exists($activeTab, $tabs)) $activeTab = 'semua';
           @foreach($subPerUnit[(int) $uk->id] ?? [] as $su)
           <tr>
             <td>{{ $su->nama }}</td>
+            <td>
+              <form method="post" action="{{ url('admin/unit/aksi') }}" class="flex items-center gap-1.5">
+                @csrf
+                <input type="hidden" name="aksi" value="ubah_sub">
+                <input type="hidden" name="id" value="{{ (int) $su->id }}">
+                <select name="atasan_id" class="w-auto min-w-[160px] text-sm" title="Atasan default pegawai sub unit ini">
+                  <option value="">— Atasan sub unit —</option>
+                  @foreach($pegawaiPilihan as $opt)
+                    <option value="{{ (int) $opt->id }}" {{ (int) $su->atasan_id === (int) $opt->id ? 'selected' : '' }}>{{ $opt->nama_lengkap }}</option>
+                  @endforeach
+                </select>
+                <button type="submit" class="btn btn-navy btn-kecil">Simpan</button>
+              </form>
+            </td>
             <td class="angka">{{ (int) $su->jml_pegawai }}</td>
             <td>
               <form method="post" action="{{ url('admin/unit/aksi') }}"
@@ -157,7 +178,7 @@ if (!array_key_exists($activeTab, $tabs)) $activeTab = 'semua';
           </tr>
           @endforeach
           @if(empty($subPerUnit[(int) $uk->id]))
-          <tr><td colspan="3" class="tengah teks-redup py-4">Belum ada sub unit.</td></tr>
+          <tr><td colspan="4" class="tengah teks-redup py-4">Belum ada sub unit.</td></tr>
           @endif
         </tbody>
       </table>
@@ -168,6 +189,12 @@ if (!array_key_exists($activeTab, $tabs)) $activeTab = 'semua';
       <input type="hidden" name="aksi" value="tambah_sub">
       <input type="hidden" name="unit_kerja_id" value="{{ (int) $uk->id }}">
       <input type="text" name="nama" placeholder="Nama sub unit baru untuk {{ $uk->nama }}…" required>
+      <select name="atasan_id" class="w-auto min-w-[170px] text-sm" title="Atasan default pegawai sub unit ini">
+        <option value="">— Atasan sub unit —</option>
+        @foreach($pegawaiPilihan as $opt)
+          <option value="{{ (int) $opt->id }}">{{ $opt->nama_lengkap }}</option>
+        @endforeach
+      </select>
       <button type="submit" class="btn btn-primer btn-kecil">+ Tambah Sub Unit</button>
     </form>
   @endif

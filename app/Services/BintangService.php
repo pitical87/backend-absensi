@@ -7,34 +7,59 @@ use DateTime;
 class BintangService
 {
     public const MAKS = 5;
+    public const GRACE_MENIT = 10;
 
-    public function bintangMasuk(int $menitSetelahJadwal): int
+    /**
+     * $menitSetelahJadwal bertanda: negatif = absen lebih awal dari jadwal.
+     * Lebih awal -> 5 · tepat s.d. toleransi 10' -> 4 · pelanggaran efektif
+     * (setelah dikurangi 10'): <=5' -> 4, <=10' -> 3, <=15' -> 2, <=30' -> 1, >30' -> 0.
+     */
+    public static function bintangMasuk(int $menitSetelahJadwal): int
     {
+        if ($menitSetelahJadwal < 0) {
+            return 5;
+        }
+
+        $eff = max(0, $menitSetelahJadwal - self::GRACE_MENIT);
+
         return match (true) {
-            $menitSetelahJadwal <= 0 => 5,
-            $menitSetelahJadwal <= 5 => 4,
-            $menitSetelahJadwal <= 10 => 3,
-            $menitSetelahJadwal <= 15 => 2,
-            $menitSetelahJadwal <= 30 => 1,
+            $eff <= 5 => 4,
+            $eff <= 10 => 3,
+            $eff <= 15 => 2,
+            $eff <= 30 => 1,
             default => 0,
         };
     }
 
-    public function bintangPulang(int $menitLebihAwal): int
+    /**
+     * $menitLebihAwal bertanda: negatif = pulang melewati jam pulang.
+     * Melewati jam pulang -> 5 · tepat -> 4 · pulang cepat efektif
+     * (setelah dikurangi 10'): <=5' -> 4, <=10' -> 3, <=15' -> 2, <=30' -> 1, >30' -> 0.
+     */
+    public static function bintangPulang(int $menitLebihAwal): int
     {
+        if ($menitLebihAwal < 0) {
+            return 5;
+        }
+
+        if ($menitLebihAwal === 0) {
+            return 4;
+        }
+
+        $eff = max(0, $menitLebihAwal - self::GRACE_MENIT);
+
         return match (true) {
-            $menitLebihAwal <= 0 => 5,
-            $menitLebihAwal <= 5 => 4,
-            $menitLebihAwal <= 10 => 3,
-            $menitLebihAwal <= 15 => 2,
-            $menitLebihAwal <= 30 => 1,
+            $eff <= 5 => 4,
+            $eff <= 10 => 3,
+            $eff <= 15 => 2,
+            $eff <= 30 => 1,
             default => 0,
         };
     }
 
     public function bintangHarian(int $bintangMasuk, int $bintangPulang): float
     {
-        return round(($bintangMasuk + $bintangPulang) / 2, 0, PHP_ROUND_HALF_UP);
+        return round(($bintangMasuk + $bintangPulang) / 2, 1, PHP_ROUND_HALF_UP);
     }
 
     public function pesanBulanan(float $rataRata): string
