@@ -16,7 +16,7 @@
 </section>
 @endif
 
-<section class="kartu">
+{{-- <section class="kartu">
   <div class="kartu-kepala">
     <h2>{!! ikon('surat') !!} Ajukan Izin / Sakit / Cuti / Dinas Luar</h2>
     <a class="btn btn-garis btn-kecil" href="{{ route('dashboard') }}">&larr; Dasbor</a>
@@ -85,7 +85,7 @@
 
     <button type="submit" class="btn btn-primer">{!! ikon('centang', 17) !!} Kirim Pengajuan</button>
   </form>
-</section>
+</section> --}}
 
 <section class="kartu">
   <div class="kartu-kepala">

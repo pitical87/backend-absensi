@@ -25,6 +25,16 @@ Route::prefix('mobile')->group(function (){
         Route::get('izin/detail',[MobileController::class,"getDetailIzinMenunggu"]);
         Route::post('izin/proses',[MobileController::class,"prosesIzinMenunggu"]);
         Route::get('izin/riwayat-persetujuan',[MobileController::class,"getRiwayatPersetujuan"]);
+        Route::get('logbook/simrs',[MobileController::class,"logbookSimrs"]);
+        Route::get('logbook/simrs/{jenis}',[MobileController::class,"logbookSimrs"]);
+        Route::get('logbook',[MobileController::class,"logbookData"]);
+        Route::post('logbook/simpan',[MobileController::class,"logbookSimpan"]);
+        Route::post('logbook/simpan-bulk',[MobileController::class,"logbookSimpanBulk"]);
+        Route::post('logbook/ubah',[MobileController::class,"logbookUbah"]);
+        Route::delete('logbook/template/{id}',[MobileController::class,"templateHapus"]);
+        Route::post('logbook/template',[MobileController::class,"templateSimpan"]);
+        Route::post('logbook/template/ubah',[MobileController::class,"templateUbah"]);
+        Route::delete('logbook/{id}',[MobileController::class,"logbookHapus"]);
     });
 });
 

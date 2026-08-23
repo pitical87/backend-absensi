@@ -6,19 +6,11 @@ $hariIni = date('Y-m-d');
 @section('content')
 
 <!-- ============ IDENTITAS ============ -->
-<section class="kartu identitas">
-  <span class="eyebrow">{{ tgl_id($hariIni) }}</span>
-  <h1>{{ $u['nama_lengkap'] }}</h1>
-  <svg class="denyut denyut-navy" viewBox="0 0 400 26" preserveAspectRatio="none" aria-hidden="true">
-    <path d="M0 13h110l10-9 14 18 12-14 8 5h246" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round"/>
-  </svg>
+<section class="bg-blue-500 text-white p-4 rounded-xl mb-3">
+  <span class="text-white">{{ tgl_id($hariIni) }}</span>
+  <div class="text-4xl text-white font-bold" >Hai, {{ $u['nama_lengkap'] }}</div>
+  
   <div class="identitas-grid">
-    <div class="item"><span>NIP</span><strong>{{ $u['nip'] ?: '—' }}</strong></div>
-    <div class="item"><span>Jabatan</span><strong>{{ label_jabatan((object)$u) }}</strong></div>
-    <div class="item"><span>Unit Kerja</span><strong>{{ unit_organisasi((object)$u) }}</strong></div>
-    <div class="item"><span>Profesi</span><strong>{{ $u['profesi_nama'] ?? 'Belum diatur' }}</strong></div>
-    <div class="item"><span>Tempat Tugas</span><strong>{{ tempat_tugas((object)$u) }}</strong></div>
     <div class="item"><span>Status Hari Ini</span>
       <strong>
         @if ($selesai)
@@ -35,119 +27,6 @@ $hariIni = date('Y-m-d');
   </div>
 </section>
 
-<!-- ============ SHIFT ============ -->
-<section class="kartu">
-  <div class="kartu-kepala">
-    <h2>{!! ikon('jam') !!} Shift Kerja Hari Ini</h2>
-    <span class="badge badge-biru angka">{{ label_shift($u['shift_id'] ? (object) [
-        'kategori'   => $u['shift_kategori'],
-        'jam_masuk'  => $u['shift_jam_masuk'],
-        'jam_pulang' => $u['shift_jam_pulang'],
-    ] : null) }}</span>
-  </div>
-
-  @if($bolehPilihShift)
-    <div class="form-grup mb-0">
-      <label for="pilih-shift">Ubah shift (berlaku sampai diubah kembali)</label>
-      <select id="pilih-shift">
-        <option value="">— Pilih shift —</option>
-        @foreach($shiftGrup as $kategori => $daftar)
-          <optgroup label="Shift {{ $kategori }}">
-            @foreach($daftar as $s)
-              <option value="{{ (int) $s->id }}" {{ (int) $u['shift_id'] === (int) $s->id ? 'selected' : '' }}>
-                {{ jam_singkat($s->jam_masuk) }} - {{ jam_singkat($s->jam_pulang) }}
-              </option>
-            @endforeach
-          </optgroup>
-        @endforeach
-      </select>
-      <div class="petunjuk">Shift yang dipilih tetap aktif setiap hari sampai dilakukan perubahan
-        berikutnya oleh Anda atau admin.</div>
-    </div>
-  @else
-    <p class="teks-redup teks-kecil mb-0">
-      @if(!$bolehDatang)
-        Shift terkunci karena absensi hari ini sudah berjalan. Perubahan shift dapat dilakukan oleh admin.
-      @else
-        Pengaturan shift dilakukan oleh admin atau petugas yang berwenang.
-      @endif
-    </p>
-  @endif
-</section>
-
-<!-- ============ ABSENSI ============ -->
-<section class="kartu">
-  <div class="kartu-kepala">
-    <h2>{!! ikon('peta') !!} Absensi Kehadiran</h2>
-    @if($wajibSelfie)
-      <span class="teks-redup teks-kecil">{!! ikon('kamera', 14) !!} disertai foto selfie</span>
-    @endif
-  </div>
-
-  <div class="absen-baris">
-    <button type="button" id="btn-datang" class="btn-absen btn-datang" {{ $bolehDatang ? '' : 'disabled' }}>
-      <span class="lingkar">{!! ikon('masuk', 26) !!}</span>
-      <span>
-        <strong>ABSEN DATANG</strong>
-        <small id="ket-datang">
-          @if($recTampil && $recTampil->waktu_masuk)
-            Tercatat pukul {{ jam_id($recTampil->waktu_masuk) }}
-          @else 
-            Tekan saat tiba di lokasi RSUD
-          @endif
-        </small>
-      </span>
-    </button>
-
-    <button type="button" id="btn-pulang" class="btn-absen btn-pulang" {{ $bolehPulang ? '' : 'disabled' }}>
-      <span class="lingkar">{!! ikon('pulang', 26) !!}</span>
-      <span>
-        <strong>ABSEN PULANG</strong>
-        <small id="ket-pulang">
-          @if($recTampil && $recTampil->waktu_pulang)
-            Tercatat pukul {{ jam_id($recTampil->waktu_pulang) }}
-          @elseif($recBuka)
-            Tekan saat mengakhiri tugas hari ini
-          @else 
-            Lakukan absen datang terlebih dahulu
-          @endif
-        </small>
-      </span>
-    </button>
-  </div>
-
-  <div id="hasil-absen">
-    @if($selesai)
-      <div class="pesan-hasil pesan-info">{!! ikon('centang', 20) !!}
-        <span>Absensi Anda hari ini sudah lengkap. Terima kasih atas dedikasi Anda hari ini.</span>
-      </div>
-    @elseif($recBuka && $recBuka->tanggal !== $hariIni)
-      <div class="pesan-hasil pesan-info">{!! ikon('info', 20) !!}
-        <span>Anda masih tercatat bertugas pada shift tanggal {{ tgl_id($recBuka->tanggal, false) }}
-          (shift malam). Silakan absen pulang untuk menutupnya.</span>
-      </div>
-    @elseif($izinHariIni)
-      <div class="pesan-hasil pesan-info">{!! ikon('surat', 20) !!}
-        <span>Anda tercatat <strong>{{ $izinHariIni->jenis }}</strong>
-          ({{ tgl_id($izinHariIni->tanggal_mulai, false) }} s.d.
-          {{ tgl_id($izinHariIni->tanggal_selesai, false) }}) — tidak perlu absen hari ini.</span>
-      </div>
-    @endif
-  </div>
-
-  <div class="jam-hari-ini">
-    <div class="kotak"><span>Jam Masuk</span>
-      <strong id="jam-masuk">{{ jam_id($recTampil->waktu_masuk ?? null) }}</strong></div>
-    <div class="kotak"><span>Jam Pulang</span>
-      <strong id="jam-pulang">{{ jam_id($recTampil->waktu_pulang ?? null) }}</strong></div>
-  </div>
-
-  <div class="status-gps" id="status-gps">
-    <span class="titik"></span>
-    <span id="teks-gps">Sistem memerlukan izin lokasi (GPS){{ $wajibSelfie ? ' dan kamera' : '' }}
-      saat Anda menekan tombol absen.</span>
-  </div>
-</section>
 
 <!-- ============ REKAP BULANAN ============ -->
 @php

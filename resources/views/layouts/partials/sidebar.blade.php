@@ -123,6 +123,8 @@ $grupMenu = [
       <span class="flex-1 truncate">Logbook</span>
     </a>
 
+   
+
     {{-- Accordion Groups --}}
     @foreach($grupMenu as $grup)
       @php
@@ -187,6 +189,9 @@ $grupMenu = [
 
   {{-- Footer Sidebar Actions --}}
   <div class="p-3 border-t border-white/10 space-y-1">
+    <a class="nav-item text-xs hover:bg-white/10 {{ $menuAktif === 'dokumentasi' ? 'aktif' : '' }}" href="{{ route('admin.documentation') }}">
+      {!! ikon('surat', 17) !!}<span>Dokumentasi API</span>
+    </a>
     <a class="nav-item text-xs hover:bg-white/10" href="{{ route('dashboard') }}">
       {!! ikon('pegawai', 17) !!}<span>Tampilan Pegawai</span>
     </a>

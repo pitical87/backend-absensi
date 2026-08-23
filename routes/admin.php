@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AktivitasController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\DokumentasiController;
 use App\Http\Controllers\Admin\IzinController;
 use App\Http\Controllers\Admin\LogbookController;
 use App\Http\Controllers\Admin\JadwalController;
@@ -85,4 +86,6 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::post('ubah-password', [PengaturanController::class, 'ubahPasswordSaya'])->name('admin.ubah-password');
 
     Route::get('aktivitas', [AktivitasController::class, 'index'])->name('admin.aktivitas');
+
+    Route::get('documentation', [DokumentasiController::class, 'index'])->name('admin.documentation');
 });

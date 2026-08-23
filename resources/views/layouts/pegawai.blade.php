@@ -11,36 +11,21 @@
 <body class="latar-pola text-slate-800 antialiased min-h-screen flex flex-col justify-between">
 
 {{-- HEADER PEGAWAI DENGAN TEMA BIRU MODERN --}}
-<header class="bg-gradient-to-r from-[#005bbd] via-[#007afc] to-[#0284c7] text-white shadow-md shadow-blue-500/15 sticky top-0 z-40 transition-all">
+<header class="bg-white  text-blue-500  sticky top-0 z-40 transition-all shadow-sm">
   <div class="max-w-[860px] mx-auto py-3 px-4 sm:px-6 flex items-center justify-between gap-3">
     
     {{-- Brand Logo & Info --}}
     <a class="flex min-w-0 items-center gap-3 text-white no-underline hover:no-underline group" href="{{ route('dashboard') }}">
-      <div class="w-10 h-10 rounded-xl bg-white/15 backdrop-blur-md p-1 border border-white/25 flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+      <div class="w-10 h-10   flex items-center justify-center shrink-0  group-hover:scale-105 transition-transform">
         <img class="w-8 h-8 object-contain" src="{{ asset('assets/img/logo.svg') }}" alt="Logo RSUD Merauke">
       </div>
-      <span class="flex flex-col items-start text-white">
-        <span class="block text-[0.68rem] tracking-[0.1em] uppercase font-semibold text-blue-100/90 leading-tight">Sistem Absensi</span>
-        <strong class="block text-[0.95rem] font-bold leading-tight text-white tracking-tight">RSUD Merauke</strong>
+      <span class="flex flex-col items-start text-blue-500">
+        <strong class="block text-[0.95rem] font-bold leading-tight tracking-tight">{{env('APP_NAME' ?? 'RSUD MERAUKE')}}</strong>
       </span>
     </a>
 
     {{-- Navigasi Aksi Pegawai --}}
-    <nav class="flex items-center gap-2">
-      @if(session('posisi') && session('posisi') !== 'Staf')
-        <a class="inline-flex items-center gap-1.5 py-2 px-3 text-xs font-semibold text-white bg-white/15 hover:bg-white/25 border border-white/25 rounded-xl backdrop-blur-md shadow-sm no-underline transition-all active:scale-95" href="{{ route('persetujuan') }}">
-          {!! ikon('centang', 14) !!} <span class="hidden sm:inline">Persetujuan</span>
-        </a>
-      @endif
-      
-      <a class="inline-flex items-center gap-1.5 py-2 px-3 text-xs font-semibold text-white bg-white/15 hover:bg-white/25 border border-white/25 rounded-xl backdrop-blur-md shadow-sm no-underline transition-all active:scale-95" href="{{ route('izin') }}">
-        {!! ikon('surat', 14) !!} <span class="hidden sm:inline">Izin / Cuti</span>
-      </a>
-      
-      <a class="inline-flex items-center gap-1.5 py-2 px-3 text-xs font-semibold text-white/90 bg-white/10 hover:bg-red-500 hover:border-red-400 border border-white/20 rounded-xl backdrop-blur-md shadow-sm no-underline transition-all active:scale-95" href="{{ route('logout') }}" title="Keluar dari sistem">
-        {!! ikon('keluar', 15) !!} <span class="hidden sm:inline">Keluar</span>
-      </a>
-    </nav>
+  @include('layouts.partials.navbar-pegawai')
   </div>
 </header>
 
