@@ -55,7 +55,7 @@ class DashboardController extends Controller
                      ->where('tanggal', '>=', now()->subDays(29)->format('Y-m-d'))
                      ->where('tanggal', '<=', $hariIni)
                      ->groupBy('tanggal')->get() as $r) {
-            $perTanggal[$r->tanggal] = (int) $r->jml;
+            $perTanggal[$r->tanggal->toDateString()] = (int) $r->jml;
         }
         $grafik30 = [];
         for ($i = 29; $i >= 0; $i--) {

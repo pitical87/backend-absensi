@@ -29,3 +29,27 @@ catatan system absensi:
 14. tambahkan fitur rekap absensi
 15. rekap absensi pecah jadi 4 kategori : pns, p3k, honor, blud
 16. tambahkan fitur teguran untuk pegawai yang bermasalah (sp123)
+
+
+
+
+tambahakn
+-> permintaan penggantian shift jaga, paling lambat 1 jam sebelum jadwal
+-> pengajuan perbaikan data lupa absen
+-> verifikasi data absen lupa masuk/pulang oleh atasan
+-> khusus dokter spesialis absen fleksibel bisa masuk lebih dari 1 kali dalam sehari
+-> jam d luar jadwal tidak masuk dalam jam kerja/terpisah
+-> absen lembur ada verifikasi 
+ 1.⁠ ⁠Akan ada unit pengarsipan yang bertanggung jawab ke kepegawaian
+ 2.⁠ ⁠Buat SK pembentukan unit pengarsipan
+ 3.⁠ ⁠Buat SK unit it, tim simrs dan rencana pengembangan
+ 4.⁠ ⁠Untuk bintang ketepatan hitung perhari untuk hari ini 
+ 5.⁠ ⁠Jika belum pulang ambil dari jam kehadiran jika sudah pulang ambil rata rata di dari keduanya
+ 6.⁠ ⁠Untuk perubahan shift hanya ke atasan langsung
+ 7.⁠ ⁠Pending absen ketika diluar jadwal tergantung persetujuan dari atasan langsung
+ 8.⁠ ⁠Tambah fitur pengajuan dan persetujuan perubahan shift jaga paling lambat 1 jam sebelum shift yang diinginkan
+ 9.⁠ ⁠Hilangkan restriksi absen masuk dan absen pulang (jadinya bisa absen pulang walaupun belum absen masuk)
+10.⁠ ⁠Jika lupa absen masuk tetap bisa pulang
+11.⁠ ⁠Jika lupa absen maka penyelesaiannya hari itu harus bintang 1 jika tidak bintang 0
+12.⁠ ⁠Tambahkan fitur lembur (pengajuan dan isi nya fleksibel)
+13.⁠ ⁠Lembur akan terhitung jika sudah disetujui atasan langsung
