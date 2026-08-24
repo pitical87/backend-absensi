@@ -6,11 +6,13 @@
   <div class="kartu-kepala">
     <h2>{!! ikon('kalender') !!} Kalender Hari Libur {{ (int) $tahun }}</h2>
     <form method="get" action="{{ url('admin/libur') }}" class="bilah-alat m-0">
+      <input type="text" name="q" value="{{ $q }}" placeholder="Cari keterangan / tanggal…" class="min-w-[170px]">
       <select name="tahun" onchange="this.form.submit()">
         @for($t = (int) date('Y') + 1; $t >= 2024; $t--)
           <option {{ $t === (int) $tahun ? 'selected' : '' }}>{{ $t }}</option>
         @endfor
       </select>
+      <button type="submit" class="btn btn-navy btn-kecil">Cari</button>
     </form>
   </div>
 
@@ -33,19 +35,25 @@
 
   <div class="tabel-bungkus">
     <table class="tabel">
-      <thead><tr><th>Tanggal</th><th>Keterangan</th><th class="w-[100px]">Aksi</th></tr></thead>
+      <thead><tr><th>#</th><th>Tanggal</th><th>Keterangan</th><th class="w-[100px]">Aksi</th></tr></thead>
       <tbody>
         @php $tetap = hari_libur_tetap((int) $tahun); @endphp
         @foreach($daftar as $h)
         <tr>
+          <td class="angka">{{ $loop->iteration }}</td>
           <td class="angka">{{ tgl_id($h->tanggal) }}</td>
           <td>{{ $h->keterangan }}
             @if(isset($tetap[$h->tanggal->format('Y-m-d')]))
               <span class="badge badge-teal teks-kecil">Otomatis</span>
             @endif
           </td>
-          <td>
-            <form method="post" action="{{ url('admin/libur/aksi') }}"
+          <td class="whitespace-nowrap">
+            <button type="button"
+                    class="btn btn-garis btn-kecil btn-ubah-libur"
+                    data-id="{{ (int) $h->id }}"
+                    data-tanggal="{{ $h->tanggal->format('Y-m-d') }}"
+                    data-keterangan="{{ $h->keterangan }}">Ubah</button>
+            <form method="post" action="{{ url('admin/libur/aksi') }}" class="inline-block"
                   onsubmit="return confirm('Hapus hari libur ini?');">
               @csrf
               <input type="hidden" name="aksi" value="hapus">
@@ -63,19 +71,66 @@
   </div>
 </section>
 
-<section class="kartu">
-  <div class="kartu-kepala"><h2>{!! ikon('atur') !!} Hari Minggu</h2></div>
-  <form method="post" action="{{ url('admin/libur/aksi') }}" class="bilah-alat">
-    @csrf
-    <input type="hidden" name="aksi" value="minggu">
-    <label class="teks-kecil flex items-center gap-2">
-      <input type="checkbox" name="minggu_libur" value="1" class="w-auto" {{ $mingguLibur ? 'checked' : '' }}>
-      Perlakukan setiap hari Minggu sebagai hari libur
-    </label>
-    <button type="submit" class="btn btn-navy btn-kecil">Simpan</button>
-  </form>
-  <p class="petunjuk">Bawaan: <strong>nonaktif</strong>, karena rumah sakit beroperasi 7 hari dengan
-    sistem shift. Aktifkan hanya bila mayoritas pegawai memang libur setiap Minggu.</p>
-</section>
 
+{{-- Modal Ubah Hari Libur --}}
+<div id="modal-libur" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
+  <section class="kartu w-full max-w-sm">
+    <div class="kartu-kepala">
+      <h2>{!! ikon('kalender') !!} Ubah Hari Libur</h2>
+      <button type="button" id="modal-libur-tutup" class="btn btn-garis btn-kecil">&times;</button>
+    </div>
+    <form method="post" action="{{ url('admin/libur/aksi') }}" class="px-3 pb-3 space-y-3">
+      @csrf
+      <input type="hidden" name="aksi" value="ubah">
+      <input type="hidden" name="id" value="" id="libur-id">
+      <label class="blok">
+        <span class="teks-kecil">Tanggal</span>
+        <input type="date" name="tanggal" id="libur-tanggal" required>
+      </label>
+      <label class="blok">
+        <span class="teks-kecil">Keterangan</span>
+        <input type="text" name="keterangan" id="libur-keterangan" required>
+      </label>
+      <div class="flex justify-end gap-2 pt-1">
+        <button type="button" class="btn btn-garis" id="modal-libur-batal">Batal</button>
+        <button type="submit" class="btn btn-primer">Simpan</button>
+      </div>
+    </form>
+  </section>
+</div>
+
+@endsection
+
+@section('script')
+<script>
+(function () {
+  var modal     = document.getElementById('modal-libur');
+  var tutupBtn  = document.getElementById('modal-libur-tutup');
+  var batalBtn  = document.getElementById('modal-libur-batal');
+
+  function buka(btn) {
+    document.getElementById('libur-id').value = btn.dataset.id;
+    document.getElementById('libur-tanggal').value = btn.dataset.tanggal;
+    document.getElementById('libur-keterangan').value = btn.dataset.keterangan;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+  function tutup() {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll('.btn-ubah-libur'), function (btn) {
+    btn.addEventListener('click', function () { buka(btn); });
+  });
+  if (tutupBtn) tutupBtn.addEventListener('click', tutup);
+  if (batalBtn) batalBtn.addEventListener('click', tutup);
+  if (modal) {
+    modal.addEventListener('click', function (e) { if (e.target === modal) tutup(); });
+  }
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && ! modal.classList.contains('hidden')) tutup();
+  });
+})();
+</script>
 @endsection

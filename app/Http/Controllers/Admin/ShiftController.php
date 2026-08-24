@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Absensi;
 use App\Models\JadwalShift;
 use App\Models\Shift;
 use App\Models\UnitKerja;
@@ -87,11 +86,10 @@ class ShiftController extends Controller
                 return redirect($ke)->with('success', 'Status shift diperbarui.');
 
             case 'hapus_shift':
-                $dipakai = JadwalShift::where('shift_id', $id)->count()
-                         + Absensi::where('shift_id', $id)->count();
+                $dipakai = JadwalShift::where('shift_id', $id)->count();
                 if ($dipakai > 0) {
                     return redirect($ke)->with('error',
-                        'Shift tidak dapat dihapus karena masih dipakai pegawai atau data absensi. Gunakan Nonaktifkan.');
+                        'Shift tidak dapat dihapus karena masih dipakai pegawai. Gunakan Nonaktifkan.');
                 }
                 Shift::where('id', $id)->delete();
                 catat_aktivitas('Hapus Shift', '#'.$id);

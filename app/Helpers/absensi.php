@@ -29,9 +29,11 @@ if (! function_exists('jam_id')) {
 }
 
 if (! function_exists('jam_singkat')) {
-    function jam_singkat(?string $time): string
+    function jam_singkat(string|DateTimeInterface|null $time): string
     {
-        return $time ? substr(str_replace(':', '.', $time), 0, 5) : '—';
+        if ($time instanceof DateTimeInterface) return $time->format('H.i');
+        if (! $time) return '—';
+        return substr(str_replace(':', '.', $time), 0, 5);
     }
 }
 

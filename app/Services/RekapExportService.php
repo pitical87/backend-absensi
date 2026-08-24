@@ -78,7 +78,11 @@ class RekapExportService
             ->join('users as u', 'u.id', '=', 'a.user_id')
             ->join('unit_kerja as uk', 'uk.id', '=', 'u.unit_kerja_id', 'left')
             ->join('sub_unit as su', 'su.id', '=', 'u.sub_unit_id', 'left')
-            ->join('shift as s', 's.id', '=', 'a.shift_id', 'left')
+            ->leftJoin('jadwal_shift as js', function ($join) {
+                $join->on('js.user_id', '=', 'a.user_id')
+                    ->on(DB::raw('DATE(js.tanggal_berlaku)'), '=', DB::raw('DATE(a.tanggal)'));
+            })
+            ->leftJoin('shift as s', 's.id', '=', 'js.shift_id')
             ->whereRaw('MONTH(a.tanggal) = ?', [$bulan])
             ->whereRaw('YEAR(a.tanggal) = ?', [$tahun]);
 

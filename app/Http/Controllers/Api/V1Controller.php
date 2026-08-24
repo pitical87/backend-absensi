@@ -9,6 +9,7 @@ use App\Models\UnitKerja;
 use App\Models\User;
 use App\Services\RekapService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class V1Controller extends Controller
 {
@@ -111,8 +112,12 @@ class V1Controller extends Controller
                      's.kategori AS shift_kategori', 's.jam_masuk AS shift_jam_masuk',
                      's.jam_pulang AS shift_jam_pulang')
             ->join('users as u', 'u.id', '=', 'absensi.user_id')
-            ->leftJoin('shift as s', 's.id', '=', 'absensi.shift_id')
-            ->where('absensi.tanggal', '>=', $dari)->where('absensi.tanggal', '<=', $sampai);
+            ->leftJoin('jadwal_shift as js', function ($join) {
+                $join->on('js.user_id', '=', 'absensi.user_id')
+                    ->on(DB::raw('DATE(js.tanggal_berlaku)'), '=', DB::raw('DATE(absensi.tanggal)'));
+            })
+            ->leftJoin('shift as s', 's.id', '=', 'js.shift_id')
+            ->whereDate('absensi.tanggal', '>=', $dari)->whereDate('absensi.tanggal', '<=', $sampai);
         if ($userId) {
             $b->where('absensi.user_id', $userId);
         }

@@ -54,32 +54,83 @@
 
 <section class="kartu">
   <div class="kartu-kepala">
-    <h2>{!! ikon('grafik') !!} Kehadiran 30 Hari Terakhir</h2>
+    <h2>{!! ikon('centang') !!} Ketaatan Absen Bulan {{ BULAN_ID[(int) now()->format('n')] }} {{ now()->format('Y') }}</h2>
+    <span class="teks-redup teks-kecil">{{ $ketaatan['hari_efektif'] }} hari kerja efektif dari {{ $ketaatan['hari_dalam_bulan'] }} hari</span>
+  </div>
+  @if($ketaatan['total'] > 0)
+  <div class="flex flex-col sm:flex-row items-center gap-6">
+    <div class="relative shrink-0 w-[180px] h-[180px]">
+      <canvas id="grafik-ketaatan" role="img" aria-label="Diagram lingkaran ketaatan absen bulan ini"></canvas>
+      <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+        <strong class="text-2xl font-bold text-navy leading-none">{{ $persenKetaatan }}%</strong>
+        <span class="text-[0.65rem] text-slate-500 uppercase tracking-widest mt-1">ketaatan</span>
+      </div>
+    </div>
+    <ul class="space-y-2.5 text-sm w-full sm:flex-1 m-0 p-0 list-none">
+      @foreach($irisanPie as $s)
+      <li class="flex items-center gap-2.5">
+        <i class="w-3.5 h-3.5 rounded-md shrink-0 inline-block" style="background: {{ $s['warna'] }}"></i>
+        <span class="text-slate-700">{{ $s['label'] }}</span>
+        <span class="ml-auto tabular-nums whitespace-nowrap"><strong>{{ $s['jml'] }}</strong>
+          <span class="teks-redup teks-kecil">pegawai ({{ $s['pct'] }}%)</span></span>
+      </li>
+      @endforeach
+    </ul>
+  </div>
+  @else
+  <p class="teks-redup tengah m-0">Belum ada data absensi untuk bulan ini.</p>
+  @endif
+</section>
+
+{{-- <section class="kartu">
+  <div class="kartu-kepala">
+    <h2>{!! ikon('grafik') !!} Kehadiran Bulan {{ BULAN_ID[(int) now()->format('n')] }} {{ now()->format('Y') }}</h2>
     <span class="teks-redup teks-kecil">jumlah pegawai hadir per hari</span>
   </div>
   <div class="grafik-bungkus">
-    <svg viewBox="0 0 660 150" role="img" aria-label="Grafik kehadiran 30 hari terakhir">
+    @php
+      $jmlBar = count($grafikBulan);
+      $langkah = $jmlBar > 0 ? 616 / $jmlBar : 616;
+      $lebarBar = max(4, round($langkah * 0.63));
+    @endphp
+    <svg viewBox="0 0 660 150" role="img" aria-label="Grafik kehadiran bulan {{ now()->format('n Y') }}">
       @foreach([0, .5, 1] as $p) @php $y = 120 - $p * 100; @endphp
         <line x1="34" y1="{{ $y }}" x2="654" y2="{{ $y }}" stroke="#D7E5F2" stroke-width="1"/>
         <text x="28" y="{{ $y + 3 }}" font-size="9" fill="#5C7189" text-anchor="end">{{ round($maks * $p) }}</text>
       @endforeach
-      @foreach($grafik30 as $i => $g)
+      @foreach($grafikBulan as $i => $g)
           @php
-          $x = 38 + $i * 20.5;
+          $x = 38 + $i * $langkah;
           $h = $g['jml'] > 0 ? max(3, $g['jml'] / $maks * 100) : 0;
           @endphp
         @if($h > 0)
-          <rect x="{{ $x }}" y="{{ 120 - $h }}" width="13" height="{{ $h }}" rx="3" fill="#007AFC">
+          <rect x="{{ $x }}" y="{{ 120 - $h }}" width="{{ $lebarBar }}" height="{{ $h }}" rx="3" fill="#007AFC">
             <title>{{ tgl_id($g['tgl'], false) }}: {{ $g['jml'] }} pegawai</title>
           </rect>
         @else
-          <rect x="{{ $x }}" y="117" width="13" height="3" rx="1.5" fill="#DCE8F4"/>
+          <rect x="{{ $x }}" y="117" width="{{ $lebarBar }}" height="3" rx="1.5" fill="#DCE8F4"/>
         @endif
-        @if($i % 5 === 0 || $i === 29)
-          <text x="{{ $x + 6.5 }}" y="134" font-size="8.5" fill="#5C7189" text-anchor="middle">{{ (int) date('j', strtotime($g['tgl'])) }}/{{ (int) date('n', strtotime($g['tgl'])) }}</text>
+        @if(($i + 1) % 5 === 0 || $i === $jmlBar - 1)
+          <text x="{{ $x + $lebarBar / 2 }}" y="134" font-size="8.5" fill="#5C7189" text-anchor="middle">{{ (int) date('j', strtotime($g['tgl'])) }}</text>
         @endif
       @endforeach
     </svg>
+  </div>
+</section> --}}
+
+<section class="kartu">
+  <div class="kartu-kepala">
+    <h2>{!! ikon('grafik') !!} Grafik Absensi Bulan {{ BULAN_ID[(int) now()->format('n')] }}</h2>
+    <span class="teks-redup teks-kecil">per hari · gelombang kehadiran</span>
+  </div>
+  <div class="h-[250px]">
+    <canvas id="grafik-tren" role="img" aria-label="Grafik garis tren absensi harian bulan ini"></canvas>
+  </div>
+  <div class="legenda">
+    <span><i style="background: #007AFC"></i> Hadir</span>
+    <span><i style="background: #059669"></i> Tepat Waktu</span>
+    <span><i style="background: #D97706"></i> Terlambat</span>
+    <span><i style="background: #DC2626"></i> Tidak Absen</span>
   </div>
 </section>
 
@@ -115,4 +166,118 @@
   </div>
 </section>
 
+@endsection
+
+@section('script')
+@php
+  $pieAktif = array_values(array_filter($irisanPie, fn ($s) => $s['jml'] > 0));
+  $trenData = [
+      'labels' => array_map(fn ($g) => (int) substr($g['tgl'], 8, 2), $grafikGaris),
+      'hadir'  => array_column($grafikGaris, 'hadir'),
+      'tepat'  => array_column($grafikGaris, 'tepat'),
+      'telat'  => array_column($grafikGaris, 'telat'),
+      'tidak'  => array_column($grafikGaris, 'tidak'),
+      'maks'   => $maksGaris,
+  ];
+@endphp
+<script>
+(function () {
+  'use strict';
+
+  var KETAATAN = @json($pieAktif);
+  var TREN = @json($trenData);
+
+  function init() {
+    var elPie = document.getElementById('grafik-ketaatan');
+    if (elPie && window.Chart && KETAATAN.length) {
+      new Chart(elPie, {
+        type: 'doughnut',
+        data: {
+          labels: KETAATAN.map(function (s) { return s.label; }),
+          datasets: [{
+            data: KETAATAN.map(function (s) { return s.jml; }),
+            backgroundColor: KETAATAN.map(function (s) { return s.warna; }),
+            borderColor: '#ffffff',
+            borderWidth: 2,
+            hoverOffset: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '64%',
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function (c) { return c.label + ': ' + c.parsed + ' pegawai'; }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    var elTren = document.getElementById('grafik-tren');
+    if (elTren && window.Chart && TREN.labels.length > 1) {
+      var seri = [
+        ['Hadir',       TREN.hadir, '#007AFC'],
+        ['Tepat Waktu', TREN.tepat, '#059669'],
+        ['Terlambat',   TREN.telat, '#D97706'],
+        ['Tidak Absen', TREN.tidak, '#DC2626']
+      ];
+      new Chart(elTren, {
+        type: 'line',
+        data: {
+          labels: TREN.labels,
+          datasets: seri.map(function (s) {
+            return {
+              label: s[0],
+              data: s[1],
+              borderColor: s[2],
+              backgroundColor: s[2],
+              borderWidth: 2.5,
+              tension: 0.45,
+              pointRadius: 0,
+              pointHoverRadius: 5,
+              spanGaps: true
+            };
+          })
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                title: function (items) { return 'Tanggal ' + items[0].label + ' {{ BULAN_ID[(int) now()->format("n")] }}'; }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { color: '#5C7189', font: { size: 11 }, maxRotation: 0, autoSkipPadding: 14 }
+            },
+            y: {
+              beginAtZero: true,
+              suggestedMax: TREN.maks,
+              ticks: { color: '#5C7189', precision: 0 },
+              grid: { color: '#E4EEF7' }
+            }
+          }
+        }
+      });
+    }
+  }
+
+  if (window.Chart) {
+    init();
+  } else {
+    document.addEventListener('DOMContentLoaded', init);
+  }
+})();
+</script>
 @endsection

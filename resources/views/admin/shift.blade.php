@@ -63,18 +63,4 @@
     </table>
   </div>
 </section>
-
-<section class="kartu">
-  <div class="kartu-kepala"><h2>{!! ikon('atur') !!} Izin Pemilihan Shift Mandiri</h2></div>
-  <form method="post" action="{{ url('admin/shift/aksi') }}" class="bilah-alat">
-    @csrf
-    <input type="hidden" name="aksi" value="izin_pilih">
-    <input type="hidden" name="qs" value="{{ $qs }}">
-    <label class="teks-kecil flex items-center gap-2">
-      <input type="checkbox" name="izinkan" value="1" class="w-auto" {{ $izin ? 'checked' : '' }}>
-      Pegawai dapat memilih/mengubah shiftnya sendiri melalui dasbor (terkunci otomatis setelah absen datang)
-    </label>
-    <button type="submit" class="btn btn-navy btn-kecil">Simpan</button>
-  </form>
-</section>
 @endsection

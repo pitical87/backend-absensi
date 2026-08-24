@@ -49,12 +49,12 @@ class PegawaiTeladanController extends Controller
 
         return view('admin.pegawai_teladan', [
             'judulHalaman' => 'Pegawai Teladan',
-            'menuAktif'    => 'pegawai_teladan',
-            'bulan'        => $bulan,
-            'tahun'        => $tahun,
-            'fUnit'        => $fUnit,
-            'unitList'     => UnitKerja::orderBy('id')->get()->all(),
-            'baris'        => $baris,
+            'menuAktif' => 'pegawai_teladan',
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'fUnit' => $fUnit,
+            'unitList' => UnitKerja::orderBy('id')->get()->all(),
+            'baris' => $baris,
         ]);
     }
 }

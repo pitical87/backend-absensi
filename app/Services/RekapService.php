@@ -48,8 +48,7 @@ class RekapService
         }
 
         $absMap = [];
-        foreach (Absensi::with('shift')
-            ->where('user_id', $userId)
+        foreach (Absensi::where('user_id', $userId)
             ->where('tanggal', '>=', $awal)
             ->where('tanggal', '<=', $akhir)
             ->get() as $r) {
@@ -57,11 +56,11 @@ class RekapService
         }
 
         $c = ['hadir' => 0, 'tepat' => 0, 'terlambat' => 0, 'menit_terlambat' => 0,
-              'alpa' => 0, 'izin' => 0, 'sakit' => 0, 'cuti' => 0, 'dinas_luar' => 0,
-              'libur' => 0, 'total_menit' => 0, 'anomali' => 0,
-              'tepat_masuk' => 0, 'tepat_pulang' => 0,
-              'pulang_awal' => 0, 'menit_pulang_awal' => 0,
-              'bintang_sum' => 0.0, 'bintang_terhitung' => 0];
+            'alpa' => 0, 'izin' => 0, 'sakit' => 0, 'cuti' => 0, 'dinas_luar' => 0,
+            'libur' => 0, 'total_menit' => 0, 'anomali' => 0,
+            'tepat_masuk' => 0, 'tepat_pulang' => 0,
+            'pulang_awal' => 0, 'menit_pulang_awal' => 0,
+            'bintang_sum' => 0.0, 'bintang_terhitung' => 0];
         $perTanggal = [];
 
         for ($d = 1; $d <= $hariBerjalan; $d++) {
@@ -70,9 +69,11 @@ class RekapService
 
             if ($rec) {
                 $c['hadir']++;
-                if ($rec->flag_anomali) $c['anomali']++;
+                if ($rec->flag_anomali) {
+                    $c['anomali']++;
+                }
 
-                $bintangMasuk  = $rec->bintang_masuk !== null ? (int) $rec->bintang_masuk : null;
+                $bintangMasuk = $rec->bintang_masuk !== null ? (int) $rec->bintang_masuk : null;
                 $bintangPulang = $rec->bintang_pulang !== null ? (int) $rec->bintang_pulang : null;
 
                 if ($bintangMasuk === 5 || ($bintangMasuk === null && $rec->status_masuk === 'Tepat Waktu')) {

@@ -146,12 +146,13 @@ class PegawaiController extends Controller
         }
 
         $data['status_pegawai'] = $request->boolean('status_pegawai') ? 'PNS' : 'Non-PNS';
+        $data['role'] = 'pegawai';
 
         $password = (string) $request->input('password');
         $shiftHariIni = (int) ($data['shift_id'] ?? 0) ?: null;
         unset($data['password'], $data['shift_id']);
 
-        $pesan = DB::transaction(function () use ($id, $data, $password, $shiftHariIni, $atasanServis) {
+        $pesan = DB::transaction(function () use ($request, $id, $data, $password, $shiftHariIni, $atasanServis) {
             if ($id) {
                 $user = User::findOrFail($id);
 

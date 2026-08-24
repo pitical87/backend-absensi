@@ -12,7 +12,6 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete()->cascadeOnUpdate();
             $table->date('tanggal');
-            $table->foreignId('shift_id')->nullable()->constrained('shift')->nullOnDelete()->nullOnUpdate();
             $table->dateTime('waktu_masuk')->nullable();
             $table->dateTime('waktu_pulang')->nullable();
             $table->decimal('lat_masuk', 10, 7)->nullable();

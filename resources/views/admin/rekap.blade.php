@@ -4,7 +4,7 @@
 
 <section class="kartu">
   <div class="kartu-kepala">
-    <h2>{!! ikon('grafik') !!} Rekap Kehadiran — {{ BULAN_ID[$bulan] . ' ' . $tahun }}</h2>
+    <h2>{!! ikon('grafik') !!} Rekap Kehadiran Bulan {{ BULAN_ID[$bulan] . ' ' . $tahun }}</h2>
     <span class="badge badge-biru">{{ count($pegawai) }} pegawai</span>
   </div>
 
@@ -133,11 +133,11 @@
       </tbody>
     </table>
   </div>
-  <p class="petunjuk">Angka dihitung langsung dari data absensi, izin yang disetujui, dan kalender
+  {{-- <p class="petunjuk">Angka dihitung langsung dari data absensi, izin yang disetujui, dan kalender
     hari libur. <strong>Bintang</strong> = rata-rata bintang harian {{ '(bintang masuk + bintang pulang) / 2' }}
     bulan ini (alpa = 0 bintang); rata-rata ≥ 4.5 diberi tanda <span class="badge badge-emas">Teladan</span>.
     <em>Generate &amp; Simpan Rekap</em> menyimpan salinan ke tabel arsip
-    <code>rekap_bulanan</code> — juga tersedia bagi SIMRS melalui API.</p>
+    <code>rekap_bulanan</code> — juga tersedia bagi SIMRS melalui API.</p> --}}
 </section>
 
 @endsection

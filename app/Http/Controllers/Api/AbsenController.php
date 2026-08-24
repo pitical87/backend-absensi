@@ -61,35 +61,13 @@ class AbsenController extends Controller
             ]);
         }
 
-        $rsLat = (float) pengaturan('lokasi_lat', 0);
-        $rsLng = (float) pengaturan('lokasi_lng', 0);
-        $radius = (float) pengaturan('radius_meter', 100);
-
-        if ($rsLat === 0.0 && $rsLng === 0.0) {
-            return response()->json([
-                'sukses' => false,
-                'pesan' => 'Titik lokasi RSUD blum diatur',
-            ]);
-        }
-
-        $jarak = hitung_jarak($lat, $lng, $rsLat, $rsLng);
         $now = new DateTime;
-
-        if ($jarak > $radius) {
-            $this->absenService->catatLog($user->id, null, $tipe, $lat, $lng, $akurasi, $jarak, $now, true);
-
-            return response()->json([
-                'sukses' => false,
-                'pesan' => 'Absensi ditolak. Anda berada di luar area RSUD Merauke.',
-                'keterangan' => 'Jarak '.number_format($jarak, 0, ',', '.').' m (maks '.number_format($radius, 0, ',', '.').' m)',
-            ]);
-        }
 
         [$flagAnomali, $alasanAnomali] = app(AnomaliService::class)->periksa($user->id, $lat, $lng, $akurasi);
 
         return $tipe === 'datang' ?
-            $this->absenService->absenDatang($u, $lat, $lng, $akurasi, $jarak, $now, $fileFoto, $flagAnomali, $alasanAnomali)
-            : $this->absenService->absenPulang($u, $lat, $lng, $akurasi, $jarak, $now, $fileFoto, $flagAnomali, $alasanAnomali);
+            $this->absenService->absenDatang($u, $lat, $lng, $akurasi, $now, $fileFoto, $flagAnomali, $alasanAnomali)
+            : $this->absenService->absenPulang($u, $lat, $lng, $akurasi, $now, $fileFoto, $flagAnomali, $alasanAnomali);
     }
 
     public function status(Request $req): JsonResponse

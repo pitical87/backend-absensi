@@ -193,32 +193,11 @@
           @endforeach
         </select>
       </div>
-      <div class="form-grup">
-        <label>Shift Kerja (berlaku hari ini)</label>
-        <select name="shift_id">
-          <option value="">— Belum diatur —</option>
-          @foreach($shiftGrup as $kategori => $daftar)
-            <optgroup label="Shift {{ $kategori }}">
-              @foreach($daftar as $s)
-                <option value="{{ (int) $s->id }}"
-                  {{ (int) old('shift_id', $shiftAktifId ?? 0) === (int) $s->id ? 'selected' : '' }}>
-                  {{ jam_singkat($s->jam_masuk) }} - {{ jam_singkat($s->jam_pulang) }}
-                </option>
-              @endforeach
-            </optgroup>
-          @endforeach
-        </select>
-      </div>
+    
     </div>
 
     <div class="form-baris">
-      <div class="form-grup">
-        <label>Peran</label>
-        <select name="role">
-          <option value="pegawai" {{ old('role', $edit->role ?? 'pegawai') === 'pegawai' ? 'selected' : '' }}>Pegawai</option>
-          <option value="admin"   {{ old('role', $edit->role ?? '') === 'admin' ? 'selected' : '' }}>Admin</option>
-        </select>
-      </div>
+      
       <div class="form-grup">
         <label>Status Akun</label>
         <select name="status">

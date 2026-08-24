@@ -17,6 +17,6 @@ class HariLibur extends Model
 
     protected function casts(): array
     {
-        return ['tanggal' => 'date'];
+        return ['tanggal' => 'date:Y-m-d'];
     }
 }

@@ -70,6 +70,8 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::post('jadwal/aksi-pegawai', [JadwalController::class, 'aksiPegawai'])->name('admin.jadwal.pegawai');
 
     Route::get('kehadiran', [KehadiranController::class, 'index'])->name('admin.kehadiran');
+    Route::post('kehadiran/simpan', [KehadiranController::class, 'simpan'])->name('admin.kehadiran.simpan');
+    Route::post('kehadiran/hapus', [KehadiranController::class, 'hapus'])->name('admin.kehadiran.hapus');
 
     Route::get('izin', [IzinController::class, 'index'])->name('admin.izin');
     Route::post('izin/proses', [IzinController::class, 'proses'])->name('admin.izin.proses');
