@@ -330,6 +330,8 @@ class KehadiranController extends Controller
         $waktuMasuk = new DateTime($tanggal.' '.$jamMasuk);
         $waktuPulang = $jamPulang !== '' ? new DateTime($tanggal.' '.$jamPulang) : null;
 
+        $isDokter = User::find($userId)?->profesi?->nama === 'Dokter';
+
         $js = JadwalShift::where('user_id', $userId)->where('tanggal_berlaku', $tanggal)->first();
         $shift = $js?->shift;
 
@@ -343,7 +345,7 @@ class KehadiranController extends Controller
         $bintangHarian = null;
         $totalMenit = null;
 
-        if ($shift) {
+        if (! $isDokter && $shift) {
             $jadwalMasuk = new DateTime($tanggal.' '.date('H:i', strtotime($shift->jam_masuk)));
             $selisih = ceil(($waktuMasuk->getTimestamp() - $jadwalMasuk->getTimestamp()) / 60);
 
@@ -352,7 +354,7 @@ class KehadiranController extends Controller
             $bintangMasuk = app(BintangService::class)->bintangMasuk((int) $selisih);
         }
 
-        if ($waktuPulang) {
+        if ($waktuPulang && ! $isDokter) {
             $totalMenit = max(0, (int) floor(($waktuPulang->getTimestamp() - $waktuMasuk->getTimestamp()) / 60));
 
             if ($shift) {
@@ -375,7 +377,7 @@ class KehadiranController extends Controller
             'tanggal' => $tanggal,
             'waktu_masuk' => $waktuMasuk->format('Y-m-d H:i:s'),
             'waktu_pulang' => $waktuPulang?->format('Y-m-d H:i:s'),
-            'status_masuk' => $statusMasuk ?? 'Tepat Waktu',
+            'status_masuk' => $isDokter ? null : ($statusMasuk ?? 'Tepat Waktu'),
             'menit_terlambat' => $menitTerlambat,
             'total_menit_kerja' => $totalMenit,
             'status_pulang' => $statusPulang,

@@ -42,6 +42,7 @@ class AbsenController extends Controller
             'shift_jam_masuk' => $shift?->jam_masuk?->format('H:i'),
             'shift_jam_pulang' => $shift?->jam_pulang?->format('H:i'),
             'role' => $user->role,
+            'profesi_nama' => $user->profesi?->nama,
         ];
 
         $wajibSelfie = pengaturan('wajib_selfie', '1') === '1';

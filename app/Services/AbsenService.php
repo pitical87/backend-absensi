@@ -26,6 +26,8 @@ class AbsenService
             return $galat;
         }
 
+        $isDokter = ($u['profesi_nama'] ?? '') === 'Dokter';
+
         $hariSebelumnya = $this->hariKerjaSebelumnya($now);
         $belumPulang = Absensi::where('user_id', $u['id'])
             ->whereDate('tanggal', $hariSebelumnya->format('Y-m-d'))
@@ -46,15 +48,15 @@ class AbsenService
                          .' yang belum ditutup. Silakan absen pulang terlebih dahulu.']);
         }
 
-        if (! $u['shift_id']) {
+        if (! $isDokter && ! $u['shift_id']) {
             return response()->json(['sukses' => false,
                 'pesan' => 'Shift kerja Anda belum diatur. Pilih shift pada dasbor atau hubungi admin.']);
         }
 
         $izin = Izin::where('user_id', $u['id'])->where('status', 'Disetujui')
             ->where('jenis', '!=', 'Dinas Luar')
-            ->where('tanggal_mulai', '<=', $now->format('Y-m-d'))
-            ->where('tanggal_selesai', '>=', $now->format('Y-m-d'))
+            ->whereDate('tanggal_mulai', '<=', $now->format('Y-m-d'))
+            ->whereDate('tanggal_selesai', '>=', $now->format('Y-m-d'))
             ->first();
         if ($izin) {
             return response()->json(['sukses' => false,
@@ -64,38 +66,57 @@ class AbsenService
                          .'). Bila tetap masuk kerja, hubungi admin untuk membatalkan izin tersebut.']);
         }
 
-        $jadwal = new DateTime($now->format('Y-m-d').' '.$u['shift_jam_masuk']);
-        if ($u['shift_kategori'] === 'Malam' && (int) $now->format('G') < 12) {
-            $jadwal->modify('-1 day');
+        if ($isDokter) {
+            $tanggalShift = $now->format('Y-m-d');
+        } else {
+            $jadwal = new DateTime($now->format('Y-m-d').' '.$u['shift_jam_masuk']);
+            if ($u['shift_kategori'] === 'Malam' && (int) $now->format('G') < 12) {
+                $jadwal->modify('-1 day');
+            }
+            $tanggalShift = $jadwal->format('Y-m-d');
         }
-        $tanggalShift = $jadwal->format('Y-m-d');
 
         $sudah = Absensi::where('user_id', $u['id'])->whereDate('tanggal', $tanggalShift)
             ->count() > 0;
-        if ($sudah) {
+        if (! $isDokter && $sudah) {
             return response()->json(['sukses' => false, 'pesan' => 'Anda sudah melakukan absen datang untuk tanggal ini.']);
         }
 
-        $toleransi = (int) pengaturan('toleransi_menit', 5);
-        $selisih = ($now->getTimestamp() - $jadwal->getTimestamp()) / 60;
-
-        if ($selisih <= $toleransi) {
-            $status = 'Tepat Waktu';
+        if ($isDokter) {
+            $status = null;
             $menit = 0;
             $jenis = 'sukses';
-            $pesan = 'Terima kasih sudah datang Tepat Waktu';
+            $pesan = 'Terima kasih sudah hadir hari ini';
+            $bintangMasuk = null;
+            $sesi = (Absensi::where('user_id', $u['id'])
+                ->where('tanggal', $tanggalShift)->max('sesi') ?? 0) + 1;
         } else {
-            $status = 'Terlambat';
-            $menit = (int) ceil($selisih);
-            $jenis = 'telat';
-            $pesan = 'Anda terlambat datang sebanyak '.$menit.' menit';
-        }
+            $toleransi = (int) pengaturan('toleransi_menit', 5);
+            $jadwal = new DateTime($now->format('Y-m-d').' '.$u['shift_jam_masuk']);
+            if ($u['shift_kategori'] === 'Malam' && (int) $now->format('G') < 12) {
+                $jadwal->modify('-1 day');
+            }
+            $selisih = ($now->getTimestamp() - $jadwal->getTimestamp()) / 60;
 
-        $bintang = app(BintangService::class);
-        $bintangMasuk = $bintang->bintangMasuk((int) ceil($selisih));
+            if ($selisih <= $toleransi) {
+                $status = 'Tepat Waktu';
+                $menit = 0;
+                $jenis = 'sukses';
+                $pesan = 'Terima kasih sudah datang Tepat Waktu';
+            } else {
+                $status = 'Terlambat';
+                $menit = (int) ceil($selisih);
+                $jenis = 'telat';
+                $pesan = 'Anda terlambat datang sebanyak '.$menit.' menit';
+            }
+
+            $bintang = app(BintangService::class);
+            $bintangMasuk = $bintang->bintangMasuk((int) ceil($selisih));
+        }
 
         $absensiId = Absensi::insertGetId([
             'user_id' => $u['id'],
+            'sesi' => $isDokter ? $sesi : 1,
             'tanggal' => $tanggalShift,
             'waktu_masuk' => $now->format('Y-m-d H:i:s'),
             'lat_masuk' => round($lat, 7),
@@ -109,7 +130,7 @@ class AbsenService
             'catatan_anomali' => $alasanAnomali ? implode(' | ', $alasanAnomali) : null,
         ]);
         $this->catatLog($u['id'], $absensiId, 'datang', $lat, $lng, $akurasi, $jarak, $now);
-        $ket = app(KeterlambatanService::class)->catatDatang($absensiId, (int) ceil($selisih));
+        $ket = $isDokter ? null : app(KeterlambatanService::class)->catatDatang($absensiId, (int) ceil($selisih));
 
         return response()->json([
             'sukses' => true,
@@ -120,7 +141,7 @@ class AbsenService
             'status' => $status,
             'menit' => $menit,
             'bintang' => $bintangMasuk,
-            'keterlambatan' => [
+            'keterlambatan' => $isDokter ? null : [
                 'menit_telat' => $ket->menit_telat,
                 'bintang_masuk' => $ket->bintang_masuk,
             ],
@@ -159,12 +180,19 @@ class AbsenService
             return $galat;
         }
 
+        $isDokter = ($u['profesi_nama'] ?? '') === 'Dokter';
+
         $rec = Absensi::where('user_id', $u['id'])->whereNull('waktu_pulang')
             ->orderBy('waktu_masuk', 'DESC')->first();
 
         $masukOtomatis = false;
 
         if (! $rec) {
+            if ($isDokter) {
+                return response()->json(['sukses' => false,
+                    'pesan' => 'Belum absen masuk hari ini. Silakan absen datang terlebih dahulu.']);
+            }
+
             $lengkap = Absensi::where('user_id', $u['id'])->where('tanggal', $now->format('Y-m-d'))
                 ->whereNotNull('waktu_pulang')->count() > 0;
 
@@ -173,7 +201,6 @@ class AbsenService
                     'pesan' => 'Absensi Anda hari ini sudah lengkap. Terima kasih!']);
             }
 
-            // Belum absen datang -> buat absen masuk otomatis sesuai jadwal shift tanggal tersebut
             if (! $u['shift_id'] || empty($u['shift_jam_masuk'])) {
                 return response()->json(['sukses' => false,
                     'pesan' => 'Anda belum melakukan absen datang hari dan shift kerja Anda belum diatur, '
@@ -197,6 +224,7 @@ class AbsenService
 
             $absensiIdBaru = (int) Absensi::insertGetId([
                 'user_id' => $u['id'],
+                'sesi' => 1,
                 'tanggal' => $tanggalShift,
                 'waktu_masuk' => $jadwalMasuk->format('Y-m-d H:i:s'),
                 'status_masuk' => 'Tepat Waktu',
@@ -213,23 +241,28 @@ class AbsenService
 
         $totalMenit = max(0, (int) floor(($now->getTimestamp() - strtotime($rec->waktu_masuk)) / 60));
 
-        $bintang = app(BintangService::class);
-        $jamMasuk = $u['shift_jam_masuk'] ?? null;
-        $jamPulang = $u['shift_jam_pulang'] ?? null;
         $menitAwal = 0;
         $statusPulang = null;
         $bintangPulang = null;
         $bintangHarian = null;
 
-        if ($jamPulang && $jamMasuk) {
-            $menitAwal = $bintang->selisihMenitPulang(
-                $jamMasuk, $jamPulang, $rec->tanggal->format('Y-m-d'), $now
-            );
-            $bintangPulang = $bintang->bintangPulang($menitAwal);
-            $statusPulang = $menitAwal > 0 ? 'Lebih Awal' : 'Tepat Waktu';
+        if ($isDokter) {
+            $totalMenit = null;
+        } else {
+            $bintang = app(BintangService::class);
+            $jamMasuk = $u['shift_jam_masuk'] ?? null;
+            $jamPulang = $u['shift_jam_pulang'] ?? null;
 
-            if ($rec->bintang_masuk !== null) {
-                $bintangHarian = $bintang->bintangHarian((int) $rec->bintang_masuk, $bintangPulang);
+            if ($jamPulang && $jamMasuk) {
+                $menitAwal = $bintang->selisihMenitPulang(
+                    $jamMasuk, $jamPulang, $rec->tanggal->format('Y-m-d'), $now
+                );
+                $bintangPulang = $bintang->bintangPulang($menitAwal);
+                $statusPulang = $menitAwal > 0 ? 'Lebih Awal' : 'Tepat Waktu';
+
+                if ($rec->bintang_masuk !== null) {
+                    $bintangHarian = $bintang->bintangHarian((int) $rec->bintang_masuk, $bintangPulang);
+                }
             }
         }
 
@@ -250,11 +283,15 @@ class AbsenService
             ])), ' |') ?: null,
         ]);
         $this->catatLog($u['id'], (int) $rec->id, 'pulang', $lat, $lng, $akurasi, $jarak, $now);
-        $ket = app(KeterlambatanService::class)->catatPulang((int) $rec->id, (int) $menitAwal);
+        if (! $isDokter) {
+            app(KeterlambatanService::class)->catatPulang((int) $rec->id, (int) $menitAwal);
+        }
 
         $jenis = 'sukses';
-        $pesan = 'Terima kasih atas dedikasi Anda hari ini';
-        if ($menitAwal > 0) {
+        $pesan = $isDokter
+            ? 'Absen pulang tercatat. Terima kasih!'
+            : 'Terima kasih atas dedikasi Anda hari ini';
+        if (! $isDokter && $menitAwal > 0) {
             $jenis = 'awal';
             $pesan = 'Anda pulang lebih awal sebanyak '.$menitAwal.' menit';
         }
@@ -268,11 +305,11 @@ class AbsenService
             'jenis' => $jenis,
             'pesan' => $pesan,
             'keterangan' => 'Absen pulang tercatat pukul '.$now->format('H.i')
-                          .' · total jam kerja '.menit_ke_teks($totalMenit).'.',
+                          .($isDokter ? '.' : ' · total jam kerja '.menit_ke_teks($totalMenit).'.'),
             'status' => $statusPulang,
             'menit' => $menitAwal,
             'bintang' => $bintangHarian,
-            'keterlambatan' => [
+            'keterlambatan' => $isDokter ? null : [
                 'menit_pulang_awal' => $ket->menit_awal_pulang,
                 'bintang_pulang' => $ket->bintang_pulang,
                 'total_bintang' => $ket->total_bintang,

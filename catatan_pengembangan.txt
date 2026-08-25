@@ -37,7 +37,7 @@ tambahakn
 -> permintaan penggantian shift jaga, paling lambat 1 jam sebelum jadwal
 -> pengajuan perbaikan data lupa absen
 -> verifikasi data absen lupa masuk/pulang oleh atasan
--> khusus dokter spesialis absen fleksibel bisa masuk lebih dari 1 kali dalam sehari
+-> khusus dokter spesialis absen fleksibel bisa masuk lebih dari 1 kali dalam sehari (DONE - 25 Agustus 2026)
 -> jam d luar jadwal tidak masuk dalam jam kerja/terpisah
 -> absen lembur ada verifikasi 
  1.⁠ ⁠Akan ada unit pengarsipan yang bertanggung jawab ke kepegawaian OK

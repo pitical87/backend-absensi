@@ -1,0 +1,305 @@
+================================================================================
+RANCANGAN SKEMA: Pengajuan Lembur & Absen Lembur
+Sistem Absensi Pegawai RSUD Merauke
+================================================================================
+
+1. KONSEP FITUR
+================================================================================
+
+Pengajuan Lembur — Pegawai mengajukan lembur untuk tanggal tertentu dengan
+rentang waktu yang diinginkan. Perlu persetujuan atasan langsung (satu tingkat,
+seperti pengajuan jadwal shift).
+
+Absen Lembur — Setelah lembur disetujui, pegawai melakukan absen masuk lembur
+dan absen pulang lembur secara terpisah dari absen reguler. Durasi aktual
+dihitung otomatis dan diberi rating bintang.
+
+
+2. TABEL BARU
+================================================================================
+
+A. pengajuan_lembur — Permohonan Lembur
+----------------------------------------
+
+| Kolom              | Tipe                  | Keterangan                           |
+|--------------------|-----------------------|--------------------------------------|
+| id                 | bigint PK             | Auto-increment                       |
+| user_id            | FK → users            | Pemohon lembur                       |
+| tanggal            | date                  | Tanggal lembur yang diajukan         |
+| jam_mulai          | time                  | Jam mulai lembur yang diajukan       |
+| jam_selesai        | time                  | Jam selesai lembur yang diajukan     |
+| durasi_jam         | decimal(4,1)          | Durasi dalam jam (otomatis)          |
+| keterangan         | text                  | Alasan/keperluan lembur              |
+| status             | enum                  | Menunggu, Disetujui, Ditolak         |
+| diproses_oleh      | unsigned int, nullable| ID atasan yang memutus               |
+| catatan_keputusan  | varchar(255), nullable | Catatan atasan saat putus            |
+| diproses_pada      | datetime, nullable    | Waktu keputusan                      |
+| created_at         | datetime, nullable    | Waktu pengajuan                      |
+
+Indeks: INDEX(user_id, status), INDEX(tanggal, status)
+
+Aturan:
+- jam_mulai < jam_selesai (tidak lintas hari untuk lembur)
+- durasi_jam dihitung otomatis: (jam_selesai - jam_mulai) dalam jam desimal
+- Tidak boleh overlap dengan jadwal shift yang sudah ada (validasi di service)
+- Hanya bisa diajukan untuk tanggal hari ini atau masa depan (maks 7 hari ke depan)
+- Duplikat diblok: jika sudah ada pengajuan Menunggu/Disetujui untuk tanggal +
+  rentang waktu yang sama/overlap
+
+B. absen_lembur — Pencatatan Waktu Lembur Aktual
+--------------------------------------------------
+
+| Kolom               | Tipe                      | Keterangan                        |
+|---------------------|---------------------------|-----------------------------------|
+| id                  | bigint PK                 | Auto-increment                    |
+| pengajuan_lembur_id | FK → pengajuan_lembur     | Referensi pengajuan               |
+| user_id             | FK → users                | Pegawai yang lembur               |
+| tanggal             | date                      | Tanggal lembur                    |
+| waktu_masuk         | datetime, nullable        | Waktu absen masuk lembur aktual   |
+| waktu_pulang        | datetime, nullable        | Waktu absen pulang lembur aktual  |
+| lat_masuk           | decimal(10,7), nullable   | GPS saat masuk lembur             |
+| lng_masuk           | decimal(10,7), nullable   | GPS saat masuk lembur             |
+| lat_pulang          | decimal(10,7), nullable   | GPS saat pulang lembur            |
+| lng_pulang          | decimal(10,7), nullable   | GPS saat pulang lembur            |
+| foto_masuk          | varchar(190), nullable    | Selfie masuk lembur               |
+| foto_pulang         | varchar(190), nullable    | Selfie pulang lembur              |
+| durasi_menit        | unsigned int, nullable    | Durasi aktual dalam menit         |
+| status_masuk        | enum(Tepat Waktu,         | Status terhadap jadwal mulai      |
+|                     |  Terlambat), nullable     |                                   |
+| menit_terlambat     | unsigned int, default 0   | Keterlambatan dari jam mulai      |
+| bintang_masuk       | tinyint, nullable         | Rating bintang masuk (0-5)        |
+| bintang_pulang      | tinyint, nullable         | Rating bintang pulang (0-5)       |
+| bintang_harian      | decimal(2,1), nullable    | Rata-rata bintang lembur          |
+| flag_anomali        | tinyint, default 0        | Flag anomali GPS                  |
+| catatan_anomali     | text, nullable            | Detail anomali                    |
+| created_at          | datetime, nullable        |                                   |
+
+Indeks: UNIQUE(pengajuan_lembur_id), INDEX(user_id, tanggal)
+
+Aturan:
+- Satu pengajuan_lembur hanya bisa punya satu baris absen_lembur (1:1)
+- waktu_masuk harus dalam rentang jam_mulai ± toleransi yang dikonfigurasi
+- waktu_pulang harus setelah waktu_masuk
+- durasi_menit dihitung otomatis: (waktu_pulang - waktu_masuk) dalam menit
+- GPS harus dalam radius RSUD (sama seperti absen reguler)
+- Bintang dihitung berdasarkan ketepatan waktu terhadap jadwal yang disetujui
+
+
+3. PERUBAHAN TABEL EXISTING
+================================================================================
+
+Tidak ada perubahan schema pada tabel existing. Fitur lembur berdiri sendiri
+dengan tabel baru.
+
+
+4. MODEL & RELATIONSHIPS
+================================================================================
+
+PengajuanLembur (baru)
+-----------------------
+  Table: pengajuan_lembur
+  Timestamps: false
+
+  Fillable:
+    user_id, tanggal, jam_mulai, jam_selesai, durasi_jam, keterangan,
+    status, diproses_oleh, catatan_keputusan, diproses_pada, created_at
+
+  Casts:
+    jam_mulai      → datetime:H:i
+    jam_selesai    → datetime:H:i
+    durasi_jam     → decimal:1
+    diproses_pada  → datetime
+    created_at     → datetime
+
+  Relationships:
+    user()              → BelongsTo(User)
+    diprosesOlehUser()  → BelongsTo(User, 'diproses_oleh')
+    absenLembur()       → HasOne(AbsenLembur)
+
+
+AbsenLembur (baru)
+-------------------
+  Table: absen_lembur
+  Timestamps: false
+
+  Fillable:
+    pengajuan_lembur_id, user_id, tanggal, waktu_masuk, waktu_pulang,
+    lat_masuk, lng_masuk, lat_pulang, lng_pulang, foto_masuk, foto_pulang,
+    durasi_menit, status_masuk, menit_terlambat, bintang_masuk,
+    bintang_pulang, bintang_harian, flag_anomali, catatan_anomali, created_at
+
+  Relationships:
+    pengajuanLembur()  → BelongsTo(PengajuanLembur)
+    user()             → BelongsTo(User)
+
+
+Relasi ke User (ditambahkan)
+-----------------------------
+  User::pengajuanLembur()   → HasMany(PengajuanLembur)
+  User::absenLembur()       → HasMany(AbsenLembur)
+
+
+5. SERVICE LAYER
+================================================================================
+
+PengajuanLemburService
+-----------------------
+  Fungsi-fungsi inti:
+
+  batasJam(): int
+    Jam batas pengajuan dari pengaturan (default: 2 jam sebelum mulai).
+
+  atasanUntuk(int $userId): ?User
+    Resolver atasan (sama seperti UbahJadwalService):
+    1. atasan_langsung table
+    2. sub_unit.atasan_id
+    3. unit_kerja.atasan_id
+    4. fallback: admin
+
+  kelayakan(User $pemohon, string $tanggal, string $jamMulai, string $jamSelesai): array
+    Validasi:
+    - Tanggal harus hari ini atau masa depan (maks 7 hari)
+    - jam_mulai < jam_selesai
+    - Tidak overlap dengan jadwal shift yang sudah ada
+    - Tidak ada pengajuan aktif (Menunggu/Disetujui) untuk tanggal + waktu overlap
+    - Belum melebihi batas jam per hari dari pengaturan
+
+  simpan(User $pemohon, array $data): array
+    Buat pengajuan + notifikasi ke atasan langsung (fallback: semua admin).
+
+  putuskan(PengajuanLembur $pj, string $putusan, int $olehUserId, ?string $catatan): array
+    Proses keputusan atasan + notifikasi ke pemohon.
+
+
+AbsenLemburService
+-------------------
+  Fungsi-fungsi inti:
+
+  absenMasuk(User $user, array $data): JsonResponse
+    Catat masuk lembur:
+    - Validasi GPS (radius RSUD)
+    - Cek pengajuan lembur disetujui dan masih aktif (belum ada absen masuk)
+    - Hitung keterlambatan dari jam_mulai yang disetujui + toleransi
+    - Hitung bintang masuk
+    - Simpan record + log lokasi
+
+  absenPulang(User $user, array $data): JsonResponse
+    Catat pulang lembur:
+    - Validasi GPS
+    - Cek ada record masuk lembur yang belum pulang
+    - Hitung durasi aktual
+    - Hitung bintang pulang dan bintang harian
+    - Update record
+
+
+6. ROUTE PLAN
+================================================================================
+
+Web Routes (routes/web.php)
+----------------------------
+  # Pegawai - Pengajuan Lembur
+  GET  /lembur                  → LemburController@index         (name: lembur)
+  POST /lembur                  → LemburController@ajukan        (name: lembur.ajukan)
+  POST /lembur/batal/{id}       → LemburController@batal         (name: lembur.batal)
+
+  # Pegawai - Absen Lembur
+  POST /absen-lembur            → LemburController@prosesAbsenLembur (name: absen-lembur)
+
+  # Atasan - Persetujuan Lembur
+  POST /persetujuan/lembur      → PersetujuanController@prosesLembur (name: persetujuan.lembur)
+
+
+Admin Routes (routes/admin.php)
+---------------------------------
+  GET  /admin/lembur            → Admin\LemburController@index    (name: admin.lembur)
+  POST /admin/lembur/proses     → Admin\LemburController@proses   (name: admin.lembur.proses)
+
+
+API Routes (routes/api.php) — Mobile API
+------------------------------------------
+  GET    /lembur                        → Api\LemburController@daftar
+  POST   /lembur                        → Api\LemburController@ajukan
+  DELETE /lembur/{id}                   → Api\LemburController@batal
+  GET    /lembur/total                  → Api\LemburController@menungguTotal
+  GET    /lembur/menunggu               → Api\LemburController@menungguDaftar
+  POST   /lembur/proses                 → Api\LemburController@proses
+  GET    /lembur/riwayat-persetujuan    → Api\LemburController@riwayatPersetujuan
+
+  # Absen Lembur
+  POST /absen-lembur                    → Api\LemburController@absenMasuk
+  PUT  /absen-lembur/pulang             → Api\LemburController@absenPulang
+  GET  /absen-lembur/status             → Api\LemburController@statusLembur
+
+
+7. VIEW PLAN
+================================================================================
+
+Pegawai Views
+--------------
+  resources/views/pegawai/lembur.blade.php
+    Form pengajuan + daftar riwayat pengajuan lembur.
+
+  resources/views/pegawai/persetujuan.blade.php (UPDATE)
+    Tambah section persetujuan lembur (tugasLembur + riwayatLembur).
+
+  resources/views/layouts/partials/navbar-pegawai.blade.php (UPDATE)
+    Tambah link "Lembur" ke navigasi.
+
+
+Admin Views
+------------
+  resources/views/admin/lembur.blade.php
+    Monitoring & proses pengajuan lembur (filter status, tabel, tombol proses).
+
+  resources/views/layouts/partials/sidebar.blade.php (UPDATE)
+    Tambah menu "Lembur" di grp-kehadiran.
+
+
+8. PENGATURAN SISTEM
+================================================================================
+
+Tambah pengaturan baru di tabel pengaturan:
+
+  batas_pengajuan_lembur_jam    — Batas waktu pengajuan sebelum lembur
+                                  (default: 2 jam)
+  maks_lembur_per_hari_jam      — Maksimal jam lembur per hari
+                                  (default: 4 jam)
+  toleransi_lembur_menit        — Toleransi keterlambatan masuk lembur
+                                  (default: 5 menit)
+
+
+9. ALUR END-TO-END
+================================================================================
+
+A. Pengajuan Lembur
+--------------------
+  1. Pegawai buka halaman Lembur → lihat jadwal shift hari ini + form pengajuan
+  2. Isi tanggal, jam mulai, jam selesai, keterangan
+  3. Sistem validasi: kelayakan, overlap, batas waktu → buat record pengajuan_lembur
+  4. Notifikasi ke atasan langsung (fallback: semua admin)
+  5. Atasan buka halaman Persetujuan → lihat daftar lembur menunggu
+  6. Atasan setuju/tolak → update status + notifikasi ke pemohon
+
+B. Absen Lembur
+----------------
+  1. Pegawai buka halaman Lembur → lihat pengajuan yang disetujui
+  2. Klik "Mulai Lembur" → sistem buka halaman absen dengan GPS check
+  3. Pegawai absen masuk lembur → record absen_lembur dibuat dengan waktu masuk
+     aktual + status (Tepat Waktu/Terlambat) + bintang
+  4. Setelah lembur selesai, klik "Selesai Lembur" → absen pulang lembur
+  5. Sistem hitung durasi aktual, bintang pulang, bintang harian → selesai
+
+
+10. PERBANDINGAN DENGAN FITUR YANG SUDAH ADA
+================================================================================
+
+| Aspek         | Izin/Cuti                  | Ubah Jadwal                | Lembur (Baru)               |
+|---------------|----------------------------|-----------------------------|------------------------------|
+| Persetujuan   | Multi-stage (4 tahap)      | Single-level (atasan lgsg) | Single-level (atasan lgsg)  |
+| Absensi       | Tidak ada (izin=tidak hadir)| Otomatis dari jadwal       | Aktif (masuk + pulang)      |
+| GPS           | Tidak ada                  | Tidak ada                   | Wajib (radius RSUD)         |
+| Foto/Selfie   | Lampiran opsional          | Tidak ada                   | Wajib (anti titip)          |
+| Rating Bintang| Tidak ada                  | Tidak ada                   | Ya (masuk + pulang)         |
+| Durasi        | Tanggal saja               | Tanggal saja                | Jam mulai - selesai         |
+| Konflik       | Overlap tanggal            | Overlap tanggal             | Overlap jam + shift         |
+

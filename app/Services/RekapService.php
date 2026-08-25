@@ -6,6 +6,7 @@ use App\Models\Absensi;
 use App\Models\HariLibur;
 use App\Models\Izin;
 use App\Models\Pengaturan;
+use App\Models\User;
 use Carbon\Carbon;
 
 class RekapService
@@ -47,12 +48,20 @@ class RekapService
             }
         }
 
-        $absMap = [];
-        foreach (Absensi::where('user_id', $userId)
+        $isDokter = User::find($userId)?->profesi?->nama === 'Dokter';
+
+        $absCollection = Absensi::where('user_id', $userId)
             ->where('tanggal', '>=', $awal)
             ->where('tanggal', '<=', $akhir)
-            ->get() as $r) {
-            $absMap[$r->tanggal->format('Y-m-d')] = $r;
+            ->get();
+
+        if ($isDokter) {
+            $absPerTanggal = $absCollection->groupBy(fn ($r) => $r->tanggal->format('Y-m-d'));
+        } else {
+            $absMap = [];
+            foreach ($absCollection as $r) {
+                $absMap[$r->tanggal->format('Y-m-d')] = $r;
+            }
         }
 
         $c = ['hadir' => 0, 'tepat' => 0, 'terlambat' => 0, 'menit_terlambat' => 0,
@@ -65,7 +74,15 @@ class RekapService
 
         for ($d = 1; $d <= $hariBerjalan; $d++) {
             $tgl = sprintf('%04d-%02d-%02d', $tahun, $bulan, $d);
-            $rec = $absMap[$tgl] ?? null;
+
+            if ($isDokter) {
+                $recs = $absPerTanggal[$tgl] ?? collect();
+                $rec = $recs->first();
+                $jumlahSesi = $recs->count();
+            } else {
+                $rec = $absMap[$tgl] ?? null;
+                $jumlahSesi = $rec ? 1 : 0;
+            }
 
             if ($rec) {
                 $c['hadir']++;
@@ -73,38 +90,42 @@ class RekapService
                     $c['anomali']++;
                 }
 
-                $bintangMasuk = $rec->bintang_masuk !== null ? (int) $rec->bintang_masuk : null;
-                $bintangPulang = $rec->bintang_pulang !== null ? (int) $rec->bintang_pulang : null;
+                if (! $isDokter) {
+                    $bintangMasuk = $rec->bintang_masuk !== null ? (int) $rec->bintang_masuk : null;
+                    $bintangPulang = $rec->bintang_pulang !== null ? (int) $rec->bintang_pulang : null;
 
-                if ($bintangMasuk === 5 || ($bintangMasuk === null && $rec->status_masuk === 'Tepat Waktu')) {
-                    $c['tepat_masuk']++;
-                }
-                if ($bintangPulang === 5 || ($bintangPulang === null && $rec->waktu_pulang !== null && $rec->menit_awal_pulang === 0)) {
-                    $c['tepat_pulang']++;
-                }
+                    if ($bintangMasuk === 5 || ($bintangMasuk === null && $rec->status_masuk === 'Tepat Waktu')) {
+                        $c['tepat_masuk']++;
+                    }
+                    if ($bintangPulang === 5 || ($bintangPulang === null && $rec->waktu_pulang !== null && $rec->menit_awal_pulang === 0)) {
+                        $c['tepat_pulang']++;
+                    }
 
-                $menitAwal = (int) ($rec->menit_awal_pulang ?? 0);
-                if ($menitAwal > 0) {
-                    $c['pulang_awal']++;
-                    $c['menit_pulang_awal'] += $menitAwal;
-                }
+                    $menitAwal = (int) ($rec->menit_awal_pulang ?? 0);
+                    if ($menitAwal > 0) {
+                        $c['pulang_awal']++;
+                        $c['menit_pulang_awal'] += $menitAwal;
+                    }
 
-                if ($rec->bintang_harian !== null) {
-                    $c['bintang_sum'] += (float) $rec->bintang_harian;
-                    $c['bintang_terhitung']++;
-                }
+                    if ($rec->bintang_harian !== null) {
+                        $c['bintang_sum'] += (float) $rec->bintang_harian;
+                        $c['bintang_terhitung']++;
+                    }
 
-                if (! $rec->waktu_pulang) {
-                    $status = 'Belum Pulang';
-                } elseif ($rec->status_masuk === 'Terlambat') {
-                    $status = 'Terlambat';
-                    $c['terlambat']++;
-                    $c['menit_terlambat'] += (int) $rec->menit_terlambat;
+                    if (! $rec->waktu_pulang) {
+                        $status = 'Belum Pulang';
+                    } elseif ($rec->status_masuk === 'Terlambat') {
+                        $status = 'Terlambat';
+                        $c['terlambat']++;
+                        $c['menit_terlambat'] += (int) $rec->menit_terlambat;
+                    } else {
+                        $status = 'Tepat Waktu';
+                        $c['tepat']++;
+                    }
+                    $c['total_menit'] += (int) ($rec->total_menit_kerja ?? 0);
                 } else {
-                    $status = 'Tepat Waktu';
-                    $c['tepat']++;
+                    $status = ! $rec->waktu_pulang ? 'Belum Pulang' : 'Hadir';
                 }
-                $c['total_menit'] += (int) ($rec->total_menit_kerja ?? 0);
             } elseif (isset($izinMap[$tgl])) {
                 $status = $izinMap[$tgl];
                 match ($status) {
@@ -120,13 +141,16 @@ class RekapService
             } else {
                 $status = 'Alpa';
                 $c['alpa']++;
-                $c['bintang_terhitung']++;
+                if (! $isDokter) {
+                    $c['bintang_terhitung']++;
+                }
             }
 
             $perTanggal[$tgl] = [
                 'status' => $status,
                 'rec' => $rec,
                 'keterangan' => $liburMap[$tgl] ?? null,
+                'jumlah_sesi' => $jumlahSesi,
             ];
         }
 
@@ -140,6 +164,7 @@ class RekapService
             : null;
 
         return $c + [
+            'is_dokter' => $isDokter,
             'bulan' => $bulan,
             'tahun' => $tahun,
             'hari_dalam_bulan' => $hariDalamBulan,

@@ -1,0 +1,253 @@
+========================================================================
+  SKEMA: ABSENSI FLEKSIBEL DOKTER
+  Tanggal: 25 Agustus 2026
+========================================================================
+
+PRINSIP
+-------
+1. Dokter TIDAK PERLU jadwal_shift untuk absen
+2. Dokter bisa absen masuk-pulang beberapa kali per hari (multi-sesi)
+3. Tidak ada kalkulasi status (Tepat Waktu/Terlambat), bintang, atau durasi
+4. Hanya profesi "Dokter" yang mendapat perlakuan ini
+5. Izin aktif TETAP memblokir dokter (sama seperti pegawai lain)
+6. Rekap bulanan tampilkan jumlah sesi per hari untuk dokter
+
+FILE YANG DIUBAH
+-----------------
+1. app/Services/AbsenService.php              — modifikasi inti
+2. app/Http/Controllers/Api/AbsenController.php — tambah profesi_nama
+3. app/Http/Controllers/Admin/KehadiranController.php — handle dokter di bangunData
+4. app/Services/RekapService.php              — handle multi-sesi
+
+TIDAK PERLU DIUBAH
+-------------------
+- Schema database (kolom sudah nullable)
+- Model
+- Views admin/kehadiran (sudah handle null)
+- Navbar/Sidebar
+- API docs
+- KeterlambatanService (guard di AbsenService sebelum panggil)
+
+========================================================================
+  DETAIL PERUBAHAN
+========================================================================
+
+1. AbsenService::absenDatang
+   -------------------------
+   + $isDokter = ($u['profesi_nama'] ?? '') === 'Dokter';
+
+   BLOKIR SEBELUMNYA (baris 49-51):
+     if (! $u['shift_id']) { return error; }
+   MENJADI:
+     if (! $isDokter && ! $u['shift_id']) { return error; }
+
+   CEK IZIN (baris 54-63):
+     if ($izin) { return error; }
+   TETAP BERLAKU untuk semua (termasuk dokter).
+
+   CEK DUPLIKAT (baris 68-71):
+     if ($sudah) { return error; }
+   MENJADI:
+     if (! $isDokter && $sudah) { return error; }
+
+   TANGGAL SHIFT (baris 63-66):
+     $jadwal = new DateTime($now->format('Y-m-d').' '.$u['shift_jam_masuk']);
+     if ($u['shift_kategori'] === 'Malam'...) { ... }
+   MENJADI:
+     if ($isDokter) {
+         $tanggalShift = $now->format('Y-m-d');
+         $jadwal = null;
+     } else {
+         // alur lama
+         $jadwal = new DateTime($now->format('Y-m-d').' '.$u['shift_jam_masuk']);
+         if ($u['shift_kategori'] === 'Malam'...) { ... }
+         $tanggalShift = $jadwal->format('Y-m-d');
+     }
+
+   STATUS & BINTANG (baris 73-89):
+     $toleransi = ...
+     $selisih = ...
+     if ($selisih <= $toleransi) { ... }
+   MENJADI:
+     if ($isDokter) {
+         $status = null;
+         $menit = 0;
+         $jenis = 'sukses';
+         $pesan = 'Terima kasih sudah hadir hari ini';
+         $bintangMasuk = null;
+     } else {
+         // alur lama
+     }
+
+   INSERT (baris 91-103):
+     'status_masuk' => $status,
+     'bintang_masuk' => $bintangMasuk,
+     'bintang_harian' => $bintangMasuk,
+   Untuk dokter: semua null (sudah di-set di atas)
+
+   KETERLAMBATAN (baris 105):
+     $ket = app(KeterlambatanService::class)->catatDatang(...)
+   MENJADI:
+     $ket = $isDokter ? null : app(KeterlambatanService::class)->catatDatang(...)
+
+   RESPONSE (baris 107-127):
+     'keterlambatan' => [...]
+   MENJADI:
+     'keterlambatan' => $isDokter ? null : [...]
+
+2. AbsenService::absenPulang
+   -------------------------
+   + $isDokter = ($u['profesi_nama'] ?? '') === 'Dokter';
+
+   CEK RECORD TERBUKA (baris 171-173):
+     $rec = Absensi::where('user_id', $u['id'])->whereNull('waktu_pulang')->first();
+
+   AUTO-CREATE MASUK (baris 176-215):
+     if (! $rec) { ... auto create ... }
+   MENJADI:
+     if (! $rec) {
+         if ($isDokter) {
+             return error 'Belum absen masuk hari ini';
+         }
+         // auto-create alur lama (butuh shift)
+     }
+
+   HITUNG DURASI & BINTANG (baris 217-248):
+     if ($rec->bintang_masuk !== null) { ... }
+   MENJADI:
+     if ($isDokter) {
+         $statusPulang = null;
+         $bintangPulang = null;
+         $bintangHarian = null;
+         $totalMenit = null;
+     } else {
+         // alur lama
+     }
+
+   UPDATE RECORD (baris 250-262):
+     $rec->update([...])
+   Field $statusPulang, $bintangPulang, $bintangHarian, $totalMenit
+   sudah null untuk dokter.
+
+   KETERLAMBATAN PULANG (baris 264):
+     $ket = app(KeterlambatanService::class)->catatPulang(...)
+   MENJADI:
+     $ket = $isDokter ? null : app(KeterlambatanService::class)->catatPulang(...)
+
+3. Api/AbsenController::absen
+   --------------------------
+   Array $u (baris 38-45):
+   TAMBAH: 'profesi_nama' => $user->profesi?->nama,
+
+4. Admin/KehadiranController::bangunData
+   --------------------------------------
+   Cek profesi user (perlu query user atau passed parameter):
+   + $isDokter = User::find($userId)?->profesi?->nama === 'Dokter';
+
+   STATUS & BINTANG (baris 346-370):
+   Jika $isDokter:
+     $statusMasuk = null;
+     $menitTerlambat = 0;
+     $bintangMasuk = null;
+     $bintangPulang = null;
+     $bintangHarian = null;
+     $statusPulang = null;
+     $menitAwal = 0;
+     $totalMenit = null;
+
+   RETURN (baris 378):
+     'status_masuk' => $statusMasuk ?? 'Tepat Waktu',
+   Untuk dokter: null (sudah di-set)
+
+5. RekapService::hitung
+   ---------------------
+   ABSMAP (baris 50-56):
+     $absMap[$r->tanggal->format('Y-m-d')] = $r;
+   MENJADI (collect dulu, baru hitung per tanggal):
+     $absCollection = Absensi::where('user_id', $userId)
+         ->where('tanggal', '>=', $awal)
+         ->where('tanggal', '<=', $akhir)
+         ->get();
+
+     // Group by tanggal
+     $absPerTanggal = $absCollection->groupBy(fn($r) => $r->tanggal->format('Y-m-d'));
+
+   LOOP PER TANGGAL (baris 66-131):
+     $rec = $absMap[$tgl] ?? null;
+   MENJADI:
+     $recs = $absPerTanggal[$tgl] ?? collect();
+     $rec = $recs->first();  // record pertama (untuk info dasar)
+     $jumlahSesi = $recs->count();
+
+   JUMLAH SESI (tambahan baru):
+     if ($rec && $isDokter) {
+         $c['hadir']++;
+         // hitung jumlah sesi untuk dokter
+         $perTanggal[$tgl] = [
+             'status' => 'Hadir',
+             'rec' => $rec,
+             'keterangan' => $liburMap[$tgl] ?? null,
+             'jumlah_sesi' => $jumlahSesi,
+         ];
+     }
+
+   BINTANG:
+     Jika $isDokter, skip bintang_sum dan bintang_terhitung
+
+========================================================================
+  ALUR ABSEN DOKTER
+========================================================================
+
+Absen Datang:
+  User klik "Absen" → tipe = 'datang'
+  → Cek GPS radius                    ✓ (sama)
+  → Cek record terbuka (belum pulang) ✓ (sama)
+  → Cek shift_id (skip untuk dokter)  ✓ (BARU)
+  → Cek izin aktif                    ✓ (TETAP BERLAKU)
+  → Tanggal = hari ini                 ✓ (BARU, tanpa shift)
+  → Cek duplikat (skip untuk dokter)  ✓ (BARU, multi-sesi)
+  → Status & bintang = null           ✓ (BARU)
+  → Simpan record                      ✓ (sama, field null)
+  → Tidak ada notifikasi keterlambatan ✓ (BARU)
+  → Selesai
+
+Absen Pulang:
+  User klik "Absen" → tipe = 'pulang'
+  → Cek GPS radius                     ✓ (sama)
+  → Cari record terbuka                ✓ (sama)
+  → Jika tidak ada + dokter: error     ✓ (BARU)
+  → Jika tidak ada + bukan dokter: auto-create ✓ (sama)
+  → Durasi & bintang = null            ✓ (BARU)
+  → Update record                      ✓ (sama)
+  → Selesai
+
+========================================================================
+  RESPONS YANG DIUBAH
+========================================================================
+
+absenDatang dokter:
+  {
+    "sukses": true,
+    "jenis": "sukses",
+    "pesan": "Terima kasih sudah hadir hari ini",
+    "keterangan": "Absen datang tercatat pukul 08.30 · jarak 15 m dari titik RSUD.",
+    "status": null,
+    "menit": 0,
+    "bintang": null,
+    "keterlambatan": null,
+    "jam": "08.30"
+  }
+
+absenPulang dokter:
+  {
+    "sukses": true,
+    "jenis": "sukses",
+    "pesan": "Absen pulang tercatat pukul 16.45",
+    "keterangan": "Absen pulang tercatat pukul 16.45 · jarak 15 m dari titik RSUD.",
+    "status": null,
+    "menit": 0,
+    "bintang": null,
+    "jam": "16.45"
+  }
+
+========================================================================

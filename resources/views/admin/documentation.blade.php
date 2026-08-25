@@ -101,7 +101,7 @@ JSON,
     'endpoints' => [
       [
         'metode' => 'POST', 'jalur' => '/absen', 'akses' => 'Token',
-        'deskripsi' => 'Catat absen datang/pulang. Ditolak bila berada di luar radius RSUD; foto selfie base64 wajib bila pengaturan wajib_selfie aktif. Respons memuat blok keterlambatan (menit dibulatkan ke atas). Bintang: masuk lebih awal atau pulang melewati jam jadwal -> 5; tepat waktu -> 4; pelanggaran efektif setelah toleransi 10 menit -> <=5\' 4, <=10\' 3, <=15\' 2, <=30\' 1, >30\' 0. total_bintang = rata-rata bintang masuk & pulang.',
+        'deskripsi' => 'Catat absen datang/pulang. Ditolak bila berada di luar radius RSUD; foto selfie base64 wajib bila pengaturan wajib_selfie aktif. Respons memuat blok keterlambatan (menit dibulatkan ke atas). Bintang: masuk lebih awal atau pulang melewati jam jadwal -> 5; tepat waktu -> 4; pelanggaran efektif setelah toleransi 10 menit -> <=5\' 4, <=10\' 3, <=15\' 2, <=30\' 1, >30\' 0. total_bintang = rata-rata bintang masuk & pulang. <strong>Dokter:</strong> Tidak wajib punya shift, boleh absen multi-sesi (masuk→pulang→masuk→pulang per hari). Status, bintang, dan keterlambatan bernilai null untuk dokter.',
         'parameter' => [
           ['tipe', 'body', 'string', true, 'datang atau pulang.'],
           ['lat · lng', 'body', 'float', true, 'Koordinat GPS perangkat.'],
@@ -132,11 +132,24 @@ Absen pulang — blok keterlambatan berisi sisi pulang + total:
   "keterlambatan": { "menit_pulang_awal": 10, "bintang_pulang": 4, "total_bintang": 4 },
   "jam": "13.50"
 }
+
+Dokter — status, bintang, keterlambatan bernilai null; multi-sesi diizinkan:
+{
+  "sukses": true,
+  "jenis": "sukses",
+  "pesan": "Terima kasih sudah hadir hari ini",
+  "keterangan": "Absen datang tercatat pukul 08.30 · jarak 15 m dari titik RSUD.",
+  "status": null,
+  "menit": 0,
+  "bintang": null,
+  "keterlambatan": null,
+  "jam": "08.30"
+}
 JSON,
       ],
       [
         'metode' => 'GET', 'jalur' => '/status', 'akses' => 'Token',
-        'deskripsi' => 'Status absen hari ini (masuk/pulang) termasuk keterlambatan, menit pulang awal, dan bintang (tepat 4 · lebih awal masuk / pulang lewat jam 5).',
+        'deskripsi' => 'Status absen hari ini (masuk/pulang) termasuk keterlambatan, menit pulang awal, dan bintang (tepat 4 · lebih awal masuk / pulang lewat jam 5). Untuk dokter, field status dan bintang bernilai null. Catatan: untuk user multi-sesi (dokter), endpoint ini mengembalikan 1 record saja (query pertama).',
         'respons' => <<<'JSON'
 {
   "sukses": true,
@@ -144,11 +157,19 @@ JSON,
   "absen_pulang": { "waktu": "14:03", "status": "Tepat Waktu", "menit_awal": 0, "bintang": 4 },
   "bintang_harian": 4
 }
+
+Dokter — status dan bintang bernilai null:
+{
+  "sukses": true,
+  "absen_masuk": { "waktu": "08.30", "status": null, "menit_terlambat": 0, "bintang": null },
+  "absen_pulang": { "waktu": "16.45", "status": null, "menit_awal": 0, "bintang": null },
+  "bintang_harian": null
+}
 JSON,
       ],
       [
         'metode' => 'GET', 'jalur' => '/riwayat', 'akses' => 'Token',
-        'deskripsi' => 'Riwayat absensi 7 hari terakhir milik user.',
+        'deskripsi' => 'Riwayat absensi 7 hari terakhir milik user. Untuk dokter, status dan bintang bernilai null.',
         'respons' => <<<'JSON'
 {
   "sukses": true,
@@ -158,6 +179,18 @@ JSON,
     "status": "Tepat Waktu", "status_pulang": "Tepat Waktu",
     "menit_terlambat": 0, "menit_awal_pulang": 0,
     "bintang_masuk": 1, "bintang_pulang": 1, "bintang_harian": 2
+  }]
+}
+
+Dokter — status, bintang bernilai null:
+{
+  "sukses": true,
+  "riwayat": [{
+    "tanggal": "2026-08-23", "hari": "Senin", "tanggal_label": "23 Agustus 2026",
+    "jam_masuk": "08:30", "jam_pulang": "16:45",
+    "status": null, "status_pulang": null,
+    "menit_terlambat": 0, "menit_awal_pulang": 0,
+    "bintang_masuk": null, "bintang_pulang": null, "bintang_harian": null
   }]
 }
 JSON,
@@ -191,7 +224,7 @@ JSON,
       ],
       [
         'metode' => 'GET', 'jalur' => '/rekap?bulan=&tahun=', 'akses' => 'Token',
-        'deskripsi' => 'Rekap absensi pribadi per bulan + tahun: ringkasan kehadiran/keterlambatan/jam kerja/bintang beserta detail harian (termasuk izin, libur, alpa).',
+        'deskripsi' => 'Rekap absensi pribadi per bulan + tahun: ringkasan kehadiran/keterlambatan/jam kerja/bintang beserta detail harian (termasuk izin, libur, alpa). Untuk dokter: bintang_bulanan bernilai null, per_tanggal memuat jumlah_sesi, status bernilai "Hadir" tanpa keterangan keterlambatan.',
         'parameter' => [
           ['bulan', 'query', 'int 1-12', false, 'Default bulan berjalan.'],
           ['tahun', 'query', 'int', false, 'Default tahun berjalan.'],
@@ -213,6 +246,27 @@ JSON,
     "jam_masuk": "07:55", "jam_pulang": "14:02",
     "menit_telat": 0, "menit_pulang_awal": 0, "total_jam_kerja": 6.1,
     "bintang_masuk": 4, "bintang_pulang": 4, "bintang_harian": 4
+  }]
+}
+
+Dokter — bintang_bulanan null, per_tanggal ada jumlah_sesi:
+{
+  "sukses": true,
+  "is_dokter": true,
+  "periode": { "bulan": 8, "tahun": 2026, "label": "Agustus 2026", "hari_dalam_bulan": 31, "hari_berjalan": 23, "hari_efektif": 19 },
+  "ringkasan": {
+    "hadir": 16, "tepat_masuk": 0, "terlambat": 0, "total_menit_telat": 0,
+    "tepat_pulang": 0, "pulang_awal": 0, "total_menit_pulang_awal": 0,
+    "izin": 0, "sakit": 0, "cuti": 0, "dinas_luar": 0, "libur": 5, "alpa": 0,
+    "anomali": 0, "persen_kehadiran": 100.0, "total_jam_kerja": null,
+    "bintang_bulanan": null
+  },
+  "detail": [{
+    "tanggal": "2026-08-03", "hari": "Senin", "status": "Hadir", "keterangan": null,
+    "jam_masuk": "08:30", "jam_pulang": "16:45",
+    "menit_telat": 0, "menit_pulang_awal": 0, "total_jam_kerja": null,
+    "bintang_masuk": null, "bintang_pulang": null, "bintang_harian": null,
+    "jumlah_sesi": 2
   }]
 }
 JSON,

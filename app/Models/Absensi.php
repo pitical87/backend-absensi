@@ -13,7 +13,8 @@ class Absensi extends Model
     use HasFactory;
 
     protected $table = 'absensi';
-    public $timestamps = false; 
+
+    public $timestamps = false;
 
     protected $fillable = [
         'user_id', 'tanggal', 'waktu_masuk', 'waktu_pulang',
