@@ -1,5 +1,7 @@
 @import 'tailwindcss';
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @source '../../resources/views/**/*.blade.php';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
@@ -929,6 +931,141 @@ table.tabel {
   display: flex;
   gap: 6px;
   align-self: center;
+}
+
+/* ── Mode gelap ──
+   Diaktifkan lewat class .dark pada <html> (toggle di navbar admin).
+   Default: mode terang. Preferensi disimpan di localStorage ("tema-admin"). */
+.dark {
+  color-scheme: dark;
+
+  /* Token semantik proyek → versi malam */
+  --color-latar: #0A1120;
+  --color-putih: #121E33;
+  --color-teks: #DCE6F4;
+  --color-teks-redup: #8CA1C0;
+  --color-garis: #263450;
+  --color-biru-muda: #14263E;
+  --color-biru-pucat: #0F1B2E;
+  --color-hijau-bg: #0A271F;
+  --color-amber-bg: #2A2010;
+  --color-merah-bg: #2E1417;
+  --color-ungu-bg: #231A38;
+  --color-teal-bg: #0A2724;
+
+  /* Skala slate default → palet malam (slate-900/950 sengaja tetap) */
+  --color-slate-50: #131D31;
+  --color-slate-100: #1A2740;
+  --color-slate-200: #263552;
+  --color-slate-300: #8FA3C0;
+  --color-slate-400: #7E93B4;
+  --color-slate-500: #93A7C6;
+  --color-slate-600: #AABBD6;
+  --color-slate-700: #C6D3E8;
+  --color-slate-800: #DEE7F4;
+}
+
+/* Judul & teks "navy" menjadi terang */
+.dark h1,
+.dark h2,
+.dark h3,
+.dark .kartu-kepala h2,
+.dark .stat strong,
+.dark .stat-admin strong,
+.dark .jam-hari-ini strong,
+.dark .langkah-judul,
+.dark .kotak-kunci code,
+.dark .text-navy {
+  color: #E9F0FA;
+}
+
+/* hover:text-navy tidak terbaca di permukaan gelap */
+.dark .hover\:text-navy:hover {
+  color: #E9F0FA;
+}
+
+/* Permukaan yang memakai warna hex literal */
+.dark .latar-pola {
+  background-color: #0A1120;
+  background-image: radial-gradient(#1C2942 1px, transparent 1px);
+}
+
+.dark .tabel-bungkus,
+.dark .bilah-alat,
+.dark .modal-kamera {
+  background-color: #121E33;
+}
+
+.dark .modal-kamera {
+  border-color: #22304A;
+}
+
+.dark .tabel th {
+  background-color: #16233C;
+}
+
+.dark .chip:not(.aktif),
+.dark .paginasi a,
+.dark .paginasi span {
+  background-color: #16233C;
+}
+
+.dark .kotak-kunci {
+  background-color: #101D33;
+  border-color: #1E3A61;
+}
+
+.dark .stat,
+.dark .jam-hari-ini .kotak {
+  background-color: #14213A;
+}
+
+.dark .btn-pulang {
+  background-color: #16233C;
+}
+
+.dark .btn-pulang .lingkar {
+  background-color: #3A2410;
+}
+
+.dark .chip:not(.aktif) .jml {
+  background-color: #16233C;
+  border-color: #263552;
+}
+
+/* Teks flash message lebih terang */
+.dark .flash-success {
+  color: #6EE7B7;
+}
+
+.dark .flash-error {
+  color: #FCA5A5;
+}
+
+.dark .flash-info {
+  color: #93C5FD;
+}
+
+.dark .catatan-anomali {
+  color: #FCD34D;
+}
+
+/* Struktur organisasi */
+.dark .pohon ul::before {
+  border-left-color: #2A3A5C;
+}
+
+.dark .pohon ul li::before {
+  border-top-color: #2A3A5C;
+}
+
+.dark .simpul {
+  background: #121E33;
+  border-color: #27364F;
+}
+
+.dark .simpul .pejabat small {
+  color: #93A7C6;
 }
 
 /* ── Accessibility ── */

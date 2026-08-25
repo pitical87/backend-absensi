@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\LiburController;
 use App\Http\Controllers\Admin\MappingSIMRSController;
 use App\Http\Controllers\Admin\PegawaiController;
 use App\Http\Controllers\Admin\PegawaiTeladanController;
+use App\Http\Controllers\Admin\PengajuanJadwalController;
 use App\Http\Controllers\Admin\RekapKeterlambatanController;
 use App\Http\Controllers\Admin\PengaturanController;
 use App\Http\Controllers\Admin\RekapController;
@@ -76,6 +77,9 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::get('izin', [IzinController::class, 'index'])->name('admin.izin');
     Route::post('izin/proses', [IzinController::class, 'proses'])->name('admin.izin.proses');
     Route::post('izin/ambil-alih', [IzinController::class, 'ambilAlih'])->name('admin.izin.ambilalih');
+
+    Route::get('jadwal_pengajuan', [PengajuanJadwalController::class, 'index'])->name('admin.jadwal_pengajuan');
+    Route::post('jadwal_pengajuan/proses', [PengajuanJadwalController::class, 'proses'])->name('admin.jadwal_pengajuan.proses');
 
     Route::get('libur', [LiburController::class, 'index'])->name('admin.libur');
     Route::post('libur/aksi', [LiburController::class, 'aksi'])->name('admin.libur.aksi');

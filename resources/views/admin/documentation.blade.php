@@ -421,6 +421,102 @@ JSON,
     ],
   ],
   [
+    'id' => 'perubahan-jadwal', 'judul' => 'Perubahan Jadwal Shift', 'ikon' => 'kalender',
+    'endpoints' => [
+      [
+        'metode' => 'GET', 'jalur' => '/perubahan-jadwal', 'akses' => 'Token',
+        'deskripsi' => 'Jadwal shift 30 hari mendatang milik user beserta kelayakan pengajuan (batas waktu, status absensi, pengajuan aktif) dan 30 riwayat pengajuan sendiri.',
+        'respons' => <<<'JSON'
+{
+  "sukses": true,
+  "batas_jam": 1,
+  "jadwal": [{
+    "tanggal": "2026-08-27", "hari": "Kamis",
+    "shift": { "id": 2, "kategori": "Pagi", "jam_masuk": "07.00", "jam_pulang": "14.00" },
+    "bisa_ajukan": true, "alasan_blok": null,
+    "batas_waktu": "2026-08-27T04:00:00.000000Z",
+    "pengajuan_aktif": null
+  }],
+  "riwayat": [{ "id": 4, "tanggal": "2026-08-27", "shift_lama": "Pagi", "shift_baru": "Sore",
+                "status": "Menunggu", "catatan_keputusan": null }]
+}
+JSON,
+      ],
+      [
+        'metode' => 'POST', 'jalur' => '/perubahan-jadwal', 'akses' => 'Token',
+        'deskripsi' => 'Ajukan perubahan jadwal shift pada tanggal tertentu (harus punya jadwal, maksimal 30 hari ke depan). Ditolak otomatis bila melewati batas waktu (jam mulai shift lama dikurangi batas jam dari Pengaturan), sudah absen pada tanggal itu, atau ada pengajuan Menunggu/Disetujui untuk tanggal sama. Notifikasi dikirim ke atasan langsung.',
+        'parameter' => [
+          ['tanggal', 'body', 'date Y-m-d', true, 'Tanggal jadwal yang ingin diubah.'],
+          ['shift_baru_id', 'body', 'int', true, 'ID shift tujuan (aktif, berbeda dari jadwal saat ini).'],
+          ['alasan', 'body', 'string', true, 'Alasan pengajuan (maks 500 karakter).'],
+        ],
+        'respons' => <<<'JSON'
+{
+  "sukses": true,
+  "pesan": "Pengajuan perubahan jadwal terkirim dan menunggu persetujuan atasan langsung.",
+  "pengajuan_jadwal_id": 7
+}
+JSON,
+      ],
+      [
+        'metode' => 'DELETE', 'jalur' => '/perubahan-jadwal/{id}', 'akses' => 'Token',
+        'deskripsi' => 'Batalkan pengajuan ubah jadwal milik sendiri yang masih berstatus Menunggu.',
+        'status' => '200 sukses · 404 tidak ditemukan/sudah diproses',
+        'respons' => <<<'JSON'
+{ "sukses": true, "pesan": "Pengajuan perubahan jadwal berhasil dibatalkan." }
+JSON,
+      ],
+      [
+        'metode' => 'GET', 'jalur' => '/perubahan-jadwal/total', 'akses' => 'Token',
+        'deskripsi' => 'Jumlah pengajuan ubah jadwal Menunggu yang berwenang diputus user selaku atasan langsung (untuk badge notifikasi).',
+        'respons' => <<<'JSON'
+{ "sukses": true, "total": 2 }
+JSON,
+      ],
+      [
+        'metode' => 'GET', 'jalur' => '/perubahan-jadwal/menunggu', 'akses' => 'Token',
+        'deskripsi' => 'Daftar pengajuan Menunggu dari bawahan langsung user.',
+        'respons' => <<<'JSON'
+{
+  "sukses": true, "total": 1,
+  "data": [{
+    "id": 7,
+    "pemohon": { "id": 12, "nama": "Firman", "unit": "Instalasi Gawat Darurat", "sub_unit": null },
+    "tanggal": "2026-08-27",
+    "shift_lama": "Pagi",
+    "shift_baru": { "id": 3, "kategori": "Sore", "jam_masuk": "13.00", "jam_pulang": "20.00" },
+    "alasan": "Ada keperluan keluarga di siang hari",
+    "diajukan_pada": "2026-08-25T02:00:00.000000Z"
+  }]
+}
+JSON,
+      ],
+      [
+        'metode' => 'POST', 'jalur' => '/perubahan-jadwal/proses', 'akses' => 'Token',
+        'deskripsi' => 'Putuskan pengajuan sebagai atasan langsung. Setuju → jadwal_shift pegawai pada tanggal terkait langsung diganti ke shift baru; pemohon menerima notifikasi hasil.',
+        'parameter' => [
+          ['id', 'body', 'int', true, 'ID pengajuan ubah jadwal.'],
+          ['putusan', 'body', 'string', true, 'setuju atau tolak.'],
+          ['catatan', 'body', 'string', false, 'Catatan keputusan.'],
+        ],
+        'respons' => <<<'JSON'
+{ "sukses": true, "pesan": "Pengajuan disetujui — jadwal pemohon telah diganti.", "status": "Disetujui" }
+JSON,
+      ],
+      [
+        'metode' => 'GET', 'jalur' => '/perubahan-jadwal/riwayat-persetujuan', 'akses' => 'Token',
+        'deskripsi' => '30 riwayat putusan ubah jadwal yang pernah dibuat user sebagai atasan langsung.',
+        'respons' => <<<'JSON'
+{
+  "sukses": true,
+  "riwayat": [{ "id": 7, "waktu": "2026-08-25T03:10:00.000000Z", "status": "Disetujui",
+                "pemohon": "Firman", "tanggal": "2026-08-27", "shift_lama": "Pagi", "shift_baru": "Sore" }]
+}
+JSON,
+      ],
+    ],
+  ],
+  [
     'id' => 'logbook', 'judul' => 'Logbook SIMRS', 'ikon' => 'log',
     'endpoints' => [
       [

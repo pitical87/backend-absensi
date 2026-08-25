@@ -1,5 +1,5 @@
 {{-- TOP NAVBAR --}}
-<header class="bg-white/95 backdrop-blur-md border-b border-slate-200/80 py-3 px-4 sm:px-6 flex items-center justify-between gap-3 sticky top-0 z-30 shadow-sm">
+<header class="bg-white/95 backdrop-blur-md border-b border-slate-200/80 py-3 px-4 sm:px-6 flex items-center justify-between gap-3 sticky top-0 z-30 shadow-sm dark:bg-[#0D1830]/95 dark:border-slate-800 dark:shadow-none">
   <div class="flex items-center gap-3">
     <button type="button" class="lg:hidden inline-flex p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer border-0 transition-colors" id="tombol-menu" aria-label="Buka menu">
       {!! ikon('menu', 20) !!}
@@ -9,12 +9,22 @@
   
   <div class="flex items-center gap-2.5 sm:gap-3.5">
     {{-- DATE BADGE --}}
-    <span class="hidden sm:inline-flex items-center gap-1.5 py-1.5 px-3 bg-slate-100/90 text-slate-600 rounded-xl text-xs font-medium border border-slate-200/60">
+    <span class="hidden sm:inline-flex items-center gap-1.5 py-1.5 px-3 bg-slate-100/90 text-slate-600 rounded-xl text-xs font-medium border border-slate-200/60 dark:bg-slate-800/70 dark:text-slate-300 dark:border-slate-700">
       <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
       </svg>
       {{ tgl_id(date('Y-m-d')) }}
     </span>
+
+    {{-- TOMBOL MODE TERANG / GELAP --}}
+    <button type="button" id="tombol-mode" class="p-2 rounded-xl text-slate-600 hover:text-navy hover:bg-slate-100 transition-colors focus:outline-none cursor-pointer dark:text-slate-300 dark:hover:bg-slate-800" aria-label="Ganti mode terang/gelap" title="Mode terang / gelap">
+      <svg class="w-5 h-5 block dark:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+      </svg>
+      <svg class="w-5 h-5 hidden dark:block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+      </svg>
+    </button>
 
     {{-- DROPDOWN NOTIFIKASI --}}
     <div class="relative" id="menu-notifikasi-grup">
@@ -31,7 +41,7 @@
       </button>
 
       {{-- PANEL DROPDOWN NOTIFIKASI --}}
-      <div id="panel-notifikasi" class="hidden absolute right-0 mt-2 w-80 sm:w-88 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div id="panel-notifikasi" class="hidden absolute right-0 mt-2 w-80 sm:w-88 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150 dark:bg-[#121E33] dark:border-slate-800">
         <div class="p-3.5 px-4 bg-slate-50/80 border-b border-slate-100 flex items-center justify-between">
           <div class="flex items-center gap-2">
             <strong class="text-xs font-bold text-navy uppercase tracking-wider">Notifikasi</strong>
@@ -100,9 +110,9 @@
       </button>
 
       {{-- PANEL DROPDOWN AKUN --}}
-      <div id="panel-akun" class="hidden absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div id="panel-akun" class="hidden absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150 dark:bg-[#121E33] dark:border-slate-800">
         {{-- Header Info Akun --}}
-        <div class="p-4 bg-gradient-to-br from-slate-50 to-blue-50/40 border-b border-slate-100">
+        <div class="p-4 bg-gradient-to-br from-slate-50 to-blue-50/40 border-b border-slate-100 dark:from-slate-800/60 dark:to-[#14263E]/60 dark:border-slate-800">
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-[#0062d1] to-[#007afc] text-white font-bold text-sm flex items-center justify-center shadow-md border-2 border-white shrink-0">
               {{ strtoupper(substr(session('nama') ?? 'A', 0, 1)) }}
@@ -269,6 +279,17 @@
       e.stopPropagation();
       panelAkun.classList.toggle('hidden');
       if (panelNotif) panelNotif.classList.add('hidden');
+    });
+  }
+
+  // Toggle Mode Terang / Gelap (default: terang)
+  var tombolMode = document.getElementById('tombol-mode');
+  if (tombolMode) {
+    tombolMode.addEventListener('click', function() {
+      var gelap = document.documentElement.classList.toggle('dark');
+      try {
+        localStorage.setItem('tema-admin', gelap ? 'gelap' : 'terang');
+      } catch (e) {}
     });
   }
 

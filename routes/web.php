@@ -10,6 +10,7 @@ use App\Http\Controllers\LogbookController;
 use App\Http\Controllers\PersetujuanController;
 use App\Http\Controllers\ProfilController;
 use App\Http\Controllers\StrukturController;
+use App\Http\Controllers\UbahJadwalController;
 use App\Http\Controllers\VerifikasiController;
 use Illuminate\Support\Facades\Route;
 
@@ -29,10 +30,14 @@ Route::middleware('auth')->group(function () {
     Route::get('izin', [IzinController::class, 'index'])->name('izin');
     Route::post('izin', [IzinController::class, 'ajukan'])->name('izin.ajukan');
     Route::post('izin/batal/{id}', [IzinController::class, 'batal'])->name('izin.batal');
+    Route::get('ubah-jadwal', [UbahJadwalController::class, 'index'])->name('ubah-jadwal');
+    Route::post('ubah-jadwal', [UbahJadwalController::class, 'ajukan'])->name('ubah-jadwal.ajukan');
+    Route::post('ubah-jadwal/batal/{id}', [UbahJadwalController::class, 'batal'])->name('ubah-jadwal.batal');
     Route::get('izin/dokumen/{id}', [IzinController::class, 'dokumen'])->name('izin.dokumen');
     Route::post('izin/tanda-tangan/{id}', [IzinController::class, 'tandaTangan'])->name('izin.ttd');
     Route::get('persetujuan', [PersetujuanController::class, 'index'])->name('persetujuan');
     Route::post('persetujuan/proses', [PersetujuanController::class, 'proses'])->name('persetujuan.proses');
+    Route::post('persetujuan/jadwal', [PersetujuanController::class, 'prosesJadwal'])->name('persetujuan.jadwal');
     Route::get('foto/{id}/{tipe}', [FotoController::class, 'tampil'])->name('foto');
     Route::get('lampiran-izin/{id}', [FotoController::class, 'lampiranIzin'])->name('lampiran');
     Route::post('ubah-password', [ProfilController::class, 'ubahPassword'])->name('pegawai.ubah-password');

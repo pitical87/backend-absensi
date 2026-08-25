@@ -121,13 +121,12 @@
 <section class="kartu">
   <div class="kartu-kepala">
     <h2>{!! ikon('grafik') !!} Grafik Absensi Bulan {{ BULAN_ID[(int) now()->format('n')] }}</h2>
-    <span class="teks-redup teks-kecil">per hari · gelombang kehadiran</span>
+    <a class="btn btn-garis btn-kecil" href="{{ url('admin/kehadiran') }}">Lihat semua</a>
   </div>
   <div class="h-[250px]">
-    <canvas id="grafik-tren" role="img" aria-label="Grafik garis tren absensi harian bulan ini"></canvas>
+    <canvas id="grafik-tren" role="img" aria-label="Grafik kombinasi batang dan garis absensi harian bulan ini"></canvas>
   </div>
   <div class="legenda">
-    <span><i style="background: #007AFC"></i> Hadir</span>
     <span><i style="background: #059669"></i> Tepat Waktu</span>
     <span><i style="background: #D97706"></i> Terlambat</span>
     <span><i style="background: #DC2626"></i> Tidak Absen</span>
@@ -142,7 +141,7 @@
   <div class="tabel-bungkus">
     <table class="tabel">
       <thead>
-        <tr><th>Nama Pegawai</th><th>Unit</th><th>Shift</th><th>Jam Masuk</th><th>Jam Pulang</th><th>Status</th></tr>
+        <tr><th>Nama Pegawai</th><th>Unit</th><th>Shift</th><th>Status</th></tr>
       </thead>
       <tbody>
         @foreach($terbaru as $r)
@@ -151,8 +150,7 @@
             @if($r->flag_anomali) <span class="badge badge-amber">⚠</span>@endif</td>
           <td>{{ $r->unit_nama ?? '—' }}@if($r->sub_nama) — {{ $r->sub_nama }}@endif</td>
           <td>{{ label_shift((object)['kategori' => $r->shift_kategori, 'jam_masuk' => $r->shift_masuk, 'jam_pulang' => $r->shift_pulang]) }}</td>
-          <td class="angka">{{ jam_id($r->waktu_masuk) }}</td>
-          <td class="angka">{{ jam_id($r->waktu_pulang) }}</td>
+          
           <td>{!! badge_status(! $r->waktu_pulang ? 'Belum Pulang'
                  : ($r->status_masuk === 'Terlambat' ? 'Terlambat' : 'Tepat Waktu'),
                  (int) $r->menit_terlambat) !!}</td>
@@ -187,6 +185,14 @@
   var KETAATAN = @json($pieAktif);
   var TREN = @json($trenData);
 
+  function palet() {
+    var gelap = document.documentElement.classList.contains('dark');
+    return {
+      tick: gelap ? '#8CA1C0' : '#5C7189',
+      grid: gelap ? '#22304A' : '#E4EEF7'
+    };
+  }
+
   function init() {
     var elPie = document.getElementById('grafik-ketaatan');
     if (elPie && window.Chart && KETAATAN.length) {
@@ -218,31 +224,46 @@
       });
     }
 
+    var grafikTren = null;
     var elTren = document.getElementById('grafik-tren');
     if (elTren && window.Chart && TREN.labels.length > 1) {
-      var seri = [
-        ['Hadir',       TREN.hadir, '#007AFC'],
-        ['Tepat Waktu', TREN.tepat, '#059669'],
-        ['Terlambat',   TREN.telat, '#D97706'],
-        ['Tidak Absen', TREN.tidak, '#DC2626']
-      ];
-      new Chart(elTren, {
-        type: 'line',
+      // Garis rincian status (digambar di atas bar)
+      function garis(label, data, warna, extra) {
+        return Object.assign({
+          type: 'line',
+          label: label,
+          data: data,
+          borderColor: warna,
+          backgroundColor: warna,
+          borderWidth: 2,
+          tension: 0,
+          pointRadius: 0,
+          pointHoverRadius: 5,
+          spanGaps: true,
+          order: 1
+        }, extra || {});
+      }
+
+      grafikTren = new Chart(elTren, {
+        type: 'bar',
         data: {
           labels: TREN.labels,
-          datasets: seri.map(function (s) {
-            return {
-              label: s[0],
-              data: s[1],
-              borderColor: s[2],
-              backgroundColor: s[2],
-              borderWidth: 2.5,
-              tension: 0.45,
-              pointRadius: 0,
-              pointHoverRadius: 5,
-              spanGaps: true
-            };
-          })
+          datasets: [
+            garis('Terlambat',   TREN.telat, '#D97706'),
+            garis('Tidak Absen', TREN.tidak, '#DC2626', { borderDash: [6, 4] }),
+            {
+              type: 'bar',
+              label: 'Tepat Waktu',
+              data: TREN.tepat,
+              backgroundColor: 'rgba(5, 150, 105, .30)',
+              hoverBackgroundColor: 'rgba(5, 150, 105, .55)',
+              borderColor: '#059669',
+              borderWidth: 1.5,
+              borderRadius: 6,
+              maxBarThickness: 20,
+              order: 2
+            }
+          ]
         },
         options: {
           responsive: true,
@@ -252,24 +273,41 @@
             legend: { display: false },
             tooltip: {
               callbacks: {
-                title: function (items) { return 'Tanggal ' + items[0].label + ' {{ BULAN_ID[(int) now()->format("n")] }}'; }
+                title: function (items) { return 'Tanggal ' + items[0].label + ' {{ BULAN_ID[(int) now()->format("n")] }}'; },
+                label: function (c) { return c.dataset.label + ': ' + c.parsed.y + ' pegawai'; }
               }
             }
           },
           scales: {
             x: {
               grid: { display: false },
-              ticks: { color: '#5C7189', font: { size: 11 }, maxRotation: 0, autoSkipPadding: 14 }
+              ticks: { color: palet().tick, font: { size: 11 }, maxRotation: 0, autoSkipPadding: 14 }
             },
             y: {
               beginAtZero: true,
               suggestedMax: TREN.maks,
-              ticks: { color: '#5C7189', precision: 0 },
-              grid: { color: '#E4EEF7' }
+              ticks: { color: palet().tick, precision: 0 },
+              grid: { color: palet().grid }
             }
           }
         }
       });
+
+      // Ikut berganti tema saat toggle dark/light diklik
+      var tombolMode = document.getElementById('tombol-mode');
+      if (tombolMode) {
+        tombolMode.addEventListener('click', function () {
+          setTimeout(function () {
+            var p = palet();
+            if (grafikTren) {
+              grafikTren.options.scales.x.ticks.color = p.tick;
+              grafikTren.options.scales.y.ticks.color = p.tick;
+              grafikTren.options.scales.y.grid.color = p.grid;
+              grafikTren.update();
+            }
+          }, 0);
+        });
+      }
     }
   }
 

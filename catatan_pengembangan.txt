@@ -40,10 +40,10 @@ tambahakn
 -> khusus dokter spesialis absen fleksibel bisa masuk lebih dari 1 kali dalam sehari
 -> jam d luar jadwal tidak masuk dalam jam kerja/terpisah
 -> absen lembur ada verifikasi 
- 1.⁠ ⁠Akan ada unit pengarsipan yang bertanggung jawab ke kepegawaian
- 2.⁠ ⁠Buat SK pembentukan unit pengarsipan
- 3.⁠ ⁠Buat SK unit it, tim simrs dan rencana pengembangan
- 4.⁠ ⁠Untuk bintang ketepatan hitung perhari untuk hari ini 
+ 1.⁠ ⁠Akan ada unit pengarsipan yang bertanggung jawab ke kepegawaian OK
+ 2.⁠ ⁠Buat SK pembentukan unit pengarsipan OK
+ 3.⁠ ⁠Buat SK unit it, tim simrs dan rencana pengembangan OK
+ 4.⁠ ⁠Untuk bintang ketepatan hitung perhari untuk hari ini
  5.⁠ ⁠Jika belum pulang ambil dari jam kehadiran jika sudah pulang ambil rata rata di dari keduanya
  6.⁠ ⁠Untuk perubahan shift hanya ke atasan langsung
  7.⁠ ⁠Pending absen ketika diluar jadwal tergantung persetujuan dari atasan langsung

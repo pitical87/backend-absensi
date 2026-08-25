@@ -1,4 +1,4 @@
 {{-- FOOTER --}}
-<footer class="text-center text-xs text-slate-400 py-3.5 px-4 font-normal border-t border-slate-200/60 bg-white/50">
+<footer class="text-center text-xs text-slate-400 py-3.5 px-4 font-normal border-t border-slate-200/60 bg-white/50 dark:bg-[#0B1526]/70 dark:border-slate-800">
   &copy; {{ date('Y') }} PIT RSUD Merauke · Sistem Absensi RSUD MERAUKE
 </footer>

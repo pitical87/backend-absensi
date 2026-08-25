@@ -6,6 +6,15 @@
 <meta name="csrf" content="{{ csrf_token() }}">
 <title>{{ $judulHalaman ?? 'Admin' }} — Absensi RSUD Merauke</title>
 <link rel="icon" type="image/svg+xml" href="{{ asset('assets/img/logo.svg') }}">
+<script>
+  (function () {
+    try {
+      if (localStorage.getItem('tema-admin') === 'gelap') {
+        document.documentElement.classList.add('dark');
+      }
+    } catch (e) {}
+  })();
+</script>
 @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-latar text-slate-800 antialiased selection:bg-[#007afc] selection:text-white">

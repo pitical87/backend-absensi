@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\HasPenggunaAktif;
 use App\Models\Izin;
 use App\Models\IzinPersetujuan;
+use App\Models\PengajuanJadwal;
 use App\Models\User;
 use App\Services\AlurIzinService;
+use App\Services\UbahJadwalService;
 
 class PersetujuanController extends Controller
 {
@@ -57,8 +59,24 @@ class PersetujuanController extends Controller
             ->get()
             ->all();
 
+        // ── Pengajuan perubahan jadwal shift (sebagai atasan langsung) ──
+        $svcJadwal   = app(UbahJadwalService::class);
+        $userObjJ    = User::find($u['id']);
+        $tugasJadwal = $svcJadwal->tugasAtasan($userObjJ);
+
+        $riwayatJadwalSaya = PengajuanJadwal::with([
+                'user:id,nama_lengkap', 'shiftLama:id,kategori,jam_masuk,jam_pulang', 'shiftBaru:id,kategori,jam_masuk,jam_pulang',
+            ])
+            ->where('diproses_oleh', $u['id'])
+            ->where('status', '!=', 'Menunggu')
+            ->orderByDesc('diproses_pada')
+            ->limit(30)
+            ->get()
+            ->all();
+
         return view('pegawai.persetujuan', [
             'u' => $u, 'tugasSaya' => $tugasSaya, 'riwayatSaya' => $riwayatSaya,
+            'tugasJadwal' => $tugasJadwal, 'riwayatJadwalSaya' => $riwayatJadwalSaya,
         ]);
     }
 
@@ -98,5 +116,39 @@ class PersetujuanController extends Controller
             default     => 'Persetujuan Anda tercatat, pengajuan diteruskan ke tahap berikutnya.',
         };
         return redirect('persetujuan')->with('success', $pesan);
+    }
+
+    public function prosesJadwal(\Illuminate\Http\Request $request)
+    {
+        $u = $this->penggunaAktif();
+        if (! $u) {
+            return redirect('login');
+        }
+
+        $id      = (int) $request->input('id');
+        $putusan = (string) $request->input('putusan');
+        $catatan = trim((string) $request->input('catatan')) ?: null;
+
+        if (! in_array($putusan, ['setuju', 'tolak'], true)) {
+            return redirect('persetujuan')->with('error', 'Putusan tidak valid.');
+        }
+
+        $pj = PengajuanJadwal::with(['user:id,id,nama_lengkap', 'shiftLama:id,kategori', 'shiftBaru:id,kategori'])->find($id);
+        if (! $pj || $pj->status !== 'Menunggu') {
+            return redirect('persetujuan')->with('error', 'Pengajuan jadwal tidak ditemukan atau sudah diproses.');
+        }
+        if ((int) $pj->user_id === (int) $u['id']) {
+            return redirect('persetujuan')->with('error', 'Anda tidak dapat memutus pengajuan milik sendiri.');
+        }
+
+        $svc = app(UbahJadwalService::class);
+        if ($u['role'] !== 'admin' && ! $svc->isAtasan(User::find($u['id']), (int) $pj->user_id)) {
+            return redirect('persetujuan')->with('error', 'Anda bukan atasan langsung pemohon ini.');
+        }
+
+        $hasil = $svc->putuskan($pj, $putusan, (int) $u['id'], $catatan);
+
+        return redirect('persetujuan')
+            ->with($hasil['ok'] ? 'success' : 'error', $hasil['pesan']);
     }
 }

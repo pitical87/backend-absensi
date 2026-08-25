@@ -52,6 +52,11 @@
         <input type="number" name="toleransi_menit" min="0" max="120" required value="{{ $tol }}">
         <div class="petunjuk">Datang dalam rentang ini setelah jam masuk masih dihitung Tepat Waktu.</div>
       </div>
+      <div class="form-grup">
+        <label class="wajib">Batas Ajukan Ubah Jadwal (jam)</label>
+        <input type="number" name="batas_ubah_jadwal_jam" min="0" max="24" required value="{{ $batasJadwal }}">
+        <div class="petunjuk">Pengajuan perubahan jadwal shift hanya bisa masuk paling lambat berapa jam sebelum shift lama dimulai. Bawaan: 1 jam.</div>
+      </div>
     </div>
 
     <div class="form-grup">

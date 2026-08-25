@@ -58,6 +58,56 @@
 </section>
 
 <section class="kartu">
+  <div class="kartu-kepala">
+    <h2>{!! ikon('kalender') !!} Pengajuan Ubah Jadwal Shift</h2>
+    <span class="badge badge-amber">{{ count($tugasJadwal) }} menunggu</span>
+  </div>
+  <p class="petunjuk">Sebagai <strong>atasan langsung</strong>, Anda memutuskan pengajuan perubahan jadwal shift bawahan.
+    Jika disetujui, jadwal pegawai otomatis diganti sesuai permintaan.</p>
+  <div class="tabel-bungkus">
+    <table class="tabel">
+      <thead>
+        <tr><th>Pegawai</th><th>Tanggal Jadwal</th><th>Perubahan</th><th>Alasan</th>
+            <th class="min-w-[260px]">Tindakan</th></tr>
+      </thead>
+      <tbody>
+        @foreach($tugasJadwal as $r)
+        <tr>
+          <td>
+            <strong>{{ $r->user->nama_lengkap }}</strong>
+            @if($r->user->nip)<br><span class="teks-kecil teks-redup">NIP {{ $r->user->nip }}</span>@endif
+            <br><span class="teks-kecil teks-redup">{{ $r->user->unitKerja->nama ?? '—' }}@if(
+                $r->user->subUnit->nama) — {{ $r->user->subUnit->nama }}@endif</span>
+          </td>
+          <td class="angka">
+            {{ tgl_id($r->tanggal->format('Y-m-d'), false) }}<br>
+            <span class="teks-kecil teks-redup">diajukan {{ tgl_id($r->created_at, false) }} · {{ jam_id($r->created_at) }}</span>
+          </td>
+          <td>{{ $r->shiftLama?->kategori ?? '—' }} → <strong>{{ $r->shiftBaru?->kategori ?? '—' }}</strong>
+            <br><span class="teks-kecil teks-redup">{!! label_shift($r->shiftBaru) !!}</span></td>
+          <td class="teks-kecil">{{ $r->alasan }}</td>
+          <td>
+            <form method="post" action="{{ url('persetujuan/jadwal') }}" class="bilah-alat m-0">
+              @csrf
+              <input type="hidden" name="id" value="{{ (int) $r->id }}">
+              <input type="text" name="catatan" placeholder="Catatan (opsional)…" class="min-w-[120px]">
+              <button type="submit" name="putusan" value="setuju" class="btn btn-primer btn-kecil"
+                      onclick="return confirm('Setujui ubah jadwal ini? Jadwal pegawai akan langsung diganti.');">Setujui</button>
+              <button type="submit" name="putusan" value="tolak" class="btn btn-bahaya btn-kecil"
+                      onclick="return confirm('Tolak pengajuan ubah jadwal ini?');">Tolak</button>
+            </form>
+          </td>
+        </tr>
+        @endforeach
+        @if(! $tugasJadwal)
+        <tr><td colspan="5" class="tengah teks-redup">Tidak ada pengajuan ubah jadwal yang menunggu keputusan Anda.</td></tr>
+        @endif
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="kartu">
   <div class="kartu-kepala"><h2>{!! ikon('log') !!} Riwayat Keputusan Saya</h2></div>
   <div class="tabel-bungkus">
     <table class="tabel">
@@ -75,6 +125,28 @@
         @endforeach
         @if(! $riwayatSaya)
         <tr><td colspan="6" class="tengah teks-redup">Belum ada riwayat keputusan.</td></tr>
+        @endif
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="mt-6 mb-2 text-sm font-bold text-navy">Riwayat Keputusan Ubah Jadwal</h3>
+  <div class="tabel-bungkus">
+    <table class="tabel">
+      <thead><tr><th>Waktu</th><th>Pegawai</th><th>Tanggal Jadwal</th><th>Perubahan</th><th>Putusan</th><th>Catatan</th></tr></thead>
+      <tbody>
+        @foreach($riwayatJadwalSaya as $r)
+        <tr>
+          <td class="angka teks-kecil">{{ tgl_id($r->diproses_pada, false) }} · {{ jam_id($r->diproses_pada) }}</td>
+          <td>{{ $r->user->nama_lengkap }}</td>
+          <td class="angka">{{ tgl_id($r->tanggal->format('Y-m-d'), false) }}</td>
+          <td>{{ $r->shiftLama?->kategori ?? '—' }} → {{ $r->shiftBaru?->kategori ?? '—' }}</td>
+          <td>{!! badge_tahap($r->status) !!}</td>
+          <td class="teks-kecil">{{ $r->catatan_keputusan ?? '—' }}</td>
+        </tr>
+        @endforeach
+        @if(! $riwayatJadwalSaya)
+        <tr><td colspan="6" class="tengah teks-redup">Belum ada riwayat keputusan ubah jadwal.</td></tr>
         @endif
       </tbody>
     </table>

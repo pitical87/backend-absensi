@@ -31,6 +31,7 @@ $grupMenu = [
     'items' => [
       'kehadiran' => ['admin/kehadiran', 'peta',     'Data Kehadiran'],
       'izin'      => ['admin/izin',      'surat',    'Persetujuan Izin'],
+      'jadwal_pengajuan' => ['admin/jadwal_pengajuan', 'kalender', 'Pengajuan Jadwal'],
       'libur'     => ['admin/libur',     'kalender', 'Hari Libur'],
       
     ],

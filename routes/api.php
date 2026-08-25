@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\IzinController;
 use App\Http\Controllers\Api\JadwalController;
 use App\Http\Controllers\Api\LogbookController;
+use App\Http\Controllers\Api\PerubahanJadwalController;
 use App\Http\Controllers\Api\RekapController;
 use App\Http\Controllers\Api\V1Controller;
 use Illuminate\Support\Facades\Route;
@@ -45,6 +46,15 @@ Route::prefix('mobile')->group(function (){
         Route::get('izin/detail',[IzinController::class,"getDetailIzinMenunggu"]);
         Route::post('izin/proses',[IzinController::class,"prosesIzinMenunggu"]);
         Route::get('izin/riwayat-persetujuan',[IzinController::class,"getRiwayatPersetujuan"]);
+
+        // Pengajuan perubahan jadwal shift
+        Route::get('perubahan-jadwal', [PerubahanJadwalController::class, 'daftar']);
+        Route::post('perubahan-jadwal', [PerubahanJadwalController::class, 'ajukan']);
+        Route::delete('perubahan-jadwal/{id}', [PerubahanJadwalController::class, 'batal']);
+        Route::get('perubahan-jadwal/total', [PerubahanJadwalController::class, 'menungguTotal']);
+        Route::get('perubahan-jadwal/menunggu', [PerubahanJadwalController::class, 'menungguDaftar']);
+        Route::post('perubahan-jadwal/proses', [PerubahanJadwalController::class, 'proses']);
+        Route::get('perubahan-jadwal/riwayat-persetujuan', [PerubahanJadwalController::class, 'riwayatPersetujuan']);
 
         // Logbook & template
         Route::get('logbook/simrs',[LogbookController::class,"logbookSimrs"]);

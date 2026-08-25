@@ -162,13 +162,53 @@ class AbsenService
         $rec = Absensi::where('user_id', $u['id'])->whereNull('waktu_pulang')
             ->orderBy('waktu_masuk', 'DESC')->first();
 
+        $masukOtomatis = false;
+
         if (! $rec) {
             $lengkap = Absensi::where('user_id', $u['id'])->where('tanggal', $now->format('Y-m-d'))
                 ->whereNotNull('waktu_pulang')->count() > 0;
 
-            return response()->json(['sukses' => false, 'pesan' => $lengkap
-                ? 'Absensi Anda hari ini sudah lengkap. Terima kasih!'
-                : 'Anda belum melakukan absen datang hari ini.']);
+            if ($lengkap) {
+                return response()->json(['sukses' => false,
+                    'pesan' => 'Absensi Anda hari ini sudah lengkap. Terima kasih!']);
+            }
+
+            // Belum absen datang -> buat absen masuk otomatis sesuai jadwal shift tanggal tersebut
+            if (! $u['shift_id'] || empty($u['shift_jam_masuk'])) {
+                return response()->json(['sukses' => false,
+                    'pesan' => 'Anda belum melakukan absen datang hari dan shift kerja Anda belum diatur, '
+                             .'sehingga absen masuk otomatis tidak dapat dibuat.']);
+            }
+
+            $jadwalMasuk = new DateTime($now->format('Y-m-d').' '.$u['shift_jam_masuk']);
+            $tanggalShift = $jadwalMasuk->format('Y-m-d');
+            if (($u['shift_kategori'] ?? '') === 'Malam' && (int) $now->format('G') < 12) {
+                $jadwalMasuk->modify('-1 day');
+                $tanggalShift = $jadwalMasuk->format('Y-m-d');
+            }
+
+            $sudahLengkapShift = Absensi::where('user_id', $u['id'])
+                ->whereDate('tanggal', $tanggalShift)
+                ->whereNotNull('waktu_pulang')->count() > 0;
+            if ($sudahLengkapShift) {
+                return response()->json(['sukses' => false,
+                    'pesan' => 'Absensi Anda untuk shift ini sudah lengkap. Terima kasih!']);
+            }
+
+            $absensiIdBaru = (int) Absensi::insertGetId([
+                'user_id' => $u['id'],
+                'tanggal' => $tanggalShift,
+                'waktu_masuk' => $jadwalMasuk->format('Y-m-d H:i:s'),
+                'status_masuk' => 'Tepat Waktu',
+                'menit_terlambat' => 0,
+                'bintang_masuk' => 1,
+                'bintang_harian' => 1,
+            ]);
+            app(KeterlambatanService::class)->catatDatang($absensiIdBaru, 0)
+                ->update(['bintang_masuk' => 1]);
+
+            $rec = Absensi::find($absensiIdBaru);
+            $masukOtomatis = true;
         }
 
         $totalMenit = max(0, (int) floor(($now->getTimestamp() - strtotime($rec->waktu_masuk)) / 60));
@@ -217,6 +257,10 @@ class AbsenService
         if ($menitAwal > 0) {
             $jenis = 'awal';
             $pesan = 'Anda pulang lebih awal sebanyak '.$menitAwal.' menit';
+        }
+        if ($masukOtomatis) {
+            $pesan = 'Anda belum absen datang, sehingga absen masuk dicatat otomatis '
+                   .'Tepat Waktu sesuai jadwal (1 bintang). Terima kasih atas dedikasi Anda hari ini';
         }
 
         return response()->json([
