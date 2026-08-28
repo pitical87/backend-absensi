@@ -18,6 +18,9 @@ class PengaturanController extends Controller
             'rad'          => pengaturan('radius_meter', '100'),
             'tol'          => pengaturan('toleransi_menit', '5'),
             'batasJadwal'  => pengaturan('batas_ubah_jadwal_jam', '1'),
+            'batasLemburJam' => pengaturan('batas_pengajuan_lembur_jam', '2'),
+            'maksLemburJam'  => pengaturan('maks_lembur_per_hari_jam', '4'),
+            'tolLembur'      => pengaturan('toleransi_lembur_menit', '5'),
             'izin'         => pengaturan('izinkan_pilih_shift', '1') === '1',
             'selfie'       => pengaturan('wajib_selfie', '1') === '1',
             'nama'         => pengaturan('nama_instansi', 'RSUD Merauke'),
@@ -32,6 +35,9 @@ class PengaturanController extends Controller
         $rad  = (int) $request->input('radius_meter');
         $tol  = (int) $request->input('toleransi_menit');
         $bjam = (int) $request->input('batas_ubah_jadwal_jam');
+        $bLembur = (int) $request->input('batas_pengajuan_lembur_jam');
+        $mLembur = (int) $request->input('maks_lembur_per_hari_jam');
+        $tLembur = (int) $request->input('toleransi_lembur_menit');
         $nama = trim((string) $request->input('nama_instansi'));
 
         if (! is_numeric($lat) || ! is_numeric($lng)
@@ -46,6 +52,9 @@ class PengaturanController extends Controller
         simpan_pengaturan('radius_meter', (string) max(10, min(5000, $rad)));
         simpan_pengaturan('toleransi_menit', (string) max(0, min(120, $tol)));
         simpan_pengaturan('batas_ubah_jadwal_jam', (string) max(0, min(24, $bjam)));
+        simpan_pengaturan('batas_pengajuan_lembur_jam', (string) max(0, min(24, $bLembur)));
+        simpan_pengaturan('maks_lembur_per_hari_jam', (string) max(1, min(24, $mLembur)));
+        simpan_pengaturan('toleransi_lembur_menit', (string) max(0, min(120, $tLembur)));
         simpan_pengaturan('izinkan_pilih_shift', $request->input('izinkan_pilih_shift') ? '1' : '0');
         simpan_pengaturan('wajib_selfie', $request->input('wajib_selfie') ? '1' : '0');
         simpan_pengaturan('nama_instansi', $nama !== '' ? $nama : 'RSUD Merauke');

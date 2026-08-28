@@ -6,8 +6,10 @@ use App\Http\Controllers\Concerns\HasPenggunaAktif;
 use App\Models\Izin;
 use App\Models\IzinPersetujuan;
 use App\Models\PengajuanJadwal;
+use App\Models\PengajuanLembur;
 use App\Models\User;
 use App\Services\AlurIzinService;
+use App\Services\PengajuanLemburService;
 use App\Services\UbahJadwalService;
 
 class PersetujuanController extends Controller
@@ -74,9 +76,23 @@ class PersetujuanController extends Controller
             ->get()
             ->all();
 
+        // ── Pengajuan lembur (sebagai atasan langsung) ──
+        $svcLembur   = app(PengajuanLemburService::class);
+        $userObjL    = User::find($u['id']);
+        $tugasLembur = $svcLembur->tugasAtasan($userObjL);
+
+        $riwayatLemburSaya = PengajuanLembur::with('user:id,nama_lengkap')
+            ->where('diproses_oleh', $u['id'])
+            ->where('status', '!=', 'Menunggu')
+            ->orderByDesc('diproses_pada')
+            ->limit(30)
+            ->get()
+            ->all();
+
         return view('pegawai.persetujuan', [
             'u' => $u, 'tugasSaya' => $tugasSaya, 'riwayatSaya' => $riwayatSaya,
             'tugasJadwal' => $tugasJadwal, 'riwayatJadwalSaya' => $riwayatJadwalSaya,
+            'tugasLembur' => $tugasLembur, 'riwayatLemburSaya' => $riwayatLemburSaya,
         ]);
     }
 
@@ -142,6 +158,40 @@ class PersetujuanController extends Controller
         }
 
         $svc = app(UbahJadwalService::class);
+        if ($u['role'] !== 'admin' && ! $svc->isAtasan(User::find($u['id']), (int) $pj->user_id)) {
+            return redirect('persetujuan')->with('error', 'Anda bukan atasan langsung pemohon ini.');
+        }
+
+        $hasil = $svc->putuskan($pj, $putusan, (int) $u['id'], $catatan);
+
+        return redirect('persetujuan')
+            ->with($hasil['ok'] ? 'success' : 'error', $hasil['pesan']);
+    }
+
+    public function prosesLembur(\Illuminate\Http\Request $request)
+    {
+        $u = $this->penggunaAktif();
+        if (! $u) {
+            return redirect('login');
+        }
+
+        $id      = (int) $request->input('id');
+        $putusan = (string) $request->input('putusan');
+        $catatan = trim((string) $request->input('catatan')) ?: null;
+
+        if (! in_array($putusan, ['setuju', 'tolak'], true)) {
+            return redirect('persetujuan')->with('error', 'Putusan tidak valid.');
+        }
+
+        $pj = PengajuanLembur::with('user:id,id,nama_lengkap')->find($id);
+        if (! $pj || $pj->status !== 'Menunggu') {
+            return redirect('persetujuan')->with('error', 'Pengajuan lembur tidak ditemukan atau sudah diproses.');
+        }
+        if ((int) $pj->user_id === (int) $u['id']) {
+            return redirect('persetujuan')->with('error', 'Anda tidak dapat memutus pengajuan milik sendiri.');
+        }
+
+        $svc = app(PengajuanLemburService::class);
         if ($u['role'] !== 'admin' && ! $svc->isAtasan(User::find($u['id']), (int) $pj->user_id)) {
             return redirect('persetujuan')->with('error', 'Anda bukan atasan langsung pemohon ini.');
         }

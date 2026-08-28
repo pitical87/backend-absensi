@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\IzinController;
 use App\Http\Controllers\Api\JadwalController;
 use App\Http\Controllers\Api\LogbookController;
+use App\Http\Controllers\Api\LemburController;
 use App\Http\Controllers\Api\PerubahanJadwalController;
 use App\Http\Controllers\Api\RekapController;
 use App\Http\Controllers\Api\V1Controller;
@@ -55,6 +56,18 @@ Route::prefix('mobile')->group(function (){
         Route::get('perubahan-jadwal/menunggu', [PerubahanJadwalController::class, 'menungguDaftar']);
         Route::post('perubahan-jadwal/proses', [PerubahanJadwalController::class, 'proses']);
         Route::get('perubahan-jadwal/riwayat-persetujuan', [PerubahanJadwalController::class, 'riwayatPersetujuan']);
+
+        // Lembur
+        Route::get('lembur', [LemburController::class, 'daftar']);
+        Route::post('lembur', [LemburController::class, 'ajukan']);
+        Route::delete('lembur/{id}', [LemburController::class, 'batal']);
+        Route::get('lembur/total', [LemburController::class, 'menungguTotal']);
+        Route::get('lembur/menunggu', [LemburController::class, 'menungguDaftar']);
+        Route::post('lembur/proses', [LemburController::class, 'proses']);
+        Route::get('lembur/riwayat-persetujuan', [LemburController::class, 'riwayatPersetujuan']);
+        Route::post('absen-lembur', [LemburController::class, 'absenMasuk']);
+        Route::put('absen-lembur/pulang', [LemburController::class, 'absenPulang']);
+        Route::get('absen-lembur/status', [LemburController::class, 'statusLembur']);
 
         // Logbook & template
         Route::get('logbook/simrs',[LogbookController::class,"logbookSimrs"]);

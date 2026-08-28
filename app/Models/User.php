@@ -71,6 +71,16 @@ class User extends Authenticatable
         return $this->hasMany(JadwalShift::class);
     }
 
+    public function pengajuanLembur(): HasMany
+    {
+        return $this->hasMany(PengajuanLembur::class);
+    }
+
+    public function absenLembur(): HasMany
+    {
+        return $this->hasMany(AbsenLembur::class);
+    }
+
     /**
      * Shift aktif pegawai diambil dari tabel jadwal_shift:
      * baris dengan tanggal_berlaku = hari ini; bila belum jam 12 siang

@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\LogbookController;
 use App\Http\Controllers\Admin\JadwalController;
 use App\Http\Controllers\Admin\KehadiranController;
 use App\Http\Controllers\Admin\LiburController;
+use App\Http\Controllers\Admin\LemburController;
 use App\Http\Controllers\Admin\MappingSIMRSController;
 use App\Http\Controllers\Admin\PegawaiController;
 use App\Http\Controllers\Admin\PegawaiTeladanController;
@@ -80,6 +81,9 @@ Route::prefix('admin')->middleware('admin')->group(function () {
 
     Route::get('jadwal_pengajuan', [PengajuanJadwalController::class, 'index'])->name('admin.jadwal_pengajuan');
     Route::post('jadwal_pengajuan/proses', [PengajuanJadwalController::class, 'proses'])->name('admin.jadwal_pengajuan.proses');
+
+    Route::get('lembur', [LemburController::class, 'index'])->name('admin.lembur');
+    Route::post('lembur/proses', [LemburController::class, 'proses'])->name('admin.lembur.proses');
 
     Route::get('libur', [LiburController::class, 'index'])->name('admin.libur');
     Route::post('libur/aksi', [LiburController::class, 'aksi'])->name('admin.libur.aksi');

@@ -108,6 +108,56 @@
 </section>
 
 <section class="kartu">
+  <div class="kartu-kepala">
+    <h2>{!! ikon('jam') !!} Pengajuan Lembur</h2>
+    <span class="badge badge-amber">{{ count($tugasLembur) }} menunggu</span>
+  </div>
+  <p class="petunjuk">Sebagai <strong>atasan langsung</strong>, Anda memutuskan pengajuan lembur bawahan.
+    Lembur hanya terhitung/absen setelah disetujui.</p>
+  <div class="tabel-bungkus">
+    <table class="tabel">
+      <thead>
+        <tr><th>Pegawai</th><th>Tanggal</th><th>Rentang Waktu</th><th>Durasi</th><th>Keterangan</th>
+            <th class="min-w-[260px]">Tindakan</th></tr>
+      </thead>
+      <tbody>
+        @foreach($tugasLembur as $r)
+        <tr>
+          <td>
+            <strong>{{ $r->user->nama_lengkap }}</strong>
+            @if($r->user->nip)<br><span class="teks-kecil teks-redup">NIP {{ $r->user->nip }}</span>@endif
+            <br><span class="teks-kecil teks-redup">{{ $r->user->unitKerja->nama ?? '—' }}@if(
+                $r->user->subUnit->nama) — {{ $r->user->subUnit->nama }}@endif</span>
+          </td>
+          <td class="angka">
+            {{ tgl_id($r->tanggal->format('Y-m-d'), false) }}<br>
+            <span class="teks-kecil teks-redup">diajukan {{ tgl_id($r->created_at, false) }} · {{ jam_id($r->created_at) }}</span>
+          </td>
+          <td class="angka">{{ jam_id($r->jam_mulai) }} — {{ jam_id($r->jam_selesai) }}</td>
+          <td class="angka">{{ (float) $r->durasi_jam }} jam</td>
+          <td class="teks-kecil">{{ $r->keterangan }}</td>
+          <td>
+            <form method="post" action="{{ url('persetujuan/lembur') }}" class="bilah-alat m-0">
+              @csrf
+              <input type="hidden" name="id" value="{{ (int) $r->id }}">
+              <input type="text" name="catatan" placeholder="Catatan (opsional)…" class="min-w-[120px]">
+              <button type="submit" name="putusan" value="setuju" class="btn btn-primer btn-kecil"
+                      onclick="return confirm('Setujui pengajuan lembur ini?');">Setujui</button>
+              <button type="submit" name="putusan" value="tolak" class="btn btn-bahaya btn-kecil"
+                      onclick="return confirm('Tolak pengajuan lembur ini?');">Tolak</button>
+            </form>
+          </td>
+        </tr>
+        @endforeach
+        @if(! $tugasLembur)
+        <tr><td colspan="6" class="tengah teks-redup">Tidak ada pengajuan lembur yang menunggu keputusan Anda.</td></tr>
+        @endif
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="kartu">
   <div class="kartu-kepala"><h2>{!! ikon('log') !!} Riwayat Keputusan Saya</h2></div>
   <div class="tabel-bungkus">
     <table class="tabel">
@@ -147,6 +197,28 @@
         @endforeach
         @if(! $riwayatJadwalSaya)
         <tr><td colspan="6" class="tengah teks-redup">Belum ada riwayat keputusan ubah jadwal.</td></tr>
+        @endif
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="mt-6 mb-2 text-sm font-bold text-navy">Riwayat Keputusan Lembur</h3>
+  <div class="tabel-bungkus">
+    <table class="tabel">
+      <thead><tr><th>Waktu</th><th>Pegawai</th><th>Tanggal</th><th>Rentang Waktu</th><th>Putusan</th><th>Catatan</th></tr></thead>
+      <tbody>
+        @foreach($riwayatLemburSaya as $r)
+        <tr>
+          <td class="angka teks-kecil">{{ tgl_id($r->diproses_pada, false) }} · {{ jam_id($r->diproses_pada) }}</td>
+          <td>{{ $r->user->nama_lengkap }}</td>
+          <td class="angka">{{ tgl_id($r->tanggal->format('Y-m-d'), false) }}</td>
+          <td class="angka">{{ jam_id($r->jam_mulai) }} — {{ jam_id($r->jam_selesai) }}</td>
+          <td>{!! badge_tahap($r->status) !!}</td>
+          <td class="teks-kecil">{{ $r->catatan_keputusan ?? '—' }}</td>
+        </tr>
+        @endforeach
+        @if(! $riwayatLemburSaya)
+        <tr><td colspan="6" class="tengah teks-redup">Belum ada riwayat keputusan lembur.</td></tr>
         @endif
       </tbody>
     </table>

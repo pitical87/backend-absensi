@@ -57,6 +57,21 @@
         <input type="number" name="batas_ubah_jadwal_jam" min="0" max="24" required value="{{ $batasJadwal }}">
         <div class="petunjuk">Pengajuan perubahan jadwal shift hanya bisa masuk paling lambat berapa jam sebelum shift lama dimulai. Bawaan: 1 jam.</div>
       </div>
+      <div class="form-grup">
+        <label>Batas Ajukan Lembur (jam)</label>
+        <input type="number" name="batas_pengajuan_lembur_jam" min="0" max="24" required value="{{ $batasLemburJam }}">
+        <div class="petunjuk">Pengajuan lembur paling lambat berapa jam sebelum jam mulai lembur. Bawaan: 2 jam.</div>
+      </div>
+      <div class="form-grup">
+        <label>Maks. Lembur per Hari (jam)</label>
+        <input type="number" name="maks_lembur_per_hari_jam" min="1" max="24" required value="{{ $maksLemburJam }}">
+        <div class="petunjuk">Total durasi lembur maksimal per hari. Bawaan: 4 jam.</div>
+      </div>
+      <div class="form-grup">
+        <label>Toleransi Masuk Lembur (menit)</label>
+        <input type="number" name="toleransi_lembur_menit" min="0" max="120" required value="{{ $tolLembur }}">
+        <div class="petunjuk">Masuk lembur dalam rentang ini setelah jam mulai masih dihitung Tepat Waktu. Bawaan: 5 menit.</div>
+      </div>
     </div>
 
     <div class="form-grup">

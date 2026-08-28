@@ -3,7 +3,7 @@
 @section('content')
 
 @php
-$badgeMetode = ['GET' => 'badge-hijau', 'POST' => 'badge-biru', 'DELETE' => 'badge-merah'];
+$badgeMetode = ['GET' => 'badge-hijau', 'POST' => 'badge-biru', 'PUT' => 'badge-kuning', 'DELETE' => 'badge-merah'];
 
 $grupApi = [
   [
@@ -755,6 +755,160 @@ JSON,
         'status' => '200 terhapus · 404 template tidak ada / bukan milik Anda',
         'respons' => <<<'JSON'
 { "sukses": true, "pesan": "Template logbook dihapus." }
+JSON,
+      ],
+    ],
+  ],
+  [
+    'id' => 'lembur', 'judul' => 'Pengajuan & Absen Lembur', 'ikon' => 'jam',
+    'endpoints' => [
+      [
+        'metode' => 'GET', 'jalur' => '/lembur', 'akses' => 'Token',
+        'deskripsi' => 'Daftar pengajuan lembur milik user: 30 riwayat terbaru (termasuk status & data absen) plus daftar pengajuan berstatus Disetujui untuk keperluan absen masuk/pulang lembur. Menyertakan nilai pengaturan batas pengajuan, maksimal jam/hari, dan rentang hari pengajuan.',
+        'respons' => <<<'JSON'
+{
+  "sukses": true,
+  "batas_jam": 2,
+  "maks_jam": 4,
+  "hari_ke_depan": 7,
+  "riwayat": [{
+    "id": 5, "tanggal": "2026-08-28", "hari": "Jumat",
+    "jam_mulai": "17:00", "jam_selesai": "20:00", "durasi_jam": 3.0,
+    "keterangan": "Penyelesaian SK laporan bulanan",
+    "status": "Disetujui", "catatan_keputusan": "OK",
+    "created_at": "2026-08-28T08:00:00.000000Z",
+    "absen": { "waktu_masuk": "2026-08-28T09:00:00.000000Z", "waktu_pulang": null,
+               "status_masuk": "Tepat Waktu", "durasi_menit": null, "bintang": 4.0 }
+  }],
+  "disetujui": []
+}
+JSON,
+      ],
+      [
+        'metode' => 'POST', 'jalur' => '/lembur', 'akses' => 'Token',
+        'deskripsi' => 'Ajukan lembur untuk tanggal tertentu (hari ini s.d. 7 hari ke depan) dengan rentang jam mulai–selesai. Ditolak bila jam mulai ≥ selesai, durasi melebihi maks lembur/hari, bertabrakan dengan jadwal shift, atau ada pengajuan Menunggu/Disetujui yang overlap pada tanggal sama. Notifikasi dikirim ke atasan langsung.',
+        'parameter' => [
+          ['tanggal', 'body', 'date Y-m-d', true, 'Tanggal lembur (maks 7 hari ke depan).'],
+          ['jam_mulai', 'body', 'time H:i', true, 'Jam mulai lembur (harus lebih awal dari jam_selesai).'],
+          ['jam_selesai', 'body', 'time H:i', true, 'Jam selesai lembur.'],
+          ['keterangan', 'body', 'string', true, 'Alasan/keperluan lembur (maks 1000 karakter).'],
+        ],
+        'status' => '201 tersimpan · 422 validasi/kelayakan gagal',
+        'respons' => <<<'JSON'
+{
+  "sukses": true,
+  "pesan": "Pengajuan lembur terkirim dan menunggu persetujuan atasan langsung.",
+  "pengajuan_lembur_id": 5
+}
+JSON,
+      ],
+      [
+        'metode' => 'DELETE', 'jalur' => '/lembur/{id}', 'akses' => 'Token',
+        'deskripsi' => 'Batalkan pengajuan lembur milik sendiri yang masih berstatus Menunggu.',
+        'status' => '200 sukses · 404 tidak ditemukan/sudah diproses',
+        'respons' => <<<'JSON'
+{ "sukses": true, "pesan": "Pengajuan lembur berhasil dibatalkan." }
+JSON,
+      ],
+      [
+        'metode' => 'GET', 'jalur' => '/lembur/total', 'akses' => 'Token',
+        'deskripsi' => 'Jumlah pengajuan lembur Menunggu yang berwenang diputus user selaku atasan langsung (untuk badge notifikasi).',
+        'respons' => <<<'JSON'
+{ "sukses": true, "total": 2 }
+JSON,
+      ],
+      [
+        'metode' => 'GET', 'jalur' => '/lembur/menunggu', 'akses' => 'Token',
+        'deskripsi' => 'Daftar pengajuan lembur Menunggu dari bawahan langsung user.',
+        'respons' => <<<'JSON'
+{
+  "sukses": true, "total": 1,
+  "data": [{
+    "id": 5,
+    "pemohon": { "id": 12, "nama": "Firman", "unit": "Instalasi Gawat Darurat", "sub_unit": null },
+    "tanggal": "2026-08-28",
+    "jam_mulai": "17:00", "jam_selesai": "20:00", "durasi_jam": 3.0,
+    "keterangan": "Penyelesaian SK laporan bulanan",
+    "diajukan_pada": "2026-08-28T08:00:00.000000Z"
+  }]
+}
+JSON,
+      ],
+      [
+        'metode' => 'POST', 'jalur' => '/lembur/proses', 'akses' => 'Token',
+        'deskripsi' => 'Putuskan pengajuan lembur sebagai atasan langsung. Hanya pengajuan Menunggu yang bisa diputus; lembur baru dapat diabsensi setelah disetujui. Pemohon menerima notifikasi hasil.',
+        'parameter' => [
+          ['id', 'body', 'int', true, 'ID pengajuan lembur.'],
+          ['putusan', 'body', 'string', true, 'setuju atau tolak.'],
+          ['catatan', 'body', 'string', false, 'Catatan keputusan.'],
+        ],
+        'status' => '200 sukses · 403 bukan atasan / milik sendiri · 404 tidak ada/sudah diproses · 422 putusan tidak valid',
+        'respons' => <<<'JSON'
+{ "sukses": true, "pesan": "Pengajuan lembur disetujui.", "status": "Disetujui" }
+JSON,
+      ],
+      [
+        'metode' => 'GET', 'jalur' => '/lembur/riwayat-persetujuan', 'akses' => 'Token',
+        'deskripsi' => '30 riwayat putusan lembur yang pernah dibuat user sebagai atasan langsung.',
+        'respons' => <<<'JSON'
+{
+  "sukses": true,
+  "riwayat": [{ "id": 5, "waktu": "2026-08-28T09:00:00.000000Z", "status": "Disetujui",
+                "pemohon": "Firman", "tanggal": "2026-08-28",
+                "jam_mulai": "17:00", "jam_selesai": "20:00" }]
+}
+JSON,
+      ],
+      [
+        'metode' => 'POST', 'jalur' => '/absen-lembur', 'akses' => 'Token',
+        'deskripsi' => 'Absen masuk lembur untuk tanggal yang memiliki pengajuan disetujui yang belum diabsensi. GPS wajib dalam radius RSUD (radius dari Pengaturan); posisi di luar area ditolak. Bintang masuk dinilai terhadap jam mulai yang disetujui dengan toleransi dari Pengaturan. Foto selfie wajib bila pengaturan wajib_selfie aktif.',
+        'parameter' => [
+          ['tanggal', 'body', 'date Y-m-d', true, 'Tanggal lembur (default: hari ini).'],
+          ['lat', 'body', 'float', true, 'Latitude posisi GPS.'],
+          ['lng', 'body', 'float', true, 'Longitude posisi GPS.'],
+          ['akurasi', 'body', 'float', false, 'Akurasi GPS dalam meter.'],
+          ['foto', 'body', 'data-URL jpeg/png', false, 'Selfie masuk lembur (wajib bila setting selfie aktif).'],
+        ],
+        'status' => '200 masuk tercatat · 422 di luar area / tidak ada pengajuan layak / validasi',
+        'respons' => <<<'JSON'
+{
+  "sukses": true,
+  "pesan": "Absen masuk lembur tercatat tepat waktu.",
+  "data": { "absen_lembur_id": 9, "waktu": "17:01", "status": "Tepat Waktu", "menit_terlambat": 0, "bintang": 4 }
+}
+JSON,
+      ],
+      [
+        'metode' => 'PUT', 'jalur' => '/absen-lembur/pulang', 'akses' => 'Token',
+        'deskripsi' => 'Absen pulang lembur untuk record masuk yang masih terbuka pada tanggal terkait. Waktu pulang harus setelah waktu masuk. Durasi aktual (dalam menit) dihitung otomatis dan bintang pulang dinilai terhadap jam selesai yang disetujui.',
+        'parameter' => [
+          ['tanggal', 'body', 'date Y-m-d', true, 'Tanggal lembur (default: hari ini).'],
+          ['lat', 'body', 'float', true, 'Latitude posisi GPS.'],
+          ['lng', 'body', 'float', true, 'Longitude posisi GPS.'],
+          ['akurasi', 'body', 'float', false, 'Akurasi GPS dalam meter.'],
+          ['foto', 'body', 'data-URL jpeg/png', false, 'Selfie pulang lembur (wajib bila setting selfie aktif).'],
+        ],
+        'status' => '200 pulang tercatat · 422 di luar area / tidak ada record masuk / validasi',
+        'respons' => <<<'JSON'
+{
+  "sukses": true,
+  "pesan": "Absen pulang lembur tercatat. Total durasi lembur 3 jam 0 menit.",
+  "data": { "durasi_menit": 180, "bintang_pulang": 4, "bintang_harian": 4.0 }
+}
+JSON,
+      ],
+      [
+        'metode' => 'GET', 'jalur' => '/absen-lembur/status?tanggal=YYYY-MM-DD', 'akses' => 'Token',
+        'deskripsi' => 'Status absen lembur user pada tanggal tertentu (kosong bila belum ada).',
+        'parameter' => [
+          ['tanggal', 'query', 'date Y-m-d', false, 'Tanggal yang ingin dicek (default: hari ini).'],
+        ],
+        'respons' => <<<'JSON'
+{
+  "sukses": true,
+  "absen_masuk": "17:01", "absen_pulang": "20:02",
+  "status_masuk": "Tepat Waktu", "durasi_menit": 181, "bintang": 4.0
+}
 JSON,
       ],
     ],

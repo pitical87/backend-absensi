@@ -21,6 +21,10 @@
         {!! ikon('kalender', 14) !!} <span class="hidden sm:inline">Ubah Jadwal</span>
       </a>
 
+      <a class="inline-flex items-center gap-1.5 py-2 px-3 text-xs font-semibold text-white bg-white/15 hover:bg-white/25 border border-white/25 rounded-xl backdrop-blur-md shadow-sm no-underline transition-all active:scale-95" href="{{ route('lembur') }}">
+        {!! ikon('jam', 14) !!} <span class="hidden sm:inline">Lembur</span>
+      </a>
+
       <a class="inline-flex items-center gap-1.5 py-2 px-3 text-xs font-semibold text-white bg-white/15 hover:bg-white/25 border border-white/25 rounded-xl backdrop-blur-md shadow-sm no-underline transition-all active:scale-95" href="{{ route('logbook') }}">
         {!! ikon('log', 14) !!} <span class="hidden sm:inline">Logbook</span>
       </a>
