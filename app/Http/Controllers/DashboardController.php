@@ -24,14 +24,12 @@ class DashboardController extends Controller
 
         $hariIni = now()->format('Y-m-d');
 
-        $recBuka = Absensi::with('shift:id,kategori,jam_masuk,jam_pulang')
-            ->where('user_id', $u['id'])
+        $recBuka = Absensi::where('user_id', $u['id'])
             ->whereNull('waktu_pulang')
             ->orderBy('waktu_masuk', 'DESC')
             ->first();
 
-        $recHariIni = Absensi::with('shift:id,kategori,jam_masuk,jam_pulang')
-            ->where('user_id', $u['id'])
+        $recHariIni = Absensi::where('user_id', $u['id'])
             ->where('tanggal', $hariIni)
             ->first();
 
