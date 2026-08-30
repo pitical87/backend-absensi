@@ -144,6 +144,7 @@ class AbsenService
             'keterlambatan' => $isDokter ? null : [
                 'menit_telat' => $ket->menit_telat,
                 'bintang_masuk' => $ket->bintang_masuk,
+                'total_bintang' => $ket->bintang_masuk,
             ],
             'jam' => $now->format('H.i'),
         ]);
