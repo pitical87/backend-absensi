@@ -50,7 +50,7 @@ class RekapLogbookController extends Controller
                     ->get()
                     ->all();
 
-        return view('admin.rekap_logbook', [
+        return view('admin.rekap_logbook.index', [
             'judulHalaman' => 'Rekap Logbook per Pegawai',
             'menuAktif'    => 'rekap_logbook',
             'daftar'       => $daftar,
@@ -97,7 +97,7 @@ class RekapLogbookController extends Controller
 
         catat_aktivitas('Cetak Rekap Logbook', BULAN_ID[$bulan].' '.$tahun);
 
-        return view('admin.rekap_logbook_cetak', [
+        return view('admin.rekap_logbook.cetak', [
             'daftar'       => $daftar,
             'bulan'        => $bulan,
             'tahun'        => $tahun,

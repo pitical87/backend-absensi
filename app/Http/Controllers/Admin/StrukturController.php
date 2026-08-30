@@ -28,7 +28,7 @@ class StrukturController extends Controller
             ->orderBy('uk.id')
             ->get();
 
-        return view('admin.struktur', [
+        return view('admin.struktur.index', [
             'judulHalaman' => 'Struktur Organisasi',
             'menuAktif'    => 'struktur',
             'pohon'        => $lib->pohon(),

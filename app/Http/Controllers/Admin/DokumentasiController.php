@@ -8,7 +8,7 @@ class DokumentasiController extends Controller
 {
     public function index()
     {
-        return view('admin.documentation', [
+        return view('admin.documentation.index', [
             'judulHalaman' => 'Dokumentasi API',
             'menuAktif' => 'dokumentasi',
         ]);

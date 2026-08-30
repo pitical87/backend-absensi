@@ -30,7 +30,7 @@ class PengajuanJadwalController extends Controller
         $daftar   = $q->limit(200)->get()->all();
         $menunggu = PengajuanJadwal::where('status', 'Menunggu')->count();
 
-        return view('admin.jadwal_pengajuan', [
+        return view('admin.jadwal.pengajuan', [
             'judulHalaman' => 'Pengajuan Perubahan Jadwal',
             'menuAktif'    => 'jadwal_pengajuan',
             'daftar'       => $daftar,

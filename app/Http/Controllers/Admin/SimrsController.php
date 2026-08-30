@@ -11,7 +11,7 @@ class SimrsController extends Controller
 {
     public function koneksi(SimrsService $simrs)
     {
-        return view('admin.simrs_koneksi', [
+        return view('admin.simrs.koneksi', [
             'judulHalaman' => 'Cek Koneksi SIMRS',
             'menuAktif' => 'cek_simrs',
             'hasil' => $simrs->cekKoneksi(),
@@ -21,7 +21,7 @@ class SimrsController extends Controller
 
     public function tindakan()
     {
-        return view('admin.simrs_tindakan', [
+        return view('admin.simrs.tindakan', [
             'judulHalaman' => 'Data Tindakan SIMRS',
             'menuAktif' => 'tindakan_simrs',
             'pegawai' => $this->pegawaiTerMapping(),
@@ -56,7 +56,7 @@ class SimrsController extends Controller
 
     public function lab()
     {
-        return view('admin.simrs_lab', [
+        return view('admin.simrs.lab', [
             'judulHalaman' => 'Data Lab SIMRS',
             'menuAktif' => 'lab_simrs',
             'pegawai' => $this->pegawaiTerMapping(),

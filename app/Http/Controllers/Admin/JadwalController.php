@@ -92,7 +92,7 @@ class JadwalController extends Controller
                 ->get();
         }
 
-        return view('admin.jadwal', [
+        return view('admin.jadwal.index', [
             'judulHalaman' => 'Jadwal Shift Pegawai',
             'menuAktif' => 'jadwal',
             'subUnits' => $subUnits,
@@ -154,7 +154,7 @@ class JadwalController extends Controller
         $subUnitNama = SubUnit::find($subUnitId)?->nama ?? '#'.$subUnitId;
         catat_aktivitas('Atur Jadwal Shift', "Sub Unit $subUnitNama bulan ".BULAN_ID[$bulan]."/$tahun");
 
-        return redirect()->route('admin.jadwal', [
+        return redirect()->route('admin.jadwal.index', [
             'sub_unit' => $subUnitId,
             'bulan' => $bulan,
             'tahun' => $tahun,
@@ -185,7 +185,7 @@ class JadwalController extends Controller
 
         if (empty($userIds)) {
             return redirect()
-                ->route('admin.jadwal', ['tab' => 'pegawai'])
+                ->route('admin.jadwal.index', ['tab' => 'pegawai'])
                 ->with('error', 'Tambahkan minimal satu pegawai.');
         }
 
@@ -223,7 +223,7 @@ class JadwalController extends Controller
             count($userIds).' pegawai · '.count($rows).' entri · bulan '.BULAN_ID[$bulan]."/$tahun");
 
         return redirect()
-            ->route('admin.jadwal', ['tab' => 'pegawai'])
+            ->route('admin.jadwal.index', ['tab' => 'pegawai'])
             ->with('success', 'Jadwal '.count($userIds).' pegawai berhasil disimpan ('.count($rows).' entri).');
     }
 }

@@ -123,7 +123,7 @@ class RekapController extends Controller
         $pegawai = $this->daftarPegawai($f);
         $lib = app(StrukturService::class);
 
-        return view('admin.rekap', [
+        return view('admin.rekap.index', [
             'judulHalaman' => 'Rekap Kehadiran',
             'menuAktif' => 'rekap',
             'f' => $f,
@@ -192,7 +192,7 @@ class RekapController extends Controller
         $blnNama = BULAN_ID[$f['bulan']] ?? $f['bulan'];
         catat_aktivitas('Cetak Laporan', $blnNama.' '.$f['tahun'].' ('.$label.')');
 
-        return view('admin.laporan_cetak', [
+        return view('admin.laporan.cetak', [
             'bulan' => $f['bulan'],
             'tahun' => $f['tahun'],
             'namaUnit' => $label,
@@ -215,7 +215,7 @@ class RekapController extends Controller
 
         if ($mode === 'rekap') {
             $pegawai = $this->daftarPegawai($f);
-            $isi = view('admin.excel_rekap', [
+            $isi = view('admin.excel.rekap', [
                 'bulan' => $bulan, 'tahun' => $tahun,
                 'pegawai' => $pegawai,
                 'rekapPer' => $this->hitungSemua($pegawai, $bulan, $tahun),
@@ -247,7 +247,7 @@ class RekapController extends Controller
             if ($f['prof']) {
                 $b->where('u.profesi_id', $f['prof']);
             }
-            $isi = view('admin.excel_detail', [
+            $isi = view('admin.excel.detail', [
                 'bulan' => $bulan, 'tahun' => $tahun,
                 'rows' => $b->orderBy('absensi.tanggal')->orderBy('u.nama_lengkap')->get()->all(),
             ])->render();

@@ -24,7 +24,7 @@ class AtasanLangsungController extends Controller
 
         $relasi = AtasanLangsung::select('user_id', 'atasan_id')->get()->groupBy('user_id');
 
-        return view('admin.atasan_langsung', [
+        return view('admin.atasan_langsung.index', [
             'judulHalaman' => 'Atasan Langsung',
             'menuAktif'    => 'atasan_langsung',
             'pegawai'      => $pegawai,

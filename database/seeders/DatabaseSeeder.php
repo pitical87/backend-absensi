@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
             JabatanSeeder::class,
             HariLiburSeeder::class,
             PengaturanSeeder::class,
+            PegawaiSeeder::class,
         ]);
     }
 }

@@ -10,7 +10,7 @@ class PengaturanController extends Controller
 {
     public function index()
     {
-        return view('admin.pengaturan', [
+        return view('admin.pengaturan.index', [
             'judulHalaman' => 'Pengaturan',
             'menuAktif'    => 'pengaturan',
             'lat'          => pengaturan('lokasi_lat', '-8.4991120'),

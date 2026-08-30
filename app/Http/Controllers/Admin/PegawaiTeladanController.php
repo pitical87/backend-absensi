@@ -47,7 +47,7 @@ class PegawaiTeladanController extends Controller
                 DB::raw('SUM(CASE WHEN k.bintang_masuk = 5 OR k.bintang_pulang = 5 THEN 1 ELSE 0 END) AS hari_bintang_lima'),
             ]);
 
-        return view('admin.pegawai_teladan', [
+        return view('admin.pegawai.teladan', [
             'judulHalaman' => 'Pegawai Teladan',
             'menuAktif' => 'pegawai_teladan',
             'bulan' => $bulan,

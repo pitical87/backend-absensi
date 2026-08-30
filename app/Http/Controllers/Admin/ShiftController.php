@@ -40,7 +40,7 @@ class ShiftController extends Controller
         }
         // dd($shiftList);
 
-        return view('admin.shift', [
+        return view('admin.shift.index', [
             'judulHalaman' => 'Pengaturan Shift',
             'menuAktif' => 'shift',
             'shiftList' => $shiftList,

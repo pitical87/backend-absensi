@@ -29,10 +29,67 @@ class PegawaiController extends Controller
 {
     private const AGAMA = ['Katolik', 'Kristen', 'Islam', 'Hindu', 'Budha', 'Lainnya'];
 
+    private const PER_HALAMAN = 20;
+
     public function index(Request $request)
     {
-        $q = trim((string) $request->get('q'));
+        $pegawai = $this->kueriPegawai($request)->paginate(self::PER_HALAMAN);
+
+        return view('admin.pegawai.index', [
+            'judulHalaman' => 'Data Pegawai',
+            'menuAktif' => 'pegawai',
+            'pegawai' => $pegawai,
+            'unitList' => UnitKerja::orderBy('id')->get()->all(),
+            'subPerUnit' => $this->subPerUnit(),
+            'jabatanList' => Jabatan::orderBy('kategori')->orderBy('nama')->get()->all(),
+            'q' => $this->q($request),
+            'fUnit' => (int) $request->get('unit'),
+            'fSub' => (int) $request->get('sub'),
+            'fJab' => (int) $request->get('jabatan'),
+        ]);
+    }
+
+    /**
+     * Endpoint asinkron untuk pencarian, filter & pagination tanpa refresh halaman.
+     * Mengembalikan JSON berisi fragment HTML <tbody> dan <div class="paginasi">.
+     */
+    public function data(Request $request)
+    {
+        $pegawai = $this->kueriPegawai($request)->paginate(self::PER_HALAMAN);
+
+        return response()->json([
+            'sukses'    => true,
+            'total'     => $pegawai->total(),
+            'dari'      => $pegawai->firstItem(),
+            'sampai'    => $pegawai->lastItem(),
+            'halaman'   => $pegawai->currentPage(),
+            'totalHal'  => $pegawai->lastPage(),
+            'tbody'     => view('admin.pegawai.rows', ['pegawai' => $pegawai])->render(),
+            'paginasi'  => view('admin.pegawai.paginasi', ['pegawai' => $pegawai])->render(),
+        ]);
+    }
+
+    private function q(Request $request): string
+    {
+        return trim((string) $request->get('q'));
+    }
+
+    private function subPerUnit(): array
+    {
+        $peta = [];
+        foreach (SubUnit::orderBy('unit_kerja_id')->orderBy('nama')->get() as $s) {
+            $peta[(int) $s->unit_kerja_id][] = ['id' => (int) $s->id, 'nama' => $s->nama];
+        }
+
+        return $peta;
+    }
+
+    private function kueriPegawai(Request $request)
+    {
+        $q = $this->q($request);
         $fUnit = (int) $request->get('unit');
+        $fSub = (int) $request->get('sub');
+        $fJab = (int) $request->get('jabatan');
 
         $b = User::select('users.*', 'uk.nama AS unit_nama', 'su.nama AS sub_nama', 'p.nama AS profesi_nama',
             's.kategori AS shift_kategori', 's.jam_masuk AS shift_masuk', 's.jam_pulang AS shift_pulang',
@@ -55,16 +112,134 @@ class PegawaiController extends Controller
         if ($fUnit) {
             $b->where('users.unit_kerja_id', $fUnit);
         }
-        $pegawai = $b->orderBy('users.nama_lengkap')->get()->all();
+        if ($fSub) {
+            $b->where('users.sub_unit_id', $fSub);
+        }
+        if ($fJab) {
+            $b->where('users.jabatan_id', $fJab);
+        }
 
-        return view('admin.pegawai_index', [
-            'judulHalaman' => 'Data Pegawai',
-            'menuAktif' => 'pegawai',
-            'pegawai' => $pegawai,
-            'unitList' => UnitKerja::orderBy('id')->get()->all(),
-            'q' => $q,
-            'fUnit' => $fUnit,
+        return $b->orderBy('users.nama_lengkap');
+    }
+
+    /**
+     * Seluruh data pegawai sesuai filter (tanpa pagination) untuk keperluan ekspor.
+     */
+    private function daftarEkspor(Request $request)
+    {
+        return $this->kueriPegawai($request)->get();
+    }
+
+    private function labelFilter(Request $request): string
+    {
+        $bagian = [];
+        $fUnit = (int) $request->get('unit');
+        $fSub = (int) $request->get('sub');
+        $fJab = (int) $request->get('jabatan');
+        $q = $this->q($request);
+
+        if ($fUnit) {
+            $bagian[] = 'Bidang '.((UnitKerja::find($fUnit))?->nama ?? '#'.$fUnit);
+        }
+        if ($fSub) {
+            $bagian[] = 'Sub Bidang '.((SubUnit::find($fSub))?->nama ?? '#'.$fSub);
+        }
+        if ($fJab) {
+            $bagian[] = 'Jabatan '.((Jabatan::find($fJab))?->nama ?? '#'.$fJab);
+        }
+        if ($q !== '') {
+            $bagian[] = 'Cari "'.$q.'"';
+        }
+
+        return $bagian ? implode(' · ', $bagian) : 'Seluruh Pegawai';
+    }
+
+    /**
+     * Halaman cetak (print) — dibuka lewat window.print().
+     */
+    public function cetak(Request $request)
+    {
+        $daftar = $this->daftarEkspor($request);
+
+        return view('admin.pegawai.cetak', [
+            'daftar' => $daftar,
+            'label' => $this->labelFilter($request),
+            'namaInstansi' => pengaturan('nama_instansi', 'RSUD Merauke'),
         ]);
+    }
+
+    /**
+     * Ekspor PDF via dompdf.
+     */
+    public function pdf(Request $request)
+    {
+        $daftar = $this->daftarEkspor($request);
+        $html = view('admin.pegawai.pdf', [
+            'daftar' => $daftar,
+            'label' => $this->labelFilter($request),
+            'namaInstansi' => pengaturan('nama_instansi', 'RSUD Merauke'),
+            'tanggalCetak' => now()->format('d-m-Y H:i'),
+        ])->render();
+
+        $dompdf = new \Dompdf\Dompdf();
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'landscape');
+
+        ini_set('memory_limit', '512M');
+        $dompdf->render();
+
+        catat_aktivitas('Ekspor PDF Pegawai', 'total '.$daftar->count().' pegawai');
+
+        return $dompdf->stream('data-pegawai-'.now()->format('Y-m-d').'.pdf');
+    }
+
+    /**
+     * Ekspor Excel (.xlsx) via PhpSpreadsheet.
+     */
+    public function excel(Request $request)
+    {
+        $daftar = $this->daftarEkspor($request);
+
+        $sheet = new Spreadsheet();
+        $ws = $sheet->getActiveSheet();
+        $ws->setTitle('Data Pegawai');
+
+        $judul = ['No', 'Nama Lengkap', 'Email', 'NIP', 'Bidang', 'Sub Bidang', 'Profesi', 'Jabatan', 'Status Pegawai', 'Status Akun'];
+        $ws->fromArray($judul, null, 'A1');
+        $ws->getStyle('A1:J1')->getFont()->setBold(true);
+        $ws->getStyle('A1:J1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->getStartColor()->setARGB('FFDCE9FA');
+
+        $no = 1;
+        $baris = 2;
+        foreach ($daftar as $p) {
+            $ws->fromArray([
+                $no++,
+                $p->nama_lengkap,
+                $p->email,
+                $p->nip,
+                $p->unit_nama,
+                $p->sub_nama,
+                $p->profesi_nama,
+                $p->jabatan_nama,
+                $p->status_pegawai,
+                $p->status === 'aktif' ? 'Aktif' : 'Nonaktif',
+            ], null, 'A'.$baris);
+            $baris++;
+        }
+
+        foreach (range('A', 'J') as $huruf) {
+            $ws->getColumnDimension($huruf)->setAutoSize(true);
+        }
+
+        catat_aktivitas('Ekspor Excel Pegawai', 'total '.$daftar->count().' pegawai');
+
+        $writer = IOFactory::createWriter($sheet, 'Xlsx');
+        $temp = tempnam(sys_get_temp_dir(), 'pgw_').'.xlsx';
+        $writer->save($temp);
+
+        return response()->download($temp, 'data-pegawai-'.now()->format('Y-m-d').'.xlsx')
+            ->deleteFileAfterSend(true);
     }
 
     public function form(StrukturService $struktur, int $id = 0)
@@ -93,7 +268,7 @@ class PegawaiController extends Controller
                 ->value('shift_id');
         }
 
-        return view('admin.pegawai_form', [
+        return view('admin.pegawai.form', [
             'judulHalaman' => $edit ? 'Ubah Data Pegawai' : 'Tambah Pegawai',
             'menuAktif' => 'pegawai',
             'edit' => $edit,

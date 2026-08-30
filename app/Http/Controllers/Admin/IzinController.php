@@ -48,7 +48,7 @@ class IzinController extends Controller
             $jumlah[$r->status] = (int) $r->jml;
         }
 
-        return view('admin.izin', [
+        return view('admin.izin.index', [
             'judulHalaman' => 'Persetujuan Izin & Cuti',
             'menuAktif'    => 'izin',
             'daftar'       => $daftar,

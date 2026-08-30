@@ -81,7 +81,7 @@ class KehadiranController extends Controller
             }
         }
 
-        return view('admin.kehadiran', [
+        return view('admin.kehadiran.index', [
             'judulHalaman' => 'Data Kehadiran',
             'menuAktif' => 'kehadiran',
             'tanggal' => $tanggal,

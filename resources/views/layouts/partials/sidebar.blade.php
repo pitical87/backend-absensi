@@ -194,7 +194,7 @@ $grupMenu = [
 
   {{-- Footer Sidebar Actions --}}
   <div class="p-3 border-t border-white/10 space-y-1">
-    <a class="nav-item text-xs hover:bg-white/10 {{ $menuAktif === 'dokumentasi' ? 'aktif' : '' }}" href="{{ route('admin.documentation') }}">
+    <a class="nav-item text-xs hover:bg-white/10 {{ $menuAktif === 'dokumentasi' ? 'aktif' : '' }}" href="{{ route('admin.documentation.index') }}">
       {!! ikon('surat', 17) !!}<span>Dokumentasi API</span>
     </a>
     <a class="nav-item text-xs hover:bg-white/10" href="{{ route('dashboard') }}">

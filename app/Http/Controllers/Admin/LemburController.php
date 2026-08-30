@@ -29,7 +29,7 @@ class LemburController extends Controller
         $daftar   = $q->limit(200)->get()->all();
         $menunggu = PengajuanLembur::where('status', 'Menunggu')->count();
 
-        return view('admin.lembur', [
+        return view('admin.lembur.index', [
             'judulHalaman' => 'Pengajuan Lembur',
             'menuAktif'    => 'lembur',
             'daftar'       => $daftar,

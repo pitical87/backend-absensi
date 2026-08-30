@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Verifikasi Dokumen — RSUD Merauke</title>
+<title>Verifikasi Dokumen — {{env('APP_NAME')}}</title>
 <link rel="icon" type="image/svg+xml" href="{{ asset('assets/img/logo.svg') }}">
 @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
@@ -14,7 +14,7 @@
       <img class="w-[38px] h-[38px] shrink-0" src="{{ asset('assets/img/logo.svg') }}" alt="">
       <span class="flex flex-col items-start text-white">
         <span class="block text-[0.7rem] tracking-[0.08em] uppercase text-white">Sistem Absensi</span>
-        <strong class="block text-[0.95rem] leading-tight text-white">RSUD Merauke</strong>
+        <strong class="block text-[0.95rem] leading-tight text-white">{{env('APP_NAME')}}</strong>
       </span>
     </a>
   </div>
@@ -51,6 +51,6 @@
     @endif
   </section>
 </main>
-<footer class="text-center text-[0.74rem] text-teks-redup py-2.5 px-4 pb-7">Sistem Absensi Pegawai RSUD Merauke · {{ date('Y') }}</footer>
+<footer class="text-center text-[0.74rem] text-teks-redup py-2.5 px-4 pb-7">Sistem Absensi Pegawai {{env('APP_NAME')}} · {{ date('Y') }}</footer>
 </body>
 </html>

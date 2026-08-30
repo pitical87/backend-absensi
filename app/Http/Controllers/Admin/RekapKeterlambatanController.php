@@ -56,7 +56,7 @@ class RekapKeterlambatanController extends Controller
             'menit_awal' => (int) $baris->sum('total_menit_pulang_awal'),
         ];
 
-        return view('admin.rekap_keterlambatan', [
+        return view('admin.rekap_keterlambatan.index', [
             'judulHalaman' => 'Rekap Keterlambatan',
             'menuAktif'    => 'rekap_keterlambatan',
             'bulan'        => $bulan,

@@ -24,7 +24,7 @@ class LiburController extends Controller
             })
             ->orderBy('tanggal')->get()->all();
 
-        return view('admin.libur', [
+        return view('admin.libur.index', [
             'judulHalaman' => 'Hari Libur',
             'menuAktif' => 'libur',
             'daftar' => $daftar,

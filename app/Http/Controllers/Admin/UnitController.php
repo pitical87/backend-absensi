@@ -22,7 +22,7 @@ class UnitController extends Controller
             $subPerUnit[(int) $s->unit_kerja_id][] = $s;
         }
 
-        return view('admin.unit', [
+        return view('admin.unit.index', [
             'judulHalaman' => 'Data Unit Kerja',
             'menuAktif'    => 'unit',
             'unitList'     => $unitList,

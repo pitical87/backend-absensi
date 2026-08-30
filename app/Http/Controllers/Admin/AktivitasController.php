@@ -27,7 +27,7 @@ class AktivitasController extends Controller
         $daftar = $b->orderBy('aktivitas_log.id', 'DESC')
                     ->skip(($halaman - 1) * $per)->take($per)->get()->all();
 
-        return view('admin.aktivitas', [
+        return view('admin.aktivitas.index', [
             'judulHalaman' => 'Log Aktivitas',
             'menuAktif'    => 'aktivitas',
             'daftar'       => $daftar,

@@ -166,7 +166,7 @@ class DashboardController extends Controller
             ? round(($ketaatan['selalu'] + $ketaatan['sering']) / $ketaatan['total'] * 100)
             : 0;
 
-        return view('admin.dashboard', [
+        return view('admin.dashboard.index', [
             'judulHalaman' => 'Dashboard',
             'menuAktif'    => 'dashboard',
             'totalPegawai' => $totalPegawai,

@@ -12,7 +12,7 @@ class LogbookController extends Controller
 {
     public function index()
     {
-        return view('admin.logbook', [
+        return view('admin.logbook.index', [
             'judulHalaman' => 'Logbook',
             'menuAktif' => 'logbook',
             'pegawai' => $this->pegawaiTerMapping(),
@@ -134,7 +134,7 @@ class LogbookController extends Controller
             'isi' => trim($data['isi']),
         ]);
 
-        return redirect()->route('admin.logbook')
+        return redirect()->route('admin.logbook.index')
             ->with('success', 'Template logbook disimpan.');
     }
 
@@ -149,11 +149,11 @@ class LogbookController extends Controller
             ->delete();
 
         if (! $terhapus) {
-            return redirect()->route('admin.logbook')
+            return redirect()->route('admin.logbook.index')
                 ->with('error', 'Template tidak ditemukan atau bukan milik Anda.');
         }
 
-        return redirect()->route('admin.logbook')
+        return redirect()->route('admin.logbook.index')
             ->with('success', 'Template logbook dihapus.');
     }
 
