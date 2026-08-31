@@ -16,6 +16,12 @@ $grupApi = [
           ['email', 'body', 'string', true, 'Email akun terdaftar (role selain admin).'],
           ['password', 'body', 'string', true, 'Password akun.'],
         ],
+        'body' => <<<'JSON'
+{
+  "email": "budi@example.com",
+  "password": "rahasia123"
+}
+JSON,
         'status' => '200 sukses · 401 kredensial salah · 403 akun nonaktif · 422 data kosong · 429 diblokir sementara',
         'respons' => <<<'JSON'
 {
@@ -36,7 +42,11 @@ JSON,
       [
         'metode' => 'GET', 'jalur' => '/register/master', 'akses' => 'Publik',
         'deskripsi' => 'Master data untuk form pendaftaran: unit kerja, sub unit per unit, profesi, pilihan jabatan, kategori jabatan, posisi, dan seksi pembina.',
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/register/master'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 {
   "sukses": true,
   "unit": [{ "id": 1, "nama": "Instalasi Rawat Jalan", "punya_sub": false }],
@@ -68,6 +78,27 @@ JSON,
           ['posisi', 'body', 'string', true, 'Posisi pegawai.'],
           ['seksi_pembina_id', 'body', 'int', 'Kadang', 'Untuk posisi Kepala Seksi/Sub Bagian.'],
         ],
+        'body' => <<<'JSON'
+{
+  "nama_lengkap": "Budi Santoso",
+  "tanggal_lahir": "1990-01-15",
+  "jenis_kelamin": "Laki-Laki",
+  "agama": "Kristen",
+  "email": "budi.santoso@rsud-merauke.id",
+  "no_hp": "081234567890",
+  "nip": "199001152015021001",
+  "tempat_lahir": "Merauke",
+  "password": "rahasia123",
+  "password2": "rahasia123",
+  "unit_kerja_id": 1,
+  "sub_unit_id": 5,
+  "profesi_id": 1,
+  "jabatan_kategori": "Staf Medis",
+  "jabatan_id": 3,
+  "status_pegawai": "PNS",
+  "posisi": "Staf"
+}
+JSON,
         'status' => '201 sukses · 422 validasi gagal (pesan digabung dalam satu string)',
         'respons' => <<<'JSON'
 {
@@ -79,7 +110,11 @@ JSON,
       [
         'metode' => 'GET', 'jalur' => '/me', 'akses' => 'Token',
         'deskripsi' => 'Profil user yang sedang lengkap dengan relasi unit/sub/profesi/shift/jabatan serta titik lokasi RSUD.',
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/me'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 {
   "sukses": true,
   "user": { "...": "data user + relasi" },
@@ -90,7 +125,11 @@ JSON,
       [
         'metode' => 'POST', 'jalur' => '/logout', 'akses' => 'Token',
         'deskripsi' => 'Menghapus token sesi aktif dari database dan menghapus cookie auth_token.',
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl -X POST 'https://rsud-merauke.id/api/mobile/logout'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 { "sukses": true, "pesan": "Berhasil logout" }
 JSON,
       ],
@@ -108,6 +147,15 @@ JSON,
           ['akurasi', 'body', 'float', false, 'Akurasi GPS dalam meter.'],
           ['foto', 'body', 'string base64', 'Kadang', 'Selfie base64 — wajib jika wajib_selfie = 1.'],
         ],
+        'body' => <<<'JSON'
+{
+  "tipe": "datang",
+  "lat": -8.499112,
+  "lng": 140.404984,
+  "akurasi": 3,
+  "foto": "data:image/jpeg;base64,iVBORw0KGgoAA..."
+}
+JSON,
         'status' => '200 (lihat field sukses) · 422 data tidak lengkap',
         'respons' => <<<'JSON'
 {
@@ -150,7 +198,11 @@ JSON,
       [
         'metode' => 'GET', 'jalur' => '/status', 'akses' => 'Token',
         'deskripsi' => 'Status absen hari ini (masuk/pulang) termasuk keterlambatan, menit pulang awal, dan bintang (tepat 4 · lebih awal masuk / pulang lewat jam 5). Untuk dokter, field status dan bintang bernilai null. Catatan: untuk user multi-sesi (dokter), endpoint ini mengembalikan 1 record saja (query pertama).',
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/status'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 {
   "sukses": true,
   "absen_masuk": { "waktu": "07:52", "status": "Tepat Waktu", "menit_terlambat": 0, "bintang": 4 },
@@ -170,7 +222,11 @@ JSON,
       [
         'metode' => 'GET', 'jalur' => '/riwayat', 'akses' => 'Token',
         'deskripsi' => 'Riwayat absensi 7 hari terakhir milik user. Untuk dokter, status dan bintang bernilai null.',
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/riwayat'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 {
   "sukses": true,
   "riwayat": [{
@@ -198,7 +254,11 @@ JSON,
       [
         'metode' => 'GET', 'jalur' => '/statistik', 'akses' => 'Token',
         'deskripsi' => 'Ringkasan kehadiran bulan berjalan untuk kartu statistik aplikasi.',
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/statistik'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 {
   "sukses": true,
   "kehadiran": { "persen": 92.5, "hadir": 18, "target": 20 },
@@ -215,7 +275,11 @@ JSON,
           ['bulan', 'query', 'int 1-12', false, 'Default bulan lalu.'],
           ['tahun', 'query', 'int', false, 'Default tahun lalu.'],
         ],
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/performa/bulan?bulan=7&tahun=2026'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 {
   "sukses": true, "bulan": 7, "tahun": 2026, "nama_bulan": "Juli",
   "bintang": 4.8, "pesan": "Kinera sangat baik, pertahankan!"
@@ -230,7 +294,11 @@ JSON,
           ['tahun', 'query', 'int', false, 'Default tahun berjalan.'],
         ],
         'status' => '200 sukses · 422 parameter tidak valid',
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/rekap?bulan=8&tahun=2026'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 {
   "sukses": true,
   "periode": { "bulan": 8, "tahun": 2026, "label": "Agustus 2026", "hari_dalam_bulan": 31, "hari_berjalan": 23, "hari_efektif": 19 },
@@ -279,7 +347,11 @@ JSON,
           ['tahun', 'query', 'int', false, 'Default tahun berjalan.'],
         ],
         'status' => '200 sukses · 422 parameter tidak valid',
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/keterlambatan?bulan=8&tahun=2026'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 {
   "sukses": true,
   "periode": { "bulan": 8, "tahun": 2026, "label": "Agustus 2026" },
@@ -305,7 +377,11 @@ JSON,
           ['tahun', 'query', 'int', false, 'Default tahun berjalan.'],
         ],
         'status' => '200 sukses · 422 parameter tidak valid',
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/pegawai-teladan?bulan=8&tahun=2026'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 {
   "sukses": true,
   "periode": { "bulan": 8, "tahun": 2026, "label": "Agustus 2026" },
@@ -320,7 +396,11 @@ JSON,
       [
         'metode' => 'GET', 'jalur' => '/jadwal', 'akses' => 'Token',
         'deskripsi' => 'Shift efektif hari ini (dari jadwal shift bila ada, fallback shift profil) dan flag boleh memilih shift sendiri.',
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/jadwal'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 {
   "sukses": true,
   "shift": { "id": 2, "kategori": "Siang", "jam_masuk": "14:00", "jam_pulang": "21:00" },
@@ -331,7 +411,11 @@ JSON,
       [
         'metode' => 'GET', 'jalur' => '/jadwal/hari-ini', 'akses' => 'Token',
         'deskripsi' => 'Jadwal shift hari ini dari jadwal shift yang dipasangkan (tanpa fallback profil).',
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/jadwal/hari-ini'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 {
   "sukses": true,
   "data": [{ "tanggal": "2026-08-23", "hari": "Minggu", "shift": { "id": 11, "kategori": "Pagi", "jam_masuk": "08:00", "jam_pulang": "14:00" } }]
@@ -345,7 +429,11 @@ JSON,
           ['mulai', 'query', 'YYYY-MM-DD', false, 'Default Senin minggu ini.'],
         ],
         'status' => '200 sukses · 422 format tanggal tidak valid',
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/jadwal/mingguan?mulai=2026-08-17'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 {
   "sukses": true,
   "periode": { "mulai": "2026-08-17", "sampai": "2026-08-23" },
@@ -364,7 +452,11 @@ JSON,
           ['tahun', 'query', 'int', false, 'Default tahun berjalan.'],
         ],
         'status' => '200 sukses · 422 parameter tidak valid',
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/jadwal/bulanan?bulan=8&tahun=2026'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 {
   "sukses": true,
   "periode": { "bulan": 8, "tahun": 2026, "label": "Agustus 2026" },
@@ -380,7 +472,11 @@ JSON,
       [
         'metode' => 'GET', 'jalur' => '/izin', 'akses' => 'Token',
         'deskripsi' => 'Riwayat pengajuan izin/cuti milik user (maks 50 terakhir) beserta jejak persetujuan tiap tahap.',
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/izin'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 {
   "sukses": true,
   "izin": [{
@@ -406,6 +502,17 @@ JSON,
           ['alasan', 'body', 'string', true, 'Keperluan/keterangan.'],
           ['lampiran', 'file', 'jpg/png/pdf', false, 'Maksimal 3 MB (multipart/form-data).'],
         ],
+        'body' => <<<'JSON'
+{
+  "jenis_pengajuan": "Cuti",
+  "jenis_cuti": "Cuti Tahunan",
+  "tanggal_mulai": "2026-08-10",
+  "tanggal_selesai": "2026-08-12",
+  "alamat": "Jl. Merauke No. 12, Merauke",
+  "alasan": "Acara keluarga",
+  "lampiran": "(file jpg/png/pdf ≤ 3MB — multipart/form-data)"
+}
+JSON,
         'respons' => <<<'JSON'
 {
   "sukses": true,
@@ -420,28 +527,44 @@ JSON,
         'metode' => 'DELETE', 'jalur' => '/izin/{id}', 'akses' => 'Token',
         'deskripsi' => 'Batalkan pengajuan milik sendiri yang masih berstatus Menunggu.',
         'status' => '200 sukses · 404 tidak ditemukan/sudah diproses',
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl -X DELETE 'https://rsud-merauke.id/api/mobile/izin/12'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 { "sukses": true, "pesan": "Pengajuan izin berhasil dibatalkan." }
 JSON,
       ],
       [
         'metode' => 'GET', 'jalur' => '/izin/today', 'akses' => 'Token',
         'deskripsi' => 'Cek apakah user punya izin berstatus Disetujui yang berlaku hari ini.',
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/izin/today'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 { "sukses": true, "hasLeave": false, "izin": null }
 JSON,
       ],
       [
         'metode' => 'GET', 'jalur' => '/izin/total', 'akses' => 'Token',
         'deskripsi' => 'Jumlah pengajuan Menunggu yang berwenang diputus user (untuk badge notifikasi).',
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/izin/total'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 { "sukses": true, "total": 3 }
 JSON,
       ],
       [
         'metode' => 'GET', 'jalur' => '/izin/detail', 'akses' => 'Token',
         'deskripsi' => 'Daftar pengajuan Menunggu yang bisa diputus user sesuai alur persetujuan (posisi/jabatan/seksi/unit).',
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/izin/detail'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 { "sukses": true, "izin": [ { "id": 15, "user": { "...": "pemohon" }, "tahap_aktif": 1 } ] }
 JSON,
       ],
@@ -453,6 +576,13 @@ JSON,
           ['putusan', 'body', 'string', true, 'setuju atau tolak.'],
           ['catatan', 'body', 'string', false, 'Catatan putusan.'],
         ],
+        'body' => <<<'JSON'
+{
+  "id": 15,
+  "putusan": "setuju",
+  "catatan": "Disetujui, harap menjaga waktu"
+}
+JSON,
         'respons' => <<<'JSON'
 { "sukses": true, "pesan": "Persetujuan tercatat, pengajuan diteruskan ke tahap berikutnya.", "hasil": "Menunggu Tahap Berikutnya" }
 JSON,
@@ -460,7 +590,11 @@ JSON,
       [
         'metode' => 'GET', 'jalur' => '/izin/riwayat-persetujuan', 'akses' => 'Token',
         'deskripsi' => '30 riwayat putusan persetujuan yang pernah dibuat user.',
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/izin/riwayat-persetujuan'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 {
   "sukses": true,
   "riwayat": [{
@@ -480,7 +614,11 @@ JSON,
       [
         'metode' => 'GET', 'jalur' => '/perubahan-jadwal', 'akses' => 'Token',
         'deskripsi' => 'Jadwal shift 30 hari mendatang milik user beserta kelayakan pengajuan (batas waktu, status absensi, pengajuan aktif) dan 30 riwayat pengajuan sendiri.',
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/perubahan-jadwal'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 {
   "sukses": true,
   "batas_jam": 1,
@@ -504,6 +642,13 @@ JSON,
           ['shift_baru_id', 'body', 'int', true, 'ID shift tujuan (aktif, berbeda dari jadwal saat ini).'],
           ['alasan', 'body', 'string', true, 'Alasan pengajuan (maks 500 karakter).'],
         ],
+        'body' => <<<'JSON'
+{
+  "tanggal": "2026-08-27",
+  "shift_baru_id": 3,
+  "alasan": "Ada keperluan keluarga di siang hari"
+}
+JSON,
         'respons' => <<<'JSON'
 {
   "sukses": true,
@@ -516,21 +661,33 @@ JSON,
         'metode' => 'DELETE', 'jalur' => '/perubahan-jadwal/{id}', 'akses' => 'Token',
         'deskripsi' => 'Batalkan pengajuan ubah jadwal milik sendiri yang masih berstatus Menunggu.',
         'status' => '200 sukses · 404 tidak ditemukan/sudah diproses',
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl -X DELETE 'https://rsud-merauke.id/api/mobile/perubahan-jadwal/7'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 { "sukses": true, "pesan": "Pengajuan perubahan jadwal berhasil dibatalkan." }
 JSON,
       ],
       [
         'metode' => 'GET', 'jalur' => '/perubahan-jadwal/total', 'akses' => 'Token',
         'deskripsi' => 'Jumlah pengajuan ubah jadwal Menunggu yang berwenang diputus user selaku atasan langsung (untuk badge notifikasi).',
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/perubahan-jadwal/total'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 { "sukses": true, "total": 2 }
 JSON,
       ],
       [
         'metode' => 'GET', 'jalur' => '/perubahan-jadwal/menunggu', 'akses' => 'Token',
         'deskripsi' => 'Daftar pengajuan Menunggu dari bawahan langsung user.',
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/perubahan-jadwal/menunggu'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 {
   "sukses": true, "total": 1,
   "data": [{
@@ -553,6 +710,13 @@ JSON,
           ['putusan', 'body', 'string', true, 'setuju atau tolak.'],
           ['catatan', 'body', 'string', false, 'Catatan keputusan.'],
         ],
+        'body' => <<<'JSON'
+{
+  "id": 7,
+  "putusan": "setuju",
+  "catatan": "Silakan, sesuaikan jadwal"
+}
+JSON,
         'respons' => <<<'JSON'
 { "sukses": true, "pesan": "Pengajuan disetujui — jadwal pemohon telah diganti.", "status": "Disetujui" }
 JSON,
@@ -560,7 +724,11 @@ JSON,
       [
         'metode' => 'GET', 'jalur' => '/perubahan-jadwal/riwayat-persetujuan', 'akses' => 'Token',
         'deskripsi' => '30 riwayat putusan ubah jadwal yang pernah dibuat user sebagai atasan langsung.',
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/perubahan-jadwal/riwayat-persetujuan'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 {
   "sukses": true,
   "riwayat": [{ "id": 7, "waktu": "2026-08-25T03:10:00.000000Z", "status": "Disetujui",
@@ -582,7 +750,11 @@ JSON,
           ['jenis', 'query', 'string', false, 'Filter opsional: tindakan atau lab. Tanpa parameter = keduanya.'],
         ],
         'status' => '200 (field sukses menunjukkan hasil query) · 422 parameter tidak valid · sukses=false bila belum mapping / SIMRS tak terjangkau',
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/logbook/simrs?dari=2026-08-20&sampai=2026-08-21&jenis=tindakan'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 {
   "sukses": true,
   "pesan": null,
@@ -605,7 +777,11 @@ JSON,
           ['{jenis}', 'path', 'string', true, 'tindakan → hanya data tindakan; lab → hanya pemeriksaan lab.'],
           ['dari · sampai', 'query', 'date Y-m-d', true, 'Rentang tanggal.'],
         ],
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/logbook/simrs/lab?dari=2026-08-20&sampai=2026-08-21'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 {
   "sukses": true,
   "pesan": null,
@@ -634,7 +810,11 @@ JSON,
           ['hal', 'query', 'integer', false, 'Nomor halaman (default 1).'],
         ],
         'status' => '200 · 422 parameter tidak valid',
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/logbook?q=Cuci%20Darah&bulan=8&tahun=2026&hal=1'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 {
   "sukses": true,
   "total": 2,
@@ -656,6 +836,13 @@ JSON,
           ['jam', 'body JSON', 'time HH:MM', true, 'Jam kegiatan.'],
           ['isi', 'body JSON', 'string ≤1000', true, 'Uraian aktivitas.'],
         ],
+        'body' => <<<'JSON'
+{
+  "tanggal": "2026-08-20",
+  "jam": "09:30",
+  "isi": "Melakukan tindakan Cuci Darah"
+}
+JSON,
         'status' => '201 tersimpan · 422 validasi gagal',
         'respons' => <<<'JSON'
 { "sukses": true, "pesan": "1 entri logbook tersimpan.", "id": 837 }
@@ -670,6 +857,14 @@ JSON,
           ['entri.*.jam', 'body JSON', 'time HH:MM', true, 'Jam kegiatan.'],
           ['entri.*.isi', 'body JSON', 'string ≤1000', true, 'Uraian aktivitas.'],
         ],
+        'body' => <<<'JSON'
+{
+  "entri": [
+    { "tanggal": "2026-08-20", "jam": "09:30", "isi": "Melakukan tindakan Cuci Darah" },
+    { "tanggal": "2026-08-20", "jam": "10:30", "isi": "Melakukan Pemeriksaan lab Hematologi" }
+  ]
+}
+JSON,
         'status' => '201 tersimpan · 422 validasi gagal',
         'respons' => <<<'JSON'
 {
@@ -688,6 +883,14 @@ JSON,
           ['jam', 'body JSON', 'time HH:MM', true, 'Jam kegiatan.'],
           ['isi', 'body JSON', 'string ≤1000', true, 'Uraian aktivitas.'],
         ],
+        'body' => <<<'JSON'
+{
+  "id": 837,
+  "tanggal": "2026-08-20",
+  "jam": "09:45",
+  "isi": "Melakukan tindakan Cuci Darah pasien rawat jalan"
+}
+JSON,
         'status' => '200 diperbarui · 404 entri tidak ada / bukan milik Anda / sudah diverifikasi · 422 validasi',
         'respons' => <<<'JSON'
 { "sukses": true, "pesan": "Entri logbook diperbarui." }
@@ -700,7 +903,11 @@ JSON,
           ['{id}', 'path', 'integer', true, 'ID entri logbook yang dihapus.'],
         ],
         'status' => '200 terhapus · 404 entri tidak ada / bukan milik Anda / sudah diverifikasi',
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl -X DELETE 'https://rsud-merauke.id/api/mobile/logbook/837'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 { "sukses": true, "pesan": "1 entri logbook dihapus." }
 JSON,
       ],
@@ -712,7 +919,11 @@ JSON,
       [
         'metode' => 'GET', 'jalur' => '/logbook/template', 'akses' => 'Token',
         'deskripsi' => 'Daftar template yang bisa dipakai user: template milik sendiri (type=user) dan template umum dari admin (type=all). milik_sendiri menandai boleh ubah/hapus.',
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/logbook/template'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 {
   "sukses": true,
   "jumlah": 2,
@@ -729,6 +940,9 @@ JSON,
         'parameter' => [
           ['isi', 'body JSON', 'string ≤1000', true, 'Teks template.'],
         ],
+        'body' => <<<'JSON'
+{ "isi": "Melayani pemeriksaan pasien rawat jalan" }
+JSON,
         'status' => '201 tersimpan · 422 validasi gagal',
         'respons' => <<<'JSON'
 { "sukses": true, "pesan": "Template logbook disimpan.", "id": 5 }
@@ -741,6 +955,9 @@ JSON,
           ['id', 'body JSON', 'integer', true, 'ID template.'],
           ['isi', 'body JSON', 'string ≤1000', true, 'Teks template baru.'],
         ],
+        'body' => <<<'JSON'
+{ "id": 5, "isi": "Tindakan kateterisasi pada pasien kamar 3" }
+JSON,
         'status' => '200 diperbarui · 404 template tidak ada / bukan milik Anda · 422 validasi',
         'respons' => <<<'JSON'
 { "sukses": true, "pesan": "Template logbook diperbarui." }
@@ -753,7 +970,11 @@ JSON,
           ['{id}', 'path', 'integer', true, 'ID template yang dihapus.'],
         ],
         'status' => '200 terhapus · 404 template tidak ada / bukan milik Anda',
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl -X DELETE 'https://rsud-merauke.id/api/mobile/logbook/template/5'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 { "sukses": true, "pesan": "Template logbook dihapus." }
 JSON,
       ],
@@ -765,7 +986,11 @@ JSON,
       [
         'metode' => 'GET', 'jalur' => '/lembur', 'akses' => 'Token',
         'deskripsi' => 'Daftar pengajuan lembur milik user: 30 riwayat terbaru (termasuk status & data absen) plus daftar pengajuan berstatus Disetujui untuk keperluan absen masuk/pulang lembur. Menyertakan nilai pengaturan batas pengajuan, maksimal jam/hari, dan rentang hari pengajuan.',
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/lembur'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 {
   "sukses": true,
   "batas_jam": 2,
@@ -793,6 +1018,14 @@ JSON,
           ['jam_selesai', 'body', 'time H:i', true, 'Jam selesai lembur.'],
           ['keterangan', 'body', 'string', true, 'Alasan/keperluan lembur (maks 1000 karakter).'],
         ],
+        'body' => <<<'JSON'
+{
+  "tanggal": "2026-08-28",
+  "jam_mulai": "17:00",
+  "jam_selesai": "20:00",
+  "keterangan": "Penyelesaian SK laporan bulanan"
+}
+JSON,
         'status' => '201 tersimpan · 422 validasi/kelayakan gagal',
         'respons' => <<<'JSON'
 {
@@ -806,21 +1039,33 @@ JSON,
         'metode' => 'DELETE', 'jalur' => '/lembur/{id}', 'akses' => 'Token',
         'deskripsi' => 'Batalkan pengajuan lembur milik sendiri yang masih berstatus Menunggu.',
         'status' => '200 sukses · 404 tidak ditemukan/sudah diproses',
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl -X DELETE 'https://rsud-merauke.id/api/mobile/lembur/5'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 { "sukses": true, "pesan": "Pengajuan lembur berhasil dibatalkan." }
 JSON,
       ],
       [
         'metode' => 'GET', 'jalur' => '/lembur/total', 'akses' => 'Token',
         'deskripsi' => 'Jumlah pengajuan lembur Menunggu yang berwenang diputus user selaku atasan langsung (untuk badge notifikasi).',
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/lembur/total'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 { "sukses": true, "total": 2 }
 JSON,
       ],
       [
         'metode' => 'GET', 'jalur' => '/lembur/menunggu', 'akses' => 'Token',
         'deskripsi' => 'Daftar pengajuan lembur Menunggu dari bawahan langsung user.',
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/lembur/menunggu'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 {
   "sukses": true, "total": 1,
   "data": [{
@@ -842,6 +1087,13 @@ JSON,
           ['putusan', 'body', 'string', true, 'setuju atau tolak.'],
           ['catatan', 'body', 'string', false, 'Catatan keputusan.'],
         ],
+        'body' => <<<'JSON'
+{
+  "id": 5,
+  "putusan": "setuju",
+  "catatan": "OK, lanjutkan"
+}
+JSON,
         'status' => '200 sukses · 403 bukan atasan / milik sendiri · 404 tidak ada/sudah diproses · 422 putusan tidak valid',
         'respons' => <<<'JSON'
 { "sukses": true, "pesan": "Pengajuan lembur disetujui.", "status": "Disetujui" }
@@ -850,7 +1102,11 @@ JSON,
       [
         'metode' => 'GET', 'jalur' => '/lembur/riwayat-persetujuan', 'akses' => 'Token',
         'deskripsi' => '30 riwayat putusan lembur yang pernah dibuat user sebagai atasan langsung.',
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/lembur/riwayat-persetujuan'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 {
   "sukses": true,
   "riwayat": [{ "id": 5, "waktu": "2026-08-28T09:00:00.000000Z", "status": "Disetujui",
@@ -869,6 +1125,15 @@ JSON,
           ['akurasi', 'body', 'float', false, 'Akurasi GPS dalam meter.'],
           ['foto', 'body', 'data-URL jpeg/png', false, 'Selfie masuk lembur (wajib bila setting selfie aktif).'],
         ],
+        'body' => <<<'JSON'
+{
+  "tanggal": "2026-08-28",
+  "lat": -8.499112,
+  "lng": 140.404984,
+  "akurasi": 3,
+  "foto": "data:image/jpeg;base64,iVBORw0KGgoAA..."
+}
+JSON,
         'status' => '200 masuk tercatat · 422 di luar area / tidak ada pengajuan layak / validasi',
         'respons' => <<<'JSON'
 {
@@ -888,6 +1153,15 @@ JSON,
           ['akurasi', 'body', 'float', false, 'Akurasi GPS dalam meter.'],
           ['foto', 'body', 'data-URL jpeg/png', false, 'Selfie pulang lembur (wajib bila setting selfie aktif).'],
         ],
+        'body' => <<<'JSON'
+{
+  "tanggal": "2026-08-28",
+  "lat": -8.499112,
+  "lng": 140.404984,
+  "akurasi": 3,
+  "foto": "data:image/jpeg;base64,iVBORw0KGgoAA..."
+}
+JSON,
         'status' => '200 pulang tercatat · 422 di luar area / tidak ada record masuk / validasi',
         'respons' => <<<'JSON'
 {
@@ -903,7 +1177,11 @@ JSON,
         'parameter' => [
           ['tanggal', 'query', 'date Y-m-d', false, 'Tanggal yang ingin dicek (default: hari ini).'],
         ],
-        'respons' => <<<'JSON'
+                'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/absen-lembur/status?tanggal=2026-08-28'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
 {
   "sukses": true,
   "absen_masuk": "17:01", "absen_pulang": "20:02",
@@ -980,6 +1258,13 @@ JSON,
 
             @if(! empty($e['status']))
               <p class="teks-kecil"><strong>Kode status:</strong> {{ $e['status'] }}</p>
+            @endif
+
+            @if(! empty($e['body']))
+              <details>
+                <summary class="cursor-pointer select-none inline-block px-3 py-1.5 teks-kecil font-semibold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">Contoh Body</summary>
+                <pre class="mt-2 px-3 py-2.5 rounded-lg bg-slate-950 text-emerald-100 text-[0.68rem] leading-relaxed overflow-x-auto m-0">{!! $e['body'] !!}</pre>
+              </details>
             @endif
 
             @if(! empty($e['respons']))
