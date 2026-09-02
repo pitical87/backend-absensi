@@ -11,11 +11,7 @@ class PegawaiSeeder extends Seeder
 
     public function run(): void
     {
-        if (DB::table('users')->where('email', 'like', '%' . self::EMAIL_SUFIX)->exists()) {
-            return;
-        }
-
-        $namaList = 
+        $namaList =
 [
     'dr. LENNY SIMON',
     'dr. HERARD R. MANUPUTTY',
@@ -841,11 +837,23 @@ class PegawaiSeeder extends Seeder
             ];
         }
 
+        $allEmails = array_column($baris, 'email');
+        $existing = DB::table('users')
+            ->whereIn('email', $allEmails)
+            ->pluck('email')
+            ->toArray();
+        $baris = array_values(array_filter($baris, fn ($row) => ! in_array($row['email'], $existing)));
+
+        if (empty($baris)) {
+            $this->command->info('Semua pegawai sudah ada di database. Tidak ada data baru.');
+            return;
+        }
+
         foreach (array_chunk($baris, 500) as $chunk) {
             DB::table('users')->insert($chunk);
         }
 
-        $this->command->info('Seeder pegawai selesai: ' . count($baris) . ' pegawai.');
+        $this->command->info('Seeder pegawai selesai: ' . count($baris) . ' pegawai baru ditambahkan.');
     }
 
     private function slug(string $nama): string
