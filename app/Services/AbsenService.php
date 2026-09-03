@@ -315,8 +315,9 @@ class AbsenService
             ])), ' |') ?: null,
         ]);
         $this->catatLog($u['id'], (int) $rec->id, 'pulang', $lat, $lng, $akurasi, $jarak, $now);
+        $ket = null;
         if (! $isDokter) {
-            app(KeterlambatanService::class)->catatPulang((int) $rec->id, (int) $menitAwal);
+            $ket = app(KeterlambatanService::class)->catatPulang((int) $rec->id, (int) $menitAwal);
         }
 
         $jenis = 'sukses';
