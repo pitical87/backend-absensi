@@ -28,24 +28,25 @@ class AbsenService
 
         $isDokter = ($u['profesi_nama'] ?? '') === 'Dokter';
 
+        $pesanAutoClose = null;
+
         $hariSebelumnya = $this->hariKerjaSebelumnya($now);
         $belumPulang = Absensi::where('user_id', $u['id'])
             ->whereDate('tanggal', $hariSebelumnya->format('Y-m-d'))
             ->whereNull('waktu_pulang')
-            ->exists();
+            ->first();
         if ($belumPulang) {
-            return response()->json([
-                'sukses' => false,
-                'pesan' => 'Anda belum absen pulang',
-            ]);
+            $this->tutupOtomatisAbsensi($belumPulang, $u, $now);
+            $pesanAutoClose = 'Anda belum absen pulang pada '.tgl_id($belumPulang->tanggal, false)
+                .', sehingga dicatat otomatis mengikuti jadwal shift dan mendapat bintang 1.';
         }
 
         $buka = Absensi::where('user_id', $u['id'])->whereNull('waktu_pulang')
             ->first();
         if ($buka) {
-            return response()->json(['sukses' => false,
-                'pesan' => 'Anda masih memiliki absensi tanggal '.tgl_id($buka->tanggal, false)
-                         .' yang belum ditutup. Silakan absen pulang terlebih dahulu.']);
+            $this->tutupOtomatisAbsensi($buka, $u, $now);
+            $pesanAutoClose = 'Anda belum absen pulang pada '.tgl_id($buka->tanggal, false)
+                .', sehingga dicatat otomatis mengikuti jadwal shift dan mendapat bintang 1.';
         }
 
         if (! $isDokter && ! $u['shift_id']) {
@@ -135,12 +136,15 @@ class AbsenService
         return response()->json([
             'sukses' => true,
             'jenis' => $jenis,
-            'pesan' => $pesan,
+            'pesan' => $pesanAutoClose
+                ? $pesan.' '.$pesanAutoClose
+                : $pesan,
             'keterangan' => 'Absen datang tercatat pukul '.$now->format('H.i')
                           .' · jarak '.number_format($jarak, 0, ',', '.').' m dari titik RSUD.',
             'status' => $status,
             'menit' => $menit,
             'bintang' => $bintangMasuk,
+            'total_bintang' => $bintangMasuk,
             'keterlambatan' => $isDokter ? null : [
                 'menit_telat' => $ket->menit_telat,
                 'bintang_masuk' => $ket->bintang_masuk,
@@ -148,6 +152,33 @@ class AbsenService
             ],
             'jam' => $now->format('H.i'),
         ]);
+    }
+
+    private function tutupOtomatisAbsensi(Absensi $rec, array $u, DateTime $now): void
+    {
+        $jamPulang = $u['shift_jam_pulang'] ?? null;
+        if ($jamPulang) {
+            $waktuPulang = new DateTime($rec->tanggal->format('Y-m-d').' '.$jamPulang);
+        } else {
+            $waktuPulang = (clone $rec->waktu_masuk)->modify('+8 hours');
+        }
+
+        $totalMenit = max(0, (int) floor(
+            ($waktuPulang->getTimestamp() - $rec->waktu_masuk->getTimestamp()) / 60
+        ));
+
+        Absensi::where('id', $rec->id)->update([
+            'waktu_pulang'      => $waktuPulang->format('Y-m-d H:i:s'),
+            'total_menit_kerja' => $totalMenit,
+            'bintang_pulang'    => 1,
+            'status_pulang'     => 'Tepat Waktu',
+            'catatan_anomali'   => trim(
+                ($rec->catatan_anomali ? $rec->catatan_anomali.' | ' : '')
+                .'Lupa absen pulang – ditutup otomatis'
+            ),
+        ]);
+
+        $this->catatLog($rec->user_id, $rec->id, 'pulang', 0, 0, null, 0, $now);
     }
 
     private function hariKerjaSebelumnya(DateTime $now): DateTime

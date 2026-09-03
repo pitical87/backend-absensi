@@ -140,7 +140,7 @@ JSON,
     'endpoints' => [
       [
         'metode' => 'POST', 'jalur' => '/absen', 'akses' => 'Token',
-        'deskripsi' => 'Catat absen datang/pulang. Ditolak bila berada di luar radius RSUD; foto selfie base64 wajib bila pengaturan wajib_selfie aktif. Respons memuat blok keterlambatan (menit dibulatkan ke atas). Bintang: masuk lebih awal atau pulang melewati jam jadwal -> 5; tepat waktu -> 4; pelanggaran efektif setelah toleransi 10 menit -> <=5\' 4, <=10\' 3, <=15\' 2, <=30\' 1, >30\' 0. total_bintang = rata-rata bintang masuk & pulang. <strong>Dokter:</strong> Tidak wajib punya shift, boleh absen multi-sesi (masuk→pulang→masuk→pulang per hari). Status, bintang, dan keterlambatan bernilai null untuk dokter.',
+        'deskripsi' => 'Catat absen datang/pulang. Ditolak bila berada di luar radius RSUD; foto selfie base64 wajib bila pengaturan wajib_selfie aktif. Respons memuat blok keterlambatan (menit dibulatkan ke atas). Bintang: masuk lebih awal atau pulang melewati jam jadwal -> 5; tepat waktu -> 4; pelanggaran efektif setelah toleransi 10 menit -> <=5\' 4, <=10\' 3, <=15\' 2, <=30\' 1, >30\' 0. total_bintang = rata-rata bintang masuk & pulang (pada absen masuk, total_bintang = bintang_masuk karena belum ada pulang). <strong>Auto-close:</strong> bila pegawai lupa absen pulang pada hari kerja sebelumnya atau masih ada absensi yang belum ditutup, saat absen masuk hari ini absensi tersebut ditutup otomatis — waktu pulang mengikuti jam pulang shift (fallback masuk + 8 jam), mendapat bintang pulang 1, dan ditandai catatan "Lupa absen pulang – ditutup otomatis". Info penutupan otomatis tersebut disisipkan ke field <code>pesan</code>. <strong>Dokter:</strong> Tidak wajib punya shift, boleh absen multi-sesi (masuk→pulang→masuk→pulang per hari). Status, bintang, dan keterlambatan bernilai null untuk dokter.',
         'parameter' => [
           ['tipe', 'body', 'string', true, 'datang atau pulang.'],
           ['lat · lng', 'body', 'float', true, 'Koordinat GPS perangkat.'],
@@ -166,8 +166,23 @@ JSON,
   "status": "Terlambat",
   "menit": 13,
   "bintang": 2,
-  "keterlambatan": { "menit_telat": 13, "bintang_masuk": 4 },
+  "total_bintang": 2,
+  "keterlambatan": { "menit_telat": 13, "bintang_masuk": 4, "total_bintang": 2 },
   "jam": "08.12"
+}
+
+Absen datang dengan auto-close (lupa pulang hari sebelumnya) — pesan_auto digabung ke pesan:
+{
+  "sukses": true,
+  "jenis": "sukses",
+  "pesan": "Terima kasih sudah datang Tepat Waktu. Anda belum absen pulang pada 2 September 2026, sehingga dicatat otomatis mengikuti jadwal shift dan mendapat bintang 1.",
+  "keterangan": "Absen datang tercatat pukul 07.00 · jarak 5 m dari titik RSUD.",
+  "status": "Tepat Waktu",
+  "menit": 0,
+  "bintang": 4,
+  "total_bintang": 4,
+  "keterlambatan": { "menit_telat": 0, "bintang_masuk": 4, "total_bintang": 4 },
+  "jam": "07.00"
 }
 
 Absen pulang — blok keterlambatan berisi sisi pulang + total:
