@@ -43,7 +43,7 @@
       <thead>
         <tr>
           <th>Nama Pegawai</th><th>Foto</th><th>Shift</th>
-          <th>Jam Masuk</th><th>Jam Pulang</th><th>Status</th>
+          <th>Jam Absen</th><th>Status</th>
           <th>Jarak</th><th>Koordinat Masuk</th><th>Aksi</th>
         </tr>
       </thead>
@@ -54,10 +54,7 @@
             <strong>{{ $r->user?->nama_lengkap }}</strong>
             <br><span class="teks-kecil teks-redup">{{ $r->user?->unitKerja?->nama ?? '—' }}@if(
               $r->user?->subUnit?->nama) — {{ $r->user->subUnit->nama }}@endif</span>
-            @if($r->flag_anomali)
-              <div class="catatan-anomali">{!! ikon('peringatan', 12) !!}
-                {{ $r->catatan_anomali ?? 'Terindikasi anomali GPS' }}</div>
-            @endif
+           
           </td>
           <td>
             <div class="foto-mini">
@@ -77,8 +74,7 @@
             </div>
           </td>
           <td>{{ label_shift($r->shiftHariIni) }}</td>
-          <td class="angka">{{ jam_id($r->waktu_masuk) }}</td>
-          <td class="angka">{{ jam_id($r->waktu_pulang) }}</td>
+          <td class="angka">In : {{ jam_id($r->waktu_masuk) }}<br>Out : {{ jam_id($r->waktu_pulang) }}</td>
           <td>{!! badge_status(! $r->waktu_pulang ? 'Belum Pulang'
                  : ($r->status_masuk === 'Terlambat' ? 'Terlambat' : 'Tepat Waktu'),
                  (int) $r->menit_terlambat) !!}</td>
@@ -106,6 +102,11 @@
               <input type="hidden" name="id" value="{{ (int) $r->id }}">
               <button type="submit" class="btn btn-merah btn-kecil">Hapus</button>
             </form>
+             @if($r->flag_anomali)
+              <button type="button" class="btn btn-kecil btn-merah text-red-800 mt-1.5" data-anomali-nama="{{ $r->user?->nama_lengkap }}" data-anomali-keterangan="{{ $r->catatan_anomali ?? 'Terindikasi anomali GPS' }}">
+                {!! ikon('peringatan', 12) !!} 
+              </button>
+            @endif
           </td>
         </tr>
         @endforeach
@@ -125,7 +126,7 @@
   </div>
   <div class="tabel-bungkus">
     <table class="tabel">
-      <thead><tr><th>Waktu</th><th>Nama</th><th>Aksi</th><th>Jarak dari RSUD</th><th>Koordinat</th></tr></thead>
+      <thead><tr><th>Waktu</th><th>Nama</th><th>Aksi</th><th>Jarak dari Titik Absen</th><th>Koordinat</th></tr></thead>
       <tbody>
         @foreach($ditolak as $d)
         <tr>
@@ -238,6 +239,26 @@
       <div class="peta-kosong" id="peta-kosong" hidden>
         Peta tidak dapat dimuat (memerlukan koneksi internet untuk pustaka peta &amp; ubin peta).
         Gunakan tautan koordinat pada tabel di atas untuk membuka lokasi di Google Maps.
+      </div>
+    </div>
+  </section>
+</div>
+
+{{-- Modal Detail Anomali --}}
+<div id="modal-anomali" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
+  <section class="kartu w-full max-w-lg">
+    <div class="kartu-kepala">
+      <h2>{!! ikon('peringatan') !!} Detail Anomali</h2>
+      <button type="button" id="modal-anomali-tutup" class="btn btn-garis btn-kecil">&times;</button>
+    </div>
+    <div class="px-3 pb-3 space-y-3">
+      <div>
+        <span class="teks-kecil teks-redup">Pegawai</span>
+        <div class="font-semibold" id="anomali-nama">—</div>
+      </div>
+      <div>
+        <span class="teks-kecil teks-redup">Catatan Anomali</span>
+        <div class="catatan-anomali mt-1" id="anomali-keterangan">—</div>
       </div>
     </div>
   </section>
@@ -468,8 +489,34 @@
     if (e.key === 'Escape') {
       if (! modal.classList.contains('hidden')) tutupPeta();
       if (modalAbsen && ! modalAbsen.classList.contains('hidden')) tutupModalAbsen();
+      if (modalAnomali && ! modalAnomali.classList.contains('hidden')) tutupAnomali();
     }
   });
+
+  var modalAnomali   = document.getElementById('modal-anomali');
+  var tutupAnomaliBtn = document.getElementById('modal-anomali-tutup');
+
+  function tutupAnomali() {
+    if (! modalAnomali) return;
+    modalAnomali.classList.add('hidden');
+    modalAnomali.classList.remove('flex');
+  }
+
+  if (modalAnomali) {
+    tutupAnomaliBtn.addEventListener('click', tutupAnomali);
+    modalAnomali.addEventListener('click', function (e) {
+      if (e.target === modalAnomali) tutupAnomali();
+    });
+    document.querySelectorAll('[data-anomali-nama]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        document.getElementById('anomali-nama').textContent = btn.getAttribute('data-anomali-nama');
+        document.getElementById('anomali-keterangan').textContent =
+          btn.getAttribute('data-anomali-keterangan');
+        modalAnomali.classList.remove('hidden');
+        modalAnomali.classList.add('flex');
+      });
+    });
+  }
 })();
 </script>
 @endsection

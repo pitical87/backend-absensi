@@ -28,7 +28,7 @@
             <strong>{{ $r->user->nama_lengkap }}</strong>
             @if($r->user->nip)<br><span class="teks-kecil teks-redup">NIP {{ $r->user->nip }}</span>@endif
             <br><span class="teks-kecil teks-redup">{{ $r->user->unitKerja->nama ?? '—' }}@if(
-              $r->user->subUnit->nama) — {{ $r->user->subUnit->nama }}@endif</span>
+              $r->user->subUnit?->nama) — {{ $r->user->subUnit->nama }}@endif</span>
           </td>
           <td class="angka">
             {{ tgl_id($r->tanggal->format('Y-m-d'), false) }}
