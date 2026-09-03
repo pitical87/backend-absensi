@@ -4,27 +4,48 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\MappingSIMRSAccount;
+use App\Models\User;
 use App\Services\SimrsService;
 use Illuminate\Http\Request;
 
 class SimrsController extends Controller
 {
-    public function koneksi(SimrsService $simrs)
+    public function index(Request $request, SimrsService $simrs)
     {
-        return view('admin.simrs.koneksi', [
-            'judulHalaman' => 'Cek Koneksi SIMRS',
-            'menuAktif' => 'cek_simrs',
+        $q = trim((string) $request->get('q'));
+        $halaman = max(1, (int) $request->get('hal'));
+        $per = 25;
+        $tab = (string) $request->get('tab', '');
+
+        $b = User::with('mappingSimrs')->where('role', '!=', 'admin');
+        if ($q !== '') {
+            $b->where(function ($qry) use ($q) {
+                $qry->where('nama_lengkap', 'like', "%{$q}%")
+                    ->orWhere('email', 'like', "%{$q}%")
+                    ->orWhere('nip', 'like', "%{$q}%");
+            });
+        }
+        $total = $b->count();
+        $pegawai = $b->orderBy('nama_lengkap')
+            ->skip(($halaman - 1) * $per)
+            ->take($per)
+            ->get();
+
+        return view('admin.simrs.index', [
+            'judulHalaman' => 'Integrasi SIMRS',
+            'menuAktif' => 'simrs',
+            'tab' => $tab,
+            // Cek koneksi
             'hasil' => $simrs->cekKoneksi(),
             'timeout' => (int) config('simrs.timeout', 5),
-        ]);
-    }
-
-    public function tindakan()
-    {
-        return view('admin.simrs.tindakan', [
-            'judulHalaman' => 'Data Tindakan SIMRS',
-            'menuAktif' => 'tindakan_simrs',
-            'pegawai' => $this->pegawaiTerMapping(),
+            // Mapping akun
+            'pegawai' => $pegawai,
+            'q' => $q,
+            'halaman' => $halaman,
+            'totalHal' => max(1, (int) ceil($total / $per)),
+            'total' => $total,
+            // Tindakan & lab
+            'terMapping' => $this->pegawaiTerMapping(),
         ]);
     }
 
@@ -52,15 +73,6 @@ class SimrsController extends Controller
         return response()->json(
             $simrs->cariTindakan($ids, $data['dari'], $data['sampai'])
         );
-    }
-
-    public function lab()
-    {
-        return view('admin.simrs.lab', [
-            'judulHalaman' => 'Data Lab SIMRS',
-            'menuAktif' => 'lab_simrs',
-            'pegawai' => $this->pegawaiTerMapping(),
-        ]);
     }
 
     public function ambilLab(Request $request, SimrsService $simrs)

@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AktivitasController;
 use App\Http\Controllers\Admin\AtasanLangsungController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DokumentasiController;
+use App\Http\Controllers\Admin\FingerController;
 use App\Http\Controllers\Admin\IzinController;
 use App\Http\Controllers\Admin\LogbookController;
 use App\Http\Controllers\Admin\JadwalController;
@@ -27,16 +28,12 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('admin')->middleware('admin')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('admin.dashboard.index');
 
-    Route::get('mapping_simrs', [MappingSIMRSController::class, 'index'])->name('admin.mapping_simrs');
     Route::get('mapping_simrs/cek', [MappingSIMRSController::class, 'cek'])->name('admin.mapping_simrs.cek');
     Route::get('mapping_simrs/cari', [MappingSIMRSController::class, 'cari'])->name('admin.mapping_simrs.cari');
     Route::post('mapping_simrs/simpan', [MappingSIMRSController::class, 'simpan'])->name('admin.mapping_simrs.simpan');
 
-    Route::get('simrs', [SimrsController::class, 'koneksi'])->name('admin.simrs.koneksi');
-    Route::get('simrs/tindakan', [SimrsController::class, 'tindakan'])->name('admin.simrs.tindakan');
+    Route::get('simrs', [SimrsController::class, 'index'])->name('admin.simrs');
     Route::get('simrs/tindakan/ambil', [SimrsController::class, 'ambilTindakan'])->name('admin.simrs.tindakan.ambil');
-
-    Route::get('simrs/lab', [SimrsController::class, 'lab'])->name('admin.simrs.lab');
     Route::get('simrs/lab/ambil', [SimrsController::class, 'ambilLab'])->name('admin.simrs.lab.ambil');
 
     Route::get('logbook', [LogbookController::class, 'index'])->name('admin.logbook.index');
@@ -78,6 +75,13 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::get('kehadiran', [KehadiranController::class, 'index'])->name('admin.kehadiran.index');
     Route::post('kehadiran/simpan', [KehadiranController::class, 'simpan'])->name('admin.kehadiran.simpan');
     Route::post('kehadiran/hapus', [KehadiranController::class, 'hapus'])->name('admin.kehadiran.hapus');
+
+    Route::get('finger', [FingerController::class, 'index'])->name('admin.finger');
+    Route::post('finger/mapping', [FingerController::class, 'simpanMapping'])->name('admin.finger.mapping.simpan');
+    Route::post('finger/mapping/hapus', [FingerController::class, 'hapusMapping'])->name('admin.finger.mapping.hapus');
+    Route::post('finger/import', [FingerController::class, 'imporCsv'])->name('admin.finger.import');
+    Route::post('finger/import-url', [FingerController::class, 'ambilDariMesin'])->name('admin.finger.import.url');
+    Route::post('finger/setting', [FingerController::class, 'simpanSetting'])->name('admin.finger.setting');
 
     Route::get('izin', [IzinController::class, 'index'])->name('admin.izin.index');
     Route::post('izin/proses', [IzinController::class, 'proses'])->name('admin.izin.proses');

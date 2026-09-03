@@ -22,7 +22,7 @@ class Absensi extends Model
         'foto_masuk', 'foto_pulang', 'status_masuk', 'menit_terlambat',
         'status_pulang', 'menit_awal_pulang',
         'bintang_masuk', 'bintang_pulang', 'bintang_harian',
-        'total_menit_kerja', 'flag_anomali', 'catatan_anomali',
+        'total_menit_kerja', 'flag_anomali', 'catatan_anomali', 'sumber',
     ];
 
     protected function casts(): array

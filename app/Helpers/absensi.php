@@ -141,6 +141,11 @@ if (! function_exists('ikon')) {
             'kunci' => '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/><path d="M12 15v2"/>',
             'hapus' => '<path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="m6 7 1 13h10l1-13"/><path d="M10 11v5M14 11v5"/>',
             'bintang' => '<path d="m12 3.5 2.5 5.2 5.7.8-4.1 4 1 5.7-5.1-2.7-5.1 2.7 1-5.7-4.1-4 5.7-.8L12 3.5Z"/>',
+            'jari' => '<path d="M6 10V6a2 2 0 0 1 4 0v3"/><path d="M8 11V7a1.6 1.6 0 0 1 3-1V9"/><path d="M11 10V6.8a1.6 1.6 0 0 1 3-.3V11"/><path d="M14 11V8a1.6 1.6 0 0 1 3 1v4"/><path d="M17 12v-1a1.6 1.6 0 0 1 3 1v4a8 8 0 0 1-16 0v-3a3.5 3.5 0 0 1 7 0"/>',
+            'unggah' => '<path d="M12 16V5"/><path d="m7 9 5-5 5 5"/><path d="M5 20h14"/>',
+            'koneksi' => '<path d="M6 7h12v10H6z"/><path d="M9 10h.01M15 10h.01M9 14h.01M15 14h.01M9 7v3M15 7v3"/><path d="M8 17v2M16 17v2"/>',
+            'filter' => '<path d="M4 5h16l-6 7v6l-4 2v-8L4 5Z"/>',
+            'tambah' => '<path d="M12 5v14M5 12h14"/>',
         ];
         $p = $paths[$nama] ?? $paths['info'];
         return '<svg class="ikon" width="' . $ukuran . '" height="' . $ukuran . '" viewBox="0 0 24 24" fill="none"'

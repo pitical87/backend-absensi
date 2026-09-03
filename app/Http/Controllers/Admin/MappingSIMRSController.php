@@ -106,7 +106,7 @@ class MappingSIMRSController extends Controller
 
         catat_aktivitas('Mapping SIMRS', $pegawai->nama_lengkap.' → '.$data['simrs_user_id']);
 
-        return redirect()->route('admin.mapping_simrs')
+        return redirect()->route('admin.simrs', ['tab' => 'mapping'])
             ->with('success', 'Mapping akun SIMRS untuk '.$pegawai->nama_lengkap.' disimpan.');
     }
 }

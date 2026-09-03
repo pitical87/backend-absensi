@@ -38,14 +38,12 @@ $grupMenu = [
     ],
   ],
   [
-    'id'    => 'grp-simrs',
-    'label' => 'Integrasi SIMRS',
-    'ikon'  => 'integrasi',
+    'id'    => 'grp-integrasi',
+    'label' => 'Integrasi',
+    'ikon'  => 'koneksi',
     'items' => [
-      'cek_simrs'      => ['admin/simrs',          'centang', 'Cek Koneksi'],
-      'mapping_simrs'  => ['admin/mapping_simrs',  'log',     'Mapping Akun'],
-      'tindakan_simrs' => ['admin/simrs/tindakan', 'jam',     'Data Tindakan'],
-      'lab_simrs'      => ['admin/simrs/lab',      'log',     'Data Lab'],
+      'simrs'  => ['admin/simrs',  'koneksi', 'Modul SIMRS'],
+      'finger' => ['admin/finger', 'jari',    'Modul FingerSpot'],
     ],
   ],
   [

@@ -125,6 +125,11 @@ class User extends Authenticatable
         return $this->hasOne(MappingSIMRSAccount::class);
     }
 
+    public function fingerMapping(): HasOne
+    {
+        return $this->hasOne(FingerPegawai::class);
+    }
+
     public function isAdmin(): bool
     {
         return $this->role === 'admin';
