@@ -19,10 +19,22 @@ class FingerController extends Controller
 
         $pegawaiList = User::where('role', '!=', 'admin')
             ->where('status', 'aktif')
+            ->with('unitKerja:id,nama', 'subUnit:id,nama')
             ->orderBy('nama_lengkap')
-            ->get(['id', 'nama_lengkap', 'nip']);
+            ->get(['id', 'nama_lengkap', 'nip', 'unit_kerja_id', 'sub_unit_id']);
 
-        $belumDipetakan = FingerPegawai::pluck('user_id');
+        $fingerByUser = FingerPegawai::pluck('finger_id', 'user_id');
+        $mappingIdByUser = FingerPegawai::pluck('id', 'user_id');
+
+        // Gabungkan seluruh pegawai dengan status mapping-nya.
+        $pegawaiMapping = [];
+        foreach ($pegawaiList as $p) {
+            $pegawaiMapping[] = [
+                'user' => $p,
+                'finger_id' => $fingerByUser[(int) $p->id] ?? null,
+                'mapping_id' => $mappingIdByUser[(int) $p->id] ?? null,
+            ];
+        }
 
         // Preview data hasil impor FingerSpot (bulan + tahun).
         $bulan = (int) $request->get('bulan', now()->month);
@@ -47,8 +59,7 @@ class FingerController extends Controller
             'judulHalaman' => 'Absen FingerSpot',
             'menuAktif' => 'finger',
             'mapping' => $mapping,
-            'pegawaiList' => $pegawaiList,
-            'pegawaiTanpaMapping' => $pegawaiList->whereNotIn('id', $belumDipetakan),
+            'pegawaiMapping' => $pegawaiMapping,
             'preview' => $rabuAbsensi,
             'bulan' => $bulan,
             'tahun' => $tahun,

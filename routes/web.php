@@ -20,6 +20,7 @@ Route::get('install', [InstallController::class, 'index'])->name('install');
 Route::post('install', [InstallController::class, 'buatAdmin']);
 Route::get('login', [AuthController::class, 'login'])->name('login');
 Route::post('login', [AuthController::class, 'prosesLogin']);
+Route::get('captcha', [AuthController::class, 'captcha'])->name('captcha');
 Route::get('logout', [AuthController::class, 'logout'])->name('logout');
 Route::get('verifikasi/{kode?}', [VerifikasiController::class, 'index'])->name('verifikasi');
 

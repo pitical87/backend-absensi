@@ -185,6 +185,38 @@
               </div>
             </div>
 
+            {{-- CAPTCHA Field --}}
+            <div id="captcha-blok">
+              <label class="block text-xs sm:text-sm font-medium text-slate-700 mb-1.5">
+                Verifikasi
+              </label>
+              <input type="hidden" name="captcha_token" id="captcha-token" value="">
+              <div class="flex items-center gap-2.5">
+                <div id="captcha-soal" class="flex-1 rounded-xl border border-dashed border-[#007afc]/50 bg-blue-50/60 px-4 py-3.5 text-xs sm:text-sm font-semibold text-slate-800 text-center select-none">
+                  Memuat…
+                </div>
+                <button
+                  type="button"
+                  id="captcha-refresh"
+                  title="Ganti CAPTCHA"
+                  class="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-3.5 text-slate-500 hover:text-[#007afc] hover:border-[#007afc]/50 focus:outline-none transition cursor-pointer"
+                >
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </button>
+              </div>
+              <input
+                type="text"
+                id="captcha"
+                name="captcha"
+                required
+                autocomplete="off"
+                placeholder="Jawaban CAPTCHA di atas"
+                class="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#007afc] focus:ring-4 focus:ring-blue-100 transition-all shadow-sm"
+              >
+            </div>
+
             {{-- Submit Button --}}
             <div class="pt-2">
               <button
@@ -341,6 +373,44 @@
       eyeIcon.classList.toggle('hidden', isPassword);
       eyeOffIcon.classList.toggle('hidden', !isPassword);
     });
+  }
+
+  // --- CAPTCHA LOADER (session-based math captcha) ---
+  const captchaSoal = document.getElementById('captcha-soal');
+  const captchaToken = document.getElementById('captcha-token');
+  const captchaInput = document.getElementById('captcha');
+  const captchaRefresh = document.getElementById('captcha-refresh');
+  const captchaUrl = '{{ route("captcha") }}';
+
+  function muatCaptcha() {
+    if (!captchaSoal || !captchaToken) return;
+    captchaSoal.textContent = 'Memuat…';
+    fetch(captchaUrl, { headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        if (!data) { captchaSoal.textContent = 'Gagal memuat. Muat ulang halaman.'; return; }
+        captchaToken.value = data.token || '';
+        captchaSoal.textContent = data.soal || '';
+        if (captchaInput) captchaInput.value = '';
+      })
+      .catch(function () {
+        captchaSoal.textContent = 'Gagal memuat. Muat ulang halaman.';
+      });
+  }
+
+  if (captchaSoal) {
+    muatCaptcha();
+    if (captchaRefresh) captchaRefresh.addEventListener('click', function (e) { e.preventDefault(); muatCaptcha(); });
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible' && !captchaToken.value) muatCaptcha();
+    });
+  }
+
+  // Bila halaman dirender ulang karena error (mis. jawaban CAPTCHA salah) — token lama sudah tak berlaku,
+  // muat CAPTCHA baru supaya form selalu punya token yang sah.
+  var adaError = document.querySelector('#login-form .bg-red-50, #login-form .bg-emerald-50');
+  if (adaError && captchaSoal) {
+    muatCaptcha();
   }
 
   // --- RENDER LOGIN AS CARDS FROM ENCRYPTED STORAGE ---

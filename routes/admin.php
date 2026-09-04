@@ -18,6 +18,8 @@ use App\Http\Controllers\Admin\PengajuanJadwalController;
 use App\Http\Controllers\Admin\RekapKeterlambatanController;
 use App\Http\Controllers\Admin\PengaturanController;
 use App\Http\Controllers\Admin\RekapController;
+use App\Http\Controllers\Admin\RekapLemburController;
+use App\Http\Controllers\Admin\EksekutifController;
 use App\Http\Controllers\Admin\RekapLogbookController;
 use App\Http\Controllers\Admin\ShiftController;
 use App\Http\Controllers\Admin\SimrsController;
@@ -105,6 +107,11 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::post('rekap/generate', [RekapController::class, 'generate'])->name('admin.rekap.generate');
     Route::get('rekap/cetak', [RekapController::class, 'cetak'])->name('admin.rekap.cetak');
     Route::get('rekap/excel', [RekapController::class, 'excel'])->name('admin.rekap.excel');
+
+    Route::get('rekap_lembur', [RekapLemburController::class, 'index'])->name('admin.rekap_lembur.index');
+    Route::get('rekap_lembur/cetak', [RekapLemburController::class, 'cetak'])->name('admin.rekap_lembur.cetak');
+    Route::get('eksekutif', [EksekutifController::class, 'index'])->name('admin.eksekutif.index');
+    Route::get('eksekutif/cetak', [EksekutifController::class, 'cetak'])->name('admin.eksekutif.cetak');
 
     Route::get('pengaturan', [PengaturanController::class, 'index'])->name('admin.pengaturan.index');
     Route::post('pengaturan', [PengaturanController::class, 'simpan'])->name('admin.pengaturan.simpan');

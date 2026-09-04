@@ -55,6 +55,8 @@ $grupMenu = [
       'rekap_keterlambatan' => ['admin/rekap_keterlambatan', 'jam', 'Rekap Keterlambatan'],
       'pegawai_teladan'     => ['admin/pegawai_teladan', 'bintang', 'Pegawai Teladan'],
       'rekap_logbook' => ['admin/rekap_logbook', 'log',      'Rekap Logbook'],
+      'rekap_lembur'  => ['admin/rekap_lembur',  'jam',      'Rekap Lembur'],
+      'eksekutif'     => ['admin/eksekutif',     'grafik',   'Dashboard Eksekutif'],
     ],
   ],
   [

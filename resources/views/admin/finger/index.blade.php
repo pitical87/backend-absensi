@@ -53,85 +53,80 @@
 {{-- Tab: Mapping ID Finger --}}
 <section class="kartu finger-panel" id="panel-mapping">
   <div class="kartu-kepala">
-    <h2>{!! ikon('log') !!} Mapping ID Finger</h2>
-    <div class="flex items-center gap-2">
-      <span class="badge badge-biru" id="jumlah-mapping">{{ count($mapping) }} mapping</span>
-      <button type="button" id="tombol-tambah-mapping" class="btn btn-navy btn-kecil">{!! ikon('tambah', 14) !!} Tambah</button>
-    </div>
+    <h2>{!! ikon('log') !!} Mapping ID Finger per Pegawai</h2>
+    <span class="badge badge-biru" id="jumlah-mapping">{{ count($pegawaiMapping) }} pegawai</span>
   </div>
 
   <div class="p-3">
-    <input type="text" id="cari-mapping" placeholder="Cari pegawai / ID finger…" class="flex-1 min-w-[200px]">
+    <input type="text" id="cari-mapping" placeholder="Cari pegawai / NIP / ID finger…" class="flex-1 min-w-[200px]">
   </div>
 
   <div class="tabel-bungkus">
     <table class="tabel">
-      <thead><tr><th>Pegawai</th><th>ID Finger</th><th class="min-w-[110px]">Aksi</th></tr></thead>
+      <thead><tr><th>Pegawai</th><th>Unit / Sub Unit</th><th>ID Finger</th><th class="min-w-[150px]">Aksi</th></tr></thead>
       <tbody id="mapping-tubuh">
-        @foreach($mapping as $m)
-        <tr data-nama="{{ mb_strtolower($m->user?->nama_lengkap ?? '') }}" data-finger="{{ mb_strtolower($m->finger_id) }}">
+        @php
+          $jumlahTerpetakan = 0;
+        @endphp
+        @foreach($pegawaiMapping as $pm)
+        @php
+          $u = $pm['user'];
+          $sudah = $pm['finger_id'] !== null;
+          if ($sudah) $jumlahTerpetakan++;
+        @endphp
+        <tr data-nama="{{ mb_strtolower($u->nama_lengkap ?? '') }}" data-nip="{{ mb_strtolower((string) $u->nip) }}" data-finger="{{ mb_strtolower((string) $pm['finger_id']) }}">
           <td>
-            <strong>{{ $m->user?->nama_lengkap ?? '—' }}</strong>
-            @if($m->user?->nip)<br><span class="teks-redup teks-kecil">NIP {{ $m->user->nip }}</span>@endif
+            <strong>{{ $u->nama_lengkap }}</strong>
+            @if($u->nip)<br><span class="teks-redup teks-kecil">NIP {{ $u->nip }}</span>@endif
           </td>
-          <td><code>{{ $m->finger_id }}</code></td>
+          <td>
+            {{ $u->unitKerja?->nama ?? '—' }}
+            @if($u->subUnit?->nama)<br><span class="teks-redup teks-kecil">{{ $u->subUnit->nama }}</span>@endif
+          </td>
+          <td>
+            @if($sudah)
+              <code>{{ $pm['finger_id'] }}</code>
+            @else
+              <span class="badge badge-merah">Belum</span>
+            @endif
+          </td>
           <td class="flex flex-wrap gap-1">
-              <button type="button" class="btn btn-garis btn-kecil ubah-mapping"
-                data-id="{{ $m->id }}" data-user="{{ $m->user_id }}"
-                data-finger="{{ $m->finger_id }}" data-nama="{{ $m->user?->nama_lengkap }}">Ubah</button>
-              <form method="post" action="{{ route('admin.finger.mapping.hapus') }}" onsubmit="return confirm('Hapus mapping ini?')">
+            <button type="button" class="btn btn-garis btn-kecil set-mapping"
+              data-id="{{ $pm['mapping_id'] ?? '' }}" data-user="{{ $u->id }}"
+              data-finger="{{ $pm['finger_id'] ?? '' }}" data-nama="{{ $u->nama_lengkap }}">
+              {{ $sudah ? 'Ubah' : 'Set ID' }}
+            </button>
+            @if($sudah)
+              <form method="post" action="{{ route('admin.finger.mapping.hapus') }}" onsubmit="return confirm('Hapus mapping ID finger ini?')">
                 @csrf
-                <input type="hidden" name="id" value="{{ $m->id }}">
+                <input type="hidden" name="id" value="{{ $pm['mapping_id'] }}">
                 <button type="submit" class="btn btn-merah btn-kecil">Hapus</button>
               </form>
+            @endif
           </td>
         </tr>
         @endforeach
-        @if($mapping->isEmpty())
-        <tr><td colspan="3" class="tengah teks-redup">Belum ada mapping ID finger.</td></tr>
+        @if(empty($pegawaiMapping))
+        <tr><td colspan="4" class="tengah teks-redup">Tidak ada pegawai aktif.</td></tr>
         @endif
-        <tr id="mapping-kosong" class="hidden"><td colspan="3" class="tengah teks-redup">Tidak ada mapping yang cocok.</td></tr>
+        <tr id="mapping-kosong" class="hidden"><td colspan="4" class="tengah teks-redup">Tidak ada pegawai yang cocok.</td></tr>
       </tbody>
     </table>
   </div>
+  <nav class="paginasi px-2" id="paginasi-mapping">
+    <span class="info" id="info-halaman-mapping"></span>
+  </nav>
+  @php
+    $jumlahBelum = count($pegawaiMapping) - $jumlahTerpetakan;
+  @endphp
+  <p class="teks-redup teks-kecil p-2">Terpetakan <strong>{{ $jumlahTerpetakan }}</strong> dari {{ count($pegawaiMapping) }} pegawai. @if($jumlahBelum > 0) Sisanya <strong>{{ $jumlahBelum }}</strong> pegawai berstatus <strong>Belum</strong>.@endif</p>
 </section>
 
-{{-- Modal Tambah Mapping --}}
-<div id="modal-tambah-mapping" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
-  <div class="kartu w-full max-w-lg">
-    <div class="kartu-kepala">
-      <h2>{!! ikon('tambah') !!} Tambah Mapping ID Finger</h2>
-      <button type="button" class="btn btn-garis btn-kecil tutup-modal-tambah">&times; Tutup</button>
-    </div>
-    <form method="post" action="{{ route('admin.finger.mapping.simpan') }}" class="p-4 space-y-2">
-      @csrf
-      <input type="hidden" name="id" value="">
-      <label class="blok">
-        <span class="teks-kecil">Pegawai</span>
-        <select name="user_id" required>
-          <option value="">— Pilih Pegawai —</option>
-          @foreach($pegawaiTanpaMapping as $p)
-            <option value="{{ $p->id }}">{{ $p->nama_lengkap }}@if($p->nip) (NIP {{ $p->nip }})@endif</option>
-          @endforeach
-        </select>
-      </label>
-      <label class="blok">
-        <span class="teks-kecil">ID Finger di Mesin</span>
-        <input type="text" name="finger_id" placeholder="cth. 101" required>
-      </label>
-      <div class="flex justify-end gap-2 pt-1">
-        <button type="button" class="btn btn-garis btn-kecil tutup-modal-tambah">Batal</button>
-        <button type="submit" class="btn btn-navy btn-kecil">Simpan</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-{{-- Modal Edit Mapping --}}
+{{-- Modal Set / Edit Mapping --}}
 <div id="modal-edit-mapping" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
   <div class="kartu w-full max-w-lg">
     <div class="kartu-kepala">
-      <h2>{!! ikon('atur') !!} Ubah Mapping ID Finger</h2>
+      <h2>{!! ikon('atur') !!} Atur Mapping ID Finger</h2>
       <button type="button" class="btn btn-garis btn-kecil tutup-modal-edit">&times; Tutup</button>
     </div>
     <form method="post" action="{{ route('admin.finger.mapping.simpan') }}" class="p-4 space-y-2">
@@ -148,7 +143,7 @@
       </label>
       <div class="flex justify-end gap-2 pt-1">
         <button type="button" class="btn btn-garis btn-kecil tutup-modal-edit">Batal</button>
-        <button type="submit" class="btn btn-navy btn-kecil">Perbarui</button>
+        <button type="submit" class="btn btn-navy btn-kecil">Simpan</button>
       </div>
     </form>
   </div>
@@ -286,36 +281,22 @@
   bukaTab(tabAwal);
 
   // ── Modal Mapping ──
-  const modalTambah = document.getElementById('modal-tambah-mapping');
   const modalEdit   = document.getElementById('modal-edit-mapping');
 
   function bukaModal(el) { el.classList.remove('hidden'); el.classList.add('flex'); }
   function tutupModal(el) { el.classList.add('hidden'); el.classList.remove('flex'); }
 
-  const tombolTambah = document.getElementById('tombol-tambah-mapping');
-  if (tombolTambah) {
-    tombolTambah.addEventListener('click', function () {
-      modalTambah.querySelector('form').reset();
-      modalTambah.querySelector('input[name="id"]').value = '';
-      bukaModal(modalTambah);
-    });
-  }
-
-  document.querySelectorAll('.tutup-modal-tambah').forEach(function (b) {
-    b.addEventListener('click', function () { tutupModal(modalTambah); });
-  });
   document.querySelectorAll('.tutup-modal-edit').forEach(function (b) {
     b.addEventListener('click', function () { tutupModal(modalEdit); });
   });
 
-  if (modalTambah) modalTambah.addEventListener('click', function (e) { if (e.target === modalTambah) tutupModal(modalTambah); });
   if (modalEdit) modalEdit.addEventListener('click', function (e) { if (e.target === modalEdit) tutupModal(modalEdit); });
 
-  document.querySelectorAll('.ubah-mapping').forEach(function (btn) {
+  document.querySelectorAll('.set-mapping').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      document.getElementById('edit-mapping-id').value = btn.dataset.id;
+      document.getElementById('edit-mapping-id').value = btn.dataset.id || '';
       document.getElementById('edit-mapping-user').value = btn.dataset.user;
-      document.getElementById('edit-mapping-finger').value = btn.dataset.finger;
+      document.getElementById('edit-mapping-finger').value = btn.dataset.finger || '';
       document.getElementById('edit-mapping-nama').value = btn.dataset.nama || '';
       bukaModal(modalEdit);
     });
@@ -326,22 +307,80 @@
   var tubuh = document.getElementById('mapping-tubuh');
   var kosong = document.getElementById('mapping-kosong');
   var jumlahLabel = document.getElementById('jumlah-mapping');
-  if (cari && tubuh) {
-    var jumlahAwal = tubuh.querySelectorAll('tr[data-nama]').length;
-    cari.addEventListener('input', function () {
-      var q = cari.value.trim().toLowerCase();
-      var tampil = 0;
-      tubuh.querySelectorAll('tr[data-nama]').forEach(function (tr) {
-        var cocok = tr.dataset.nama.includes(q) || tr.dataset.finger.includes(q);
-        tr.classList.toggle('hidden', !cocok);
-        if (cocok) tampil++;
+  var paginasiWrap = document.getElementById('paginasi-mapping');
+  var infoHalaman = document.getElementById('info-halaman-mapping');
+  var PER = 25;
+
+  function barisCocok(tr, q) {
+    return tr.dataset.nama.includes(q) || tr.dataset.nip.includes(q) || tr.dataset.finger.includes(q);
+  }
+
+  function semuaBaris() {
+    return Array.prototype.slice.call(tubuh.querySelectorAll('tr[data-nama]'));
+  }
+
+  function renderPaginasi(q) {
+    var daftar = semuaBaris();
+    var hasil = daftar.filter(function (tr) { return barisCocok(tr, q); });
+    var total = hasil.length;
+    var maxHal = Math.max(1, Math.ceil(total / PER));
+
+    // simpan hal aktif saat ini (reset ke halaman dengan data saat q berubah)
+    if (typeof renderPaginasi._hal !== 'number') renderPaginasi._hal = 1;
+    var hal = renderPaginasi._hal;
+    if (hal > maxHal) hal = maxHal;
+    renderPaginasi._hal = hal;
+
+    daftar.forEach(function (tr) { tr.classList.add('hidden'); });
+    kosong.classList.toggle('hidden', total > 0);
+    if (jumlahLabel) jumlahLabel.textContent = (q === '' ? daftar.length : total) + ' pegawai';
+
+    var mulai = (hal - 1) * PER;
+    hasil.slice(mulai, mulai + PER).forEach(function (tr) { tr.classList.remove('hidden'); });
+
+    renderPaginasi._total = total;
+    renderPaginasi._maxHal = maxHal;
+    renderPaginasi._hal = hal;
+    buildNavigasi(total, maxHal, hal);
+  }
+
+  function buildNavigasi(total, maxHal, hal) {
+    paginasiWrap.innerHTML = '';
+    if (total === 0) { infoHalaman.textContent = ''; return; }
+    infoHalaman.textContent = 'Menampilkan ' + Math.min(PER, total) + ' dari ' + total + ' pegawai';
+
+    var buatTombol = function (label, h, aktif, nonaktif) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = label;
+      b.className = (aktif ? 'aktif' : '');
+      if (nonaktif) b.disabled = true;
+      b.addEventListener('click', function () {
+        renderPaginasi._hal = h;
+        renderPaginasi(cari.value.trim().toLowerCase());
       });
-      kosong.classList.toggle('hidden', q === '' || tampil > 0);
-      if (jumlahLabel) {
-        jumlahLabel.textContent = (q === '' ? jumlahAwal : tampil) + ' mapping';
-      }
+      return b;
+    };
+
+    paginasiWrap.appendChild(buatTombol('« Prev', hal - 1, false, hal <= 1));
+
+    var awal = Math.max(1, hal - 2);
+    var akhir = Math.min(maxHal, hal + 2);
+    for (var h = awal; h <= akhir; h++) {
+      paginasiWrap.appendChild(buatTombol(String(h), h, h === hal, false));
+    }
+
+    paginasiWrap.appendChild(buatTombol('Next »', hal + 1, false, hal >= maxHal));
+  }
+
+  if (cari) {
+    cari.addEventListener('input', function () {
+      renderPaginasi._hal = 1;
+      renderPaginasi(cari.value.trim().toLowerCase());
     });
   }
+
+  renderPaginasi(cari ? cari.value.trim().toLowerCase() : '');
 })();
 </script>
 @endsection

@@ -36,6 +36,31 @@ class AuthController extends Controller
         return view('auth.login');
     }
 
+    public function captcha()
+    {
+        $a = random_int(1, 12);
+        $b = random_int(1, 9);
+        $token = bin2hex(random_bytes(16));
+        // Simpan jawaban (ter-hash) di session dgn token acak sekali pakai.
+        session()->put('captcha_'.$token, sha1((string) ($a + $b)));
+        // Batasi jumlah token aktif agar tidak menumpuk.
+        $simpan = [];
+        foreach ($this->tokenCaptcha() as $t) {
+            $simpan[] = $t;
+        }
+        if (count($simpan) > 10) {
+            foreach (array_slice($simpan, 0, count($simpan) - 10) as $t) {
+                session()->forget('captcha_'.$t);
+            }
+        }
+
+        return response()->json([
+            'token'    => $token,
+            'soal'     => $a.' + '.$b,
+            'keterangan' => 'Berapa hasil penjumlahan di atas?',
+        ]);
+    }
+
     public function prosesLogin(Request $request)
     {
         if (! $this->skemaSiap()) {
@@ -45,6 +70,17 @@ class AuthController extends Controller
         $email = trim((string) $request->input('email'));
         $pass  = (string) $request->input('password');
         $ip    = $request->ip();
+
+        // Validasi CAPTCHA.
+        $token = (string) $request->input('captcha_token');
+        $jawab = trim((string) $request->input('captcha'));
+        if (! $this->verifikasiCaptcha($token, $jawab)) {
+            $tersisa = $this->sisaPercobaan($email, $ip);
+            return view('auth.login', [
+                'galat' => 'Jawaban CAPTCHA salah. Coba lagi.'
+                         . ($tersisa <= 2 ? ' Sisa '.$tersisa.' percobaan sebelum akses ditunda sementara.' : ''),
+            ]);
+        }
 
         $sisa = $this->sisaBlokir($email, $ip);
         if ($sisa > 0) {
@@ -164,5 +200,28 @@ class AuthController extends Controller
             ->orderBy('waktu', 'desc')->first();
         $habis = strtotime((string) ($terbaru->waktu ?? 'now')) + self::JENDELA_MNT * 60;
         return max(1, (int) ceil(($habis - time()) / 60));
+    }
+
+    private function tokenCaptcha(): array
+    {
+        $keys = [];
+        foreach ((array) session()->all() as $k => $v) {
+            if (is_string($k) && str_starts_with($k, 'captcha_')) {
+                $keys[] = substr($k, strlen('captcha_'));
+            }
+        }
+        return $keys;
+    }
+
+    private function verifikasiCaptcha(string $token, string $jawab): bool
+    {
+        $kunci = 'captcha_'.$token;
+        $benar = session()->get($kunci);
+        // Token selalu sekali pakai, apapun hasil verifikasinya.
+        session()->forget($kunci);
+        if ($token === '' || ! is_string($benar)) {
+            return false;
+        }
+        return hash_equals($benar, sha1($jawab));
     }
 }
