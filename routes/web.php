@@ -21,6 +21,7 @@ Route::post('install', [InstallController::class, 'buatAdmin']);
 Route::get('login', [AuthController::class, 'login'])->name('login');
 Route::post('login', [AuthController::class, 'prosesLogin']);
 Route::get('captcha', [AuthController::class, 'captcha'])->name('captcha');
+Route::get('captcha/gambar/{token}', [AuthController::class, 'gambarCaptcha'])->name('captcha.gambar');
 Route::get('logout', [AuthController::class, 'logout'])->name('logout');
 Route::get('verifikasi/{kode?}', [VerifikasiController::class, 'index'])->name('verifikasi');
 

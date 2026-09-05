@@ -13,6 +13,7 @@ class AuthController extends Controller
 {
     private const MAKS_GAGAL = 5;
     private const JENDELA_MNT = 15;
+    private const MIN_ISI_DETIK = 3;
 
     public function beranda()
     {
@@ -33,16 +34,16 @@ class AuthController extends Controller
         if (session('uid')) {
             return redirect(session('role') === 'admin' ? 'admin' : 'dashboard');
         }
+        session(['login_form_started' => time()]);
         return view('auth.login');
     }
 
     public function captcha()
     {
-        $a = random_int(1, 12);
-        $b = random_int(1, 9);
+        $kode = $this->kodeCaptcha();
         $token = bin2hex(random_bytes(16));
-        // Simpan jawaban (ter-hash) di session dgn token acak sekali pakai.
-        session()->put('captcha_'.$token, sha1((string) ($a + $b)));
+        // Simpan kode (huruf besar) di session dgn token acak. Antarmuka gambar memakai kode ini.
+        session()->put('captcha_'.$token, $kode);
         // Batasi jumlah token aktif agar tidak menumpuk.
         $simpan = [];
         foreach ($this->tokenCaptcha() as $t) {
@@ -56,8 +57,23 @@ class AuthController extends Controller
 
         return response()->json([
             'token'    => $token,
-            'soal'     => $a.' + '.$b,
-            'keterangan' => 'Berapa hasil penjumlahan di atas?',
+            'url'      => url('captcha/gambar/'.$token),
+            'panjang'  => strlen($kode),
+            'keterangan' => 'Ketik huruf/angka pada gambar di atas (tanpa spasi).',
+        ]);
+    }
+
+    public function gambarCaptcha(string $token)
+    {
+        $kode = session()->get('captcha_'.$token);
+        // Hanya render gambar; verifikasi (& pemakaian sekali pakai) terjadi saat submit login.
+        if (! is_string($kode) || $kode === '') {
+            abort(404);
+        }
+        return response($this->gambarSvg($kode), 200, [
+            'Content-Type' => 'image/svg+xml',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate',
+            'Pragma' => 'no-cache',
         ]);
     }
 
@@ -71,13 +87,19 @@ class AuthController extends Controller
         $pass  = (string) $request->input('password');
         $ip    = $request->ip();
 
-        // Validasi CAPTCHA.
+        // Validasi CAPTCHA + pertahanan anti-bot (honeypot & kecepatan isi form).
         $token = (string) $request->input('captcha_token');
         $jawab = trim((string) $request->input('captcha'));
-        if (! $this->verifikasiCaptcha($token, $jawab)) {
+        $honey = (string) $request->input('website');
+        $mulai = (int) session('login_form_started', 0);
+        session()->forget('login_form_started');
+
+        // Bot biasanya (a) mengisi kolom tersembunyi honeypot, (b) submit sangat cepat,
+        // atau (c) salah menjawab gambar CAPTCHA.
+        if ($honey !== '' || (time() - $mulai) < self::MIN_ISI_DETIK || ! $this->verifikasiCaptcha($token, $jawab)) {
             $tersisa = $this->sisaPercobaan($email, $ip);
             return view('auth.login', [
-                'galat' => 'Jawaban CAPTCHA salah. Coba lagi.'
+                'galat' => 'Verifikasi CAPTCHA gagal. Coba lagi.'
                          . ($tersisa <= 2 ? ' Sisa '.$tersisa.' percobaan sebelum akses ditunda sementara.' : ''),
             ]);
         }
@@ -216,12 +238,81 @@ class AuthController extends Controller
     private function verifikasiCaptcha(string $token, string $jawab): bool
     {
         $kunci = 'captcha_'.$token;
-        $benar = session()->get($kunci);
+        $kode = session()->get($kunci);
         // Token selalu sekali pakai, apapun hasil verifikasinya.
         session()->forget($kunci);
-        if ($token === '' || ! is_string($benar)) {
+        if ($token === '' || ! is_string($kode)) {
             return false;
         }
-        return hash_equals($benar, sha1($jawab));
+        $bersih = strtoupper(preg_replace('/\s+/', '', trim($jawab)));
+        return $bersih !== '' && hash_equals($kode, $bersih);
+    }
+
+    private function kodeCaptcha(int $panjang = 5): string
+    {
+        // Tanpa karakter ambigu (0/O, 1/I/L) agar mudah dibaca manusia.
+        $alfabet = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+        $kode = '';
+        for ($i = 0; $i < $panjang; $i++) {
+            $kode .= $alfabet[random_int(0, strlen($alfabet) - 1)];
+        }
+
+        return $kode;
+    }
+
+    private function warnaAcak(int $min, int $max): string
+    {
+        return 'rgb('
+            .random_int($min, $max).','
+            .random_int($min, $max).','
+            .random_int($min, $max).')';
+    }
+
+    /** Render kode menjadi gambar SVG ber-noise (tanpa perlu library gambar). */
+    private function gambarSvg(string $kode): string
+    {
+        $lebar = 176;
+        $tinggi = 58;
+
+        $bg = sprintf('#%02X%02X%02X',
+            random_int(240, 247), random_int(244, 250), random_int(250, 253));
+
+        $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="'.$lebar.'" height="'.$tinggi
+            .'" viewBox="0 0 '.$lebar.' '.$tinggi.'">';
+        $svg .= '<rect width="100%" height="100%" fill="'.$bg.'" rx="10"/>';
+
+        // Noise titik.
+        for ($i = 0; $i < 30; $i++) {
+            $svg .= '<circle cx="'.random_int(0, $lebar).'" cy="'.random_int(0, $tinggi)
+                .'" r="'.(random_int(0, 1) ? '1' : '1.6').'" fill="'. $this->warnaAcak(160, 225).'" opacity="0.7"/>';
+        }
+
+        // Garis acak.
+        for ($i = 0; $i < 6; $i++) {
+            $svg .= '<line x1="'.random_int(0, $lebar).'" y1="'.random_int(0, $tinggi)
+                .'" x2="'.random_int(0, $lebar).'" y2="'.random_int(0, $tinggi)
+                .'" stroke="'.$this->warnaAcak(170, 230).'" stroke-width="'.(random_int(8, 20) / 10)
+                .'" opacity="0.55"/>';
+        }
+
+        // Huruf per karakter, dirotasi acak.
+        $x = 14;
+        foreach (str_split($kode) as $ch) {
+            $fs = random_int(30, 38);
+            $y = random_int($tinggi - 12, $tinggi - 8);
+            $rot = random_int(-26, 26);
+            $fam = ['monospace', 'Arial, sans-serif', 'Georgia, serif', 'Courier New, monospace']
+                [random_int(0, 3)];
+            $bold = random_int(0, 1) ? ' font-weight="bold"' : '';
+            $tebal = random_int(1, 2) === 1 ? ' stroke="'.$this->warnaAcak(200, 250).'" stroke-width="0.8"' : '';
+            $svg .= '<text x="'.$x.'" y="'.$y.'" font-size="'.$fs.'"'.$bold.' font-family="'.$fam.'"'
+                .' fill="'.$this->warnaAcak(20, 120).'"'.$tebal
+                .' transform="rotate('.$rot.' '.$x.' '.($y - 6).')">'.$ch.'</text>';
+            $x += random_int(27, 34);
+        }
+
+        $svg .= '</svg>';
+
+        return $svg;
     }
 }

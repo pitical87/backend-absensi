@@ -192,8 +192,10 @@
               </label>
               <input type="hidden" name="captcha_token" id="captcha-token" value="">
               <div class="flex items-center gap-2.5">
-                <div id="captcha-soal" class="flex-1 rounded-xl border border-dashed border-[#007afc]/50 bg-blue-50/60 px-4 py-3.5 text-xs sm:text-sm font-semibold text-slate-800 text-center select-none">
-                  Memuat…
+                <div id="captcha-bingkai" class="flex-1 rounded-xl border border-dashed border-[#007afc]/50 bg-blue-50/60 overflow-hidden flex items-center justify-center min-h-[58px] select-none">
+                  <img id="captcha-gambar" src="" alt="CAPTCHA" width="176" height="58"
+                       class="max-w-full block" style="image-rendering:auto" draggable="false">
+                  <span id="captcha-memuat" class="text-xs sm:text-sm font-semibold text-slate-600 px-4 py-3.5">Memuat…</span>
                 </div>
                 <button
                   type="button"
@@ -212,10 +214,16 @@
                 name="captcha"
                 required
                 autocomplete="off"
-                placeholder="Jawaban CAPTCHA di atas"
+                autofill="off"
+                maxlength="6"
+                placeholder="Ketik kode pada gambar"
                 class="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#007afc] focus:ring-4 focus:ring-blue-100 transition-all shadow-sm"
               >
             </div>
+
+            {{-- Honeypot: harus dikosongkan oleh manusia; bot sering mengisinya --}}
+            <input type="text" name="website" value="" tabindex="-1" autocomplete="off"
+                   class="hidden" aria-hidden="true" style="position:absolute;left:-9999px;height:0;width:0;opacity:0">
 
             {{-- Submit Button --}}
             <div class="pt-2">
@@ -375,30 +383,45 @@
     });
   }
 
-  // --- CAPTCHA LOADER (session-based math captcha) ---
-  const captchaSoal = document.getElementById('captcha-soal');
+  // --- CAPTCHA LOADER (gambar SVG self-generated) ---
+  const captchaGambar = document.getElementById('captcha-gambar');
+  const captchaMemuat = document.getElementById('captcha-memuat');
   const captchaToken = document.getElementById('captcha-token');
   const captchaInput = document.getElementById('captcha');
   const captchaRefresh = document.getElementById('captcha-refresh');
   const captchaUrl = '{{ route("captcha") }}';
 
   function muatCaptcha() {
-    if (!captchaSoal || !captchaToken) return;
-    captchaSoal.textContent = 'Memuat…';
+    if (!captchaGambar || !captchaToken) return;
+    if (captchaMemuat) captchaMemuat.classList.remove('hidden');
+    captchaGambar.classList.add('hidden');
+
     fetch(captchaUrl, { headers: { 'Accept': 'application/json' } })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (data) {
-        if (!data) { captchaSoal.textContent = 'Gagal memuat. Muat ulang halaman.'; return; }
+        if (!data) {
+          if (captchaMemuat) captchaMemuat.textContent = 'Gagal memuat. Muat ulang halaman.';
+          return;
+        }
         captchaToken.value = data.token || '';
-        captchaSoal.textContent = data.soal || '';
+        captchaGambar.src = data.url || '';
+        // Paksa gambar dimuat ulang bila URL sama, dan tangani error pemuatan.
+        captchaGambar.onerror = function () {
+          if (captchaMemuat) { captchaMemuat.classList.remove('hidden'); captchaMemuat.textContent = 'Gambar gagal dimuat. Muat ulang halaman.'; }
+        };
+        captchaGambar.onload = function () {
+          if (captchaMemuat) captchaMemuat.classList.add('hidden');
+          captchaGambar.classList.remove('hidden');
+        };
         if (captchaInput) captchaInput.value = '';
       })
       .catch(function () {
-        captchaSoal.textContent = 'Gagal memuat. Muat ulang halaman.';
+        if (captchaMemuat) captchaMemuat.textContent = 'Gagal memuat. Muat ulang halaman.';
       });
   }
 
-  if (captchaSoal) {
+  // Token gambar yang sama boleh dimuat ulang oleh browser (cache dihindari via header no-store).
+  if (captchaGambar) {
     muatCaptcha();
     if (captchaRefresh) captchaRefresh.addEventListener('click', function (e) { e.preventDefault(); muatCaptcha(); });
     document.addEventListener('visibilitychange', function () {
@@ -409,7 +432,7 @@
   // Bila halaman dirender ulang karena error (mis. jawaban CAPTCHA salah) — token lama sudah tak berlaku,
   // muat CAPTCHA baru supaya form selalu punya token yang sah.
   var adaError = document.querySelector('#login-form .bg-red-50, #login-form .bg-emerald-50');
-  if (adaError && captchaSoal) {
+  if (adaError && captchaGambar) {
     muatCaptcha();
   }
 
