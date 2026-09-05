@@ -219,6 +219,7 @@
                 placeholder="Ketik kode pada gambar"
                 class="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#007afc] focus:ring-4 focus:ring-blue-100 transition-all shadow-sm"
               >
+              <p id="captcha-hitungan" class="mt-1.5 text-[11px] text-slate-400"></p>
             </div>
 
             {{-- Honeypot: harus dikosongkan oleh manusia; bot sering mengisinya --}}
@@ -389,12 +390,30 @@
   const captchaToken = document.getElementById('captcha-token');
   const captchaInput = document.getElementById('captcha');
   const captchaRefresh = document.getElementById('captcha-refresh');
+  const captchaHitungan = document.getElementById('captcha-hitungan');
   const captchaUrl = '{{ route("captcha") }}';
+  const GANTI_DETIK = 30;
+  var timerCaptcha = null;
+
+  function resetTimerCaptcha() {
+    if (timerCaptcha) window.clearInterval(timerCaptcha);
+    var sisa = GANTI_DETIK;
+    if (captchaHitungan) captchaHitungan.textContent = 'CAPTCHA diganti otomatis dalam ' + sisa + ' detik';
+    timerCaptcha = window.setInterval(function () {
+      sisa--;
+      if (sisa <= 0) {
+        muatCaptcha();
+      } else if (captchaHitungan) {
+        captchaHitungan.textContent = 'CAPTCHA diganti otomatis dalam ' + sisa + ' detik';
+      }
+    }, 1000);
+  }
 
   function muatCaptcha() {
     if (!captchaGambar || !captchaToken) return;
     if (captchaMemuat) captchaMemuat.classList.remove('hidden');
     captchaGambar.classList.add('hidden');
+    resetTimerCaptcha();
 
     fetch(captchaUrl, { headers: { 'Accept': 'application/json' } })
       .then(function (r) { return r.ok ? r.json() : null; })
