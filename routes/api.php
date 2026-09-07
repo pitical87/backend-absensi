@@ -50,6 +50,7 @@ Route::prefix('mobile')->group(function (){
 
         // Pengajuan perubahan jadwal shift
         Route::get('perubahan-jadwal', [PerubahanJadwalController::class, 'daftar']);
+        Route::get('perubahan-jadwal/shift', [PerubahanJadwalController::class, 'daftarShift']);
         Route::post('perubahan-jadwal', [PerubahanJadwalController::class, 'ajukan']);
         Route::delete('perubahan-jadwal/{id}', [PerubahanJadwalController::class, 'batal']);
         Route::get('perubahan-jadwal/total', [PerubahanJadwalController::class, 'menungguTotal']);

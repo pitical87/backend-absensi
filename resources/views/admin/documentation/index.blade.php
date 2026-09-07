@@ -650,6 +650,24 @@ JSON,
 JSON,
       ],
       [
+        'metode' => 'GET', 'jalur' => '/perubahan-jadwal/shift', 'akses' => 'Token',
+        'deskripsi' => 'Daftar shift aktif untuk mengisi dropdown pilihan <code>shift_baru_id</code> pada form pengajuan perubahan jadwal.',
+                'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/perubahan-jadwal/shift'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
+{
+  "sukses": true,
+  "data": [
+    { "id": 1, "kategori": "Pagi", "jam_masuk": "07:00", "jam_pulang": "14:00", "label": "Pagi (07.00 - 14.00)" },
+    { "id": 2, "kategori": "Siang", "jam_masuk": "14:00", "jam_pulang": "21:00", "label": "Siang (14.00 - 21.00)" },
+    { "id": 3, "kategori": "Sore", "jam_masuk": "13:00", "jam_pulang": "20:00", "label": "Sore (13.00 - 20.00)" }
+  ]
+}
+JSON,
+      ],
+      [
         'metode' => 'POST', 'jalur' => '/perubahan-jadwal', 'akses' => 'Token',
         'deskripsi' => 'Ajukan perubahan jadwal shift pada tanggal tertentu (harus punya jadwal, maksimal 30 hari ke depan). Ditolak otomatis bila melewati batas waktu (jam mulai shift lama dikurangi batas jam dari Pengaturan), sudah absen pada tanggal itu, atau ada pengajuan Menunggu/Disetujui untuk tanggal sama. Notifikasi dikirim ke atasan langsung.',
         'parameter' => [

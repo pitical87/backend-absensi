@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\PengajuanJadwal;
+use App\Models\Shift;
 use App\Services\UbahJadwalService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -72,6 +73,28 @@ class PerubahanJadwalController extends Controller
             'batas_jam'   => $svc->batasJam(),
             'jadwal'      => $mendatang,
             'riwayat'     => $riwayat,
+        ]);
+    }
+
+    /**
+     * GET /perubahan-jadwal/shift — daftar shift aktif untuk dropdown pilihan.
+     */
+    public function daftarShift(Request $req): JsonResponse
+    {
+        $shift = Shift::where('aktif', 1)
+            ->orderBy('jam_masuk')
+            ->get(['id', 'kategori', 'jam_masuk', 'jam_pulang'])
+            ->map(fn ($s) => [
+                'id'         => $s->id,
+                'kategori'   => $s->kategori,
+                'jam_masuk'  => \Carbon\Carbon::parse($s->jam_masuk)->format('H:i'),
+                'jam_pulang' => \Carbon\Carbon::parse($s->jam_pulang)->format('H:i'),
+                'label'      => $s->label(),
+            ]);
+
+        return response()->json([
+            'sukses' => true,
+            'data'   => $shift,
         ]);
     }
 

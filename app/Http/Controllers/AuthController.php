@@ -8,12 +8,14 @@ use App\Models\UnitKerja;
 use App\Models\User;
 use App\Services\StrukturService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class AuthController extends Controller
 {
     private const MAKS_GAGAL = 5;
     private const JENDELA_MNT = 15;
     private const MIN_ISI_DETIK = 3;
+    private const KUNCI_CACHE_LOGIN = 'auth.login.html.v1';
 
     public function beranda()
     {
@@ -35,7 +37,21 @@ class AuthController extends Controller
             return redirect(session('role') === 'admin' ? 'admin' : 'dashboard');
         }
         session(['login_form_started' => time()]);
-        return view('auth.login');
+        return response($this->htmlLogin());
+    }
+
+    /** HTML halaman login dicache; token CSRF (unik per sesi) disisipkan saat respons. */
+    private function htmlLogin(): string
+    {
+        $html = Cache::get(self::KUNCI_CACHE_LOGIN);
+        if (! is_string($html) || $html === '') {
+            $html = view('auth.login')->render();
+            // Ganti token CSRF sesi pembuat cache dgn placeholder agar HTML sah dibagi antar-sesi.
+            $html = str_replace(csrf_token(), '__AUTH_CSRF_TOKEN__', $html);
+            Cache::put(self::KUNCI_CACHE_LOGIN, $html, now()->addMinutes(5));
+        }
+
+        return str_replace('__AUTH_CSRF_TOKEN__', csrf_token(), $html);
     }
 
     public function captcha()

@@ -192,9 +192,10 @@
               </label>
               <input type="hidden" name="captcha_token" id="captcha-token" value="">
               <div class="flex items-center gap-2.5">
-                <div id="captcha-bingkai" class="flex-1 rounded-xl border border-dashed border-[#007afc]/50 bg-blue-50/60 overflow-hidden flex items-center justify-center min-h-[58px] select-none">
+                <div id="captcha-bingkai" class="relative flex-1 rounded-xl border border-dashed border-[#007afc]/50 bg-blue-50/60 overflow-hidden flex items-center justify-center min-h-[58px] select-none">
                   <img id="captcha-gambar" src="" alt="CAPTCHA" width="176" height="58"
                        class="max-w-full block" style="image-rendering:auto" draggable="false">
+                  {{-- <span id="captcha-sisa" class="hidden absolute top-1 right-1 rounded-full bg-slate-900/70 text-white text-[10px] font-bold px-2 py-0.5 pointer-events-none leading-tight">30s</span> --}}
                   <span id="captcha-memuat" class="text-xs sm:text-sm font-semibold text-slate-600 px-4 py-3.5">Memuat…</span>
                 </div>
                 <button
@@ -391,6 +392,7 @@
   const captchaInput = document.getElementById('captcha');
   const captchaRefresh = document.getElementById('captcha-refresh');
   const captchaHitungan = document.getElementById('captcha-hitungan');
+  const captchaSisa = document.getElementById('captcha-sisa');
   const captchaUrl = '{{ route("captcha") }}';
   const GANTI_DETIK = 30;
   var timerCaptcha = null;
@@ -399,12 +401,14 @@
     if (timerCaptcha) window.clearInterval(timerCaptcha);
     var sisa = GANTI_DETIK;
     if (captchaHitungan) captchaHitungan.textContent = 'CAPTCHA diganti otomatis dalam ' + sisa + ' detik';
+    if (captchaSisa) { captchaSisa.textContent = sisa + 's'; captchaSisa.classList.remove('hidden'); }
     timerCaptcha = window.setInterval(function () {
       sisa--;
       if (sisa <= 0) {
         muatCaptcha();
-      } else if (captchaHitungan) {
-        captchaHitungan.textContent = 'CAPTCHA diganti otomatis dalam ' + sisa + ' detik';
+      } else {
+        if (captchaHitungan) captchaHitungan.textContent = 'CAPTCHA diganti otomatis dalam ' + sisa + ' detik';
+        if (captchaSisa) captchaSisa.textContent = sisa + 's';
       }
     }, 1000);
   }
