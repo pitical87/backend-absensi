@@ -19,6 +19,10 @@ return Application::configure(basePath: dirname(__DIR__))
         then: function () {
             Route::middleware(['web', 'admin'])
                 ->group(__DIR__.'/../routes/admin.php');
+
+            Route::prefix('_laravel-brain')
+                ->middleware(['web', 'admin'])
+                ->group(__DIR__.'/../routes/brain.php');
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {

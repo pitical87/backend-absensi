@@ -86,6 +86,14 @@
         Izinkan pegawai memilih/mengubah shiftnya sendiri melalui dasbor
       </label>
     </div>
+    <div class="form-grup">
+      <label class="teks-kecil flex items-center gap-2">
+        <input type="checkbox" name="aktifkan_lembur" value="1" class="w-auto" {{ $lembur ? 'checked' : '' }}>
+        Aktifkan modul lembur (pengajuan &amp; absen lembur)
+      </label>
+      <div class="petunjuk">Bila dimatikan, semua fitur lembur (pengajuan, absen, persetujuan) di aplikasi mobile
+        dianggap nonaktif dan menampilkan pemberitahuan "Modul lembur tidak aktif".</div>
+    </div>
 
     <div class="aksi-baris">
       <button type="submit" class="btn btn-primer">{!! ikon('centang', 17) !!} Simpan Pengaturan</button>

@@ -1,55 +1,124 @@
-catatan system absensi:
-1. tambahkan fitur registrasi dengan verifikasi dari kepegawaian
-2. tukar posisi tombol absen dan card informasi
-3. Riwayat diganti dengan persentasi tepat Waktu masuk dan pulang
-4. tambahkan rekapan keterlambatan
-5. tambahkan pemberitahuan jika terlambat saat absen masuk dan pulang (detail berapa menit)
-6. penentuan pegawai teladan bisa digambarkan dalam bintang dimulai dari bintang 1 dengan parameter ketepatan Waktu
-7. ketentuan kurang dari jam masuk sif maka akan bintang lima lewat dari jam masuk :
-	- lewat 5 menit : 4 bintang
-	- lewat 10 menit : 3 bintang
-	- lewat 15 menit : 2 bintang
-	- lewat 30 menit : 1 bintang
-8. dari jam pulang : 
-	- lebih dari jam pulang : 5
-	- kurang 5 menit : 4 bintang
-	- kurang 10 menit : 3 bintang
-	- kurang 15 menit : 2 bintang
-	- kurang 30 menit : 1 bintang
+================================================================================
+CATATAN SISTEM ABSENSI
+================================================================================
 
-9. penentuan bintang dilakukan per hari dengan perhitungan jumlah bintang masuk + bintang keluar dibagi 2 : (M+P) / 2;
+STATUS: ✅ = Sudah Selesai | ❌ = Belum Selesai
 
-10. tambahkan fitur pemberitahuan performa bintang setiap awal bulan. bintang 5 : selamat kamu luar biasa, pertahankan 
-	bintang 4 : ayo semangat tingkatkan lagi. 
-	bintang 1-3 : tingkatkan semangatmu!!!
+================================================================================
+A. FITUR UTAMA ABSENSI
+================================================================================
 
-11. Tidak bisa hadir hari ini? = tidak bisa hadir!
-12. jenis pengajuan : ijin  dan cuti
-13. tambahakn di data pegawai atasan langsung
-14. tambahkan fitur rekap absensi
-15. rekap absensi pecah jadi 4 kategori : pns, p3k, honor, blud
-16. tambahkan fitur teguran untuk pegawai yang bermasalah (sp123)
+❌ 1.  Fitur registrasi dengan verifikasi dari kepegawaian
+❌ 2.  Tukar posisi tombol absen dan card informasi
+❌ 3.  Riwayat diganti dengan persentase tepat waktu masuk dan pulang
+❌ 4.  Rekapan keterlambatan
+❌ 5.  Pemberitahuan jika terlambat saat absen masuk dan pulang (detail berapa menit)
+❌ 6.  Fitur rekap absensi
+❌ 7.  Rekap absensi pecah menjadi 4 kategori: PNS, P3K, Honor, BLUD
 
+================================================================================
+B. SISTEM BINTANG (PENILAIAN KINERJA)
+================================================================================
 
+❌ 8.  Penentuan pegawai teladan dengan bintang 1-5 berdasarkan ketepatan waktu
 
+    ATURAN MASUK:
+    - Kurang dari jam masuk sif : 5 bintang
+    - Lewat 5 menit : 4 bintang
+    - Lewat 10 menit : 3 bintang
+    - Lewat 15 menit : 2 bintang
+    - Lewat 30 menit : 1 bintang
 
-tambahakn
--> permintaan penggantian shift jaga, paling lambat 1 jam sebelum jadwal
--> pengajuan perbaikan data lupa absen
--> verifikasi data absen lupa masuk/pulang oleh atasan
--> khusus dokter spesialis absen fleksibel bisa masuk lebih dari 1 kali dalam sehari (DONE - 25 Agustus 2026)
--> jam d luar jadwal tidak masuk dalam jam kerja/terpisah
--> absen lembur ada verifikasi 
- 1.⁠ ⁠Akan ada unit pengarsipan yang bertanggung jawab ke kepegawaian OK
- 2.⁠ ⁠Buat SK pembentukan unit pengarsipan OK
- 3.⁠ ⁠Buat SK unit it, tim simrs dan rencana pengembangan OK
- 4.⁠ ⁠Untuk bintang ketepatan hitung perhari untuk hari ini
- 5.⁠ ⁠Jika belum pulang ambil dari jam kehadiran jika sudah pulang ambil rata rata di dari keduanya
- 6.⁠ ⁠Untuk perubahan shift hanya ke atasan langsung
- 7.⁠ ⁠Pending absen ketika diluar jadwal tergantung persetujuan dari atasan langsung
- 8.⁠ ⁠Tambah fitur pengajuan dan persetujuan perubahan shift jaga paling lambat 1 jam sebelum shift yang diinginkan
- 9.⁠ ⁠Hilangkan restriksi absen masuk dan absen pulang (jadinya bisa absen pulang walaupun belum absen masuk)
-10.⁠ ⁠Jika lupa absen masuk tetap bisa pulang
-11.⁠ ⁠Jika lupa absen maka penyelesaiannya hari itu harus bintang 1 jika tidak bintang 0
-12.⁠ ⁠Tambahkan fitur lembur (pengajuan dan isi nya fleksibel)
-13.⁠ ⁠Lembur akan terhitung jika sudah disetujui atasan langsung
+    ATURAN PULANG:
+    - Lebih dari jam pulang : 5 bintang
+    - Kurang 5 menit : 4 bintang
+    - Kurang 10 menit : 3 bintang
+    - Kurang 15 menit : 2 bintang
+    - Kurang 30 menit : 1 bintang
+
+❌ 9.  Perhitungan bintang per hari: (Bintang Masuk + Bintang Pulang) / 2
+❌ 10. Pemberitahuan performa bintang setiap awal bulan:
+    - Bintang 5: "Selamat, kamu luar biasa, pertahankan!"
+    - Bintang 4: "Ayo semangat, tingkatkan lagi!"
+    - Bintang 1-3: "Tingkatkan semangatmu!!!"
+
+================================================================================
+C. STATUS KEDATANGAN
+================================================================================
+
+❌ 11. Status "Tidak Hadir" jika tidak bisa hadir hari ini
+
+================================================================================
+D. PENGAJUAN
+================================================================================
+
+❌ 12. Jenis pengajuan: Ijin dan Cuti
+❌ 13. Pengajuan perbaikan data lupa absen
+❌ 14. Verifikasi data absen lupa masuk/pulang oleh atasan
+
+================================================================================
+E. DATA PEGAWAI
+================================================================================
+
+❌ 15. Tambahan data pegawai: Atasan Langsung
+
+================================================================================
+F. FITUR TEGURAN
+================================================================================
+
+❌ 16. Fitur teguran untuk pegawai yang bermasalah (SP123)
+
+================================================================================
+G. FITUR SHIFT
+================================================================================
+
+❌ 17. Permintaan penggantian shift jaga (paling lambat 1 jam sebelum jadwal)
+❌ 18. Pengajuan dan persetujuan perubahan shift jaga
+❌ 19. Perubahan shift hanya ke atasan langsung
+
+================================================================================
+H. FITUR LEMBUR
+================================================================================
+
+❌ 20. Fitur lembur (pengajuan dan isi fleksibel)
+❌ 21. Lembur terhitung jika sudah disetujui atasan langsung
+
+================================================================================
+I. ATURAN JAM KERJA
+================================================================================
+
+❌ 22. Jam di luar jadwal tidak masuk dalam jam kerja (terpisah)
+❌ 23. Pending absen ketika di luar jadwal tergantung persetujuan atasan langsung
+❌ 24. Hilangkan restriksi absen masuk dan absen pulang (bisa absen pulang walau belum absen masuk)
+❌ 25. Jika lupa absen masuk tetap bisa pulang
+❌ 26. Jika lupa absen, bintang hari itu = 1 (jika tidak = 0)
+
+================================================================================
+J. DOKTER SPESIALIS
+================================================================================
+
+✅ 27. Absen fleksibel untuk dokter spesialis (bisa masuk lebih dari 1 kali sehari)
+       Status: DONE - 25 Agustus 2026
+
+================================================================================
+K. UNIT PENGARSIPAN
+================================================================================
+
+✅ 28. Unit pengarsipan bertanggung jawab ke kepegawaian
+       Status: OK
+
+✅ 29. SK Pembentukan unit pengarsipan
+       Status: OK
+
+✅ 30. SK unit IT, tim SIMRS dan rencana pengembangan
+       Status: OK
+
+================================================================================
+RINGKASAN STATUS
+================================================================================
+
+Total Fitur    : 30
+Sudah Selesai  : 4 item (✅)
+Belum Selesai  : 26 item (❌)
+
+================================================================================

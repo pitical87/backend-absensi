@@ -73,6 +73,10 @@ class AuthController extends Controller
             'user_id' => $user->id,
             'token' => $token,
             'expires_at' => $expiresAt,
+            'perangkat' => substr(trim((string) ($req->input('perangkat') ?: $req->header('X-Device-Name', ''))), 0, 150),
+            'ip' => $ip,
+            'user_agent' => substr((string) $req->header('User-Agent', ''), 0, 255),
+            'last_aktivitas' => now(),
         ]);
 
         $user->load(['unitKerja', 'subUnit', 'profesi', 'jabatan']);

@@ -65,6 +65,7 @@ $grupMenu = [
     'ikon'  => 'atur',
     'items' => [
       'aktivitas'  => ['admin/aktivitas',  'log',  'Log Aktivitas'],
+      'user_login' => ['admin/user-login', 'kunci', 'User Login'],
       'pengaturan' => ['admin/pengaturan', 'atur', 'Pengaturan'],
     ],
   ],

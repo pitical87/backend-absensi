@@ -37,6 +37,9 @@ Route::prefix('mobile')->group(function (){
         Route::get('jadwal/hari-ini', [JadwalController::class, 'jadwalHariIni']);
         Route::get('jadwal/mingguan', [JadwalController::class, 'jadwalMingguan']);
         Route::get('jadwal/bulanan', [JadwalController::class, 'jadwalBulanan']);
+        Route::get('jadwal/kelola', [JadwalController::class, 'kelola']);
+        Route::post('jadwal/kelola/unit', [JadwalController::class, 'simpanUnit']);
+        Route::post('jadwal/kelola/pegawai', [JadwalController::class, 'simpanPegawai']);
 
         // Izin / cuti / sakit
         Route::get('izin',[IzinController::class,"riwayatIzin"]);

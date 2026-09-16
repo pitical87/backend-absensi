@@ -16,6 +16,8 @@ class LemburController extends Controller
             $status = 'Semua';
         }
 
+        $lemburAktif = pengaturan('aktifkan_lembur', '1') === '1';
+
         $q = PengajuanLembur::with([
             'user:id,nama_lengkap,nip,unit_kerja_id,sub_unit_id',
             'user.unitKerja:id,nama', 'user.subUnit:id,nama',
@@ -35,11 +37,17 @@ class LemburController extends Controller
             'daftar'       => $daftar,
             'status'       => $status,
             'menunggu'     => $menunggu,
+            'lemburAktif'  => $lemburAktif,
         ]);
     }
 
     public function proses(Request $request)
     {
+        if (pengaturan('aktifkan_lembur', '1') !== '1') {
+            return redirect('admin/lembur')
+                ->with('error', 'Modul lembur sedang tidak aktif. Nyalakan lewat Pengaturan terlebih dahulu.');
+        }
+
         $id      = (int) $request->input('id');
         $putusan = (string) $request->input('putusan');
         $catatan = trim((string) $request->input('catatan')) ?: null;

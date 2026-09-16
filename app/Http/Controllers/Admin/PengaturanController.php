@@ -23,6 +23,7 @@ class PengaturanController extends Controller
             'tolLembur'      => pengaturan('toleransi_lembur_menit', '5'),
             'izin'         => pengaturan('izinkan_pilih_shift', '1') === '1',
             'selfie'       => pengaturan('wajib_selfie', '1') === '1',
+            'lembur'       => pengaturan('aktifkan_lembur', '1') === '1',
             'nama'         => pengaturan('nama_instansi', 'RSUD Merauke'),
             'apiKey'       => pengaturan('api_key', ''),
         ]);
@@ -57,6 +58,7 @@ class PengaturanController extends Controller
         simpan_pengaturan('toleransi_lembur_menit', (string) max(0, min(120, $tLembur)));
         simpan_pengaturan('izinkan_pilih_shift', $request->input('izinkan_pilih_shift') ? '1' : '0');
         simpan_pengaturan('wajib_selfie', $request->input('wajib_selfie') ? '1' : '0');
+        simpan_pengaturan('aktifkan_lembur', $request->input('aktifkan_lembur') ? '1' : '0');
         simpan_pengaturan('nama_instansi', $nama !== '' ? $nama : 'RSUD Merauke');
         catat_aktivitas('Ubah Pengaturan', 'Titik/radius GPS, toleransi, atau opsi aplikasi diperbarui');
 

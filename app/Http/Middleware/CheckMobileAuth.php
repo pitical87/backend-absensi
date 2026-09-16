@@ -34,6 +34,9 @@ class  CheckMobileAuth {
                 "pesan"=>"Token tidak valid atau kadaluarsa. Silahkan login kembali"
             ],401);
         }
+        if(!$apitoken->last_aktivitas || $apitoken->last_aktivitas->lte(now()->subMinute())){
+            $apitoken->forceFill(['last_aktivitas' => now()])->save();
+        }
         $user = User::where('id',$apitoken->user_id)
             ->first();
         if(!$user || $user->status !== 'aktif'){

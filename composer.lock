@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "355c2b8904a81ee09eb5a54f0f44d741",
+    "content-hash": "15ec0643256e1a9c0e5f0f82fc8c8e1b",
     "packages": [
         {
             "name": "brick/math",
@@ -1284,6 +1284,62 @@
                 }
             ],
             "time": "2026-07-20T13:40:43+00:00"
+        },
+        {
+            "name": "laramint/laravel-brain",
+            "version": "v1.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/laramint/laravel-brain.git",
+                "reference": "0a7550eb5c2b8c8a817e3bdbd74373cfae9580a6"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/laramint/laravel-brain/zipball/0a7550eb5c2b8c8a817e3bdbd74373cfae9580a6",
+                "reference": "0a7550eb5c2b8c8a817e3bdbd74373cfae9580a6",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/console": "^9.0|^10.0|^11.0|^12.0|^13.0",
+                "illuminate/support": "^9.0|^10.0|^11.0|^12.0|^13.0",
+                "nikic/php-parser": "^5.0",
+                "php": ">=8.0"
+            },
+            "require-dev": {
+                "larastan/larastan": "^3.9",
+                "laravel/pint": "^1.29",
+                "orchestra/testbench": "^7.0|^8.0|^9.0|^10.0|^11.0",
+                "pestphp/pest": "^3.0"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "LaraMint\\LaravelBrain\\LaravelBrainServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "LaraMint\\LaravelBrain\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "Visualize your Laravel request lifecycle as an interactive graph",
+            "support": {
+                "issues": "https://github.com/laramint/laravel-brain/issues",
+                "source": "https://github.com/laramint/laravel-brain/tree/v1.0.0"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/mrmarchone",
+                    "type": "github"
+                }
+            ],
+            "time": "2026-04-30T16:59:33+00:00"
         },
         {
             "name": "laravel/framework",
@@ -9415,7 +9471,7 @@
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
-        "php": "^8.3"
+        "php": "^8.2"
     },
     "platform-dev": {},
     "plugin-api-version": "2.9.0"

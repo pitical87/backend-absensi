@@ -1,0 +1,400 @@
+================================================================================
+SKEMA REGISTRASI SISTEM ABSENSI
+RSUD Merauke
+================================================================================
+
+Dokumen ini menjelaskan alur dan skema registrasi pegawai yang baru.
+Perubahan: Data kepegawaian hanya diisi oleh admin (kepegawaian).
+
+================================================================================
+A. ALUR REGISTRASI (SETELAH PERUBAHAN)
+================================================================================
+
+┌─────────────────┐
+│  PEGAWAI Mendaftar │
+│  (Form Minimal)     │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────────────────┐
+│  Data Tersimpan             │
+│  status_verifikasi: pending │
+│  status: nonaktif           │
+└────────┬────────────────────┘
+         │
+         ▼
+┌─────────────────────────────┐
+│  ADMIN (Kepegawaian) Review │
+│  Melihat daftar registrasi  │
+│  pending di dashboard       │
+└────────┬────────────────────┘
+         │
+         ├─── SETUJUI ──────────────────────────────┐
+         │                                          ▼
+         │                   ┌──────────────────────────────────┐
+         │                   │  Admin Mengisi Data Lengkap:     │
+         │                   │  - Unit Kerja / Bidang           │
+         │                   │  - Sub Unit                      │
+         │                   │  - Profesi                       │
+         │                   │  - Jabatan                       │
+         │                   │  - Posisi                        │
+         │                   │  - Status PNS/Non-PNS            │
+         │                   │  - Atasan Langsung               │
+         │                   │  - Shift                         │
+         │                   └────────┬─────────────────────────┘
+         │                            ▼
+         │                   ┌──────────────────────────────────┐
+         │                   │  Akun Aktif:                     │
+         │                   │  status_verifikasi: disetujui    │
+         │                   │  status: aktif                   │
+         │                   │  Pegawai bisa login              │
+         │                   └──────────────────────────────────┘
+         │
+         └─── TOLAK ────────────────────────────────┐
+                                                     ▼
+                                            ┌─────────────────┐
+                                            │  Akun Ditolak:  │
+                                            │  status_verif:  │
+                                            │  ditolak        │
+                                            │  Catatan admin  │
+                                            └─────────────────┘
+
+
+================================================================================
+B. FORM REGISTRASI PEGAWAI (Mobile)
+================================================================================
+
+Hanya 5 field yang diisi oleh pegawai:
+
+┌─────────────────────────────────────────────────────────────────────┐
+│  Field               │ Tipe        │ Validasi                      │
+├───────────────────────┼─────────────┼───────────────────────────────┤
+│  nama_lengkap         │ text        │ Wajib, max 150 karakter      │
+│  nip_atau_nik         │ text        │ Wajib salah satu (NIP/NIK)   │
+│  no_hp                │ text        │ Opsional                     │
+│  email                │ email       │ Wajib, unique, valid email   │
+│  password             │ password    │ Wajib, min 6 karakter        │
+│  password2            │ password    │ Wajib, harus sama dgn pass   │
+└───────────────────────┴─────────────┴───────────────────────────────┘
+
+Field yang TIDAK lagi diisi oleh pegawai (diisi admin):
+- tempat_lahir, tanggal_lahir, jenis_kelamin, agama
+- unit_kerja_id, sub_unit_id, profesi_id
+- jabatan_kategori, jabatan_id, posisi, seksi_pembina_id
+- status_pegawai
+
+
+================================================================================
+C. DATABASE SCHEMA
+================================================================================
+
+Tabel: users
+─────────────────────────────────────────────────────────────────────────
+
+Field Lama (tetap ada):
+  id                   bigint PK
+  nama_lengkap         varchar(150) NOT NULL
+  tempat_lahir         varchar(100) NULL
+  tanggal_lahir        date NULL
+  jenis_kelamin        enum('Laki-Laki','Perempuan') NULL
+  agama                varchar(30) NULL
+  email                varchar(150) UNIQUE NOT NULL
+  no_hp                varchar(30) NULL
+  nip                  varchar(30) NULL
+  nik                  varchar(50) NULL
+  unit_kerja_id        FK → unit_kerja NULL
+  sub_unit_id          FK → sub_unit NULL
+  profesi_id           FK → profesi NULL
+  jabatan_kategori     varchar(30) DEFAULT 'Staf/Pelaksana'
+  jabatan_id           FK → jabatan NULL
+  posisi               varchar(50) DEFAULT 'Staf'
+  status_pegawai       varchar(20) DEFAULT 'Non-PNS'
+  seksi_pembina_id     FK → jabatan NULL
+  password_hash        varchar(255) NOT NULL
+  role                 enum('admin','pegawai') DEFAULT 'pegawai'
+  status               enum('aktif','nonaktif') DEFAULT 'aktif'
+  created_at           datetime NULL
+  updated_at           datetime NULL
+
+Field BARU:
+  status_verifikasi    enum('pending','disetujui','ditolak') DEFAULT 'pending'
+  catatan_verifikasi   text NULL
+
+─────────────────────────────────────────────────────────────────────────
+
+Migrasi baru:
+  2026_09_08_000001_add_status_verifikasi_to_users_table.php
+
+
+================================================================================
+D. API ENDPOINTS
+================================================================================
+
+─── PUBLIC (Tanpa Auth) ──────────────────────────────────────────────────────
+
+1. POST /api/mobile/register
+   Fungsi: Pegawai mendaftar akun baru
+
+   Request Body:
+   {
+     "nama_lengkap": "Budi Santoso",
+     "nip_atau_nik": "198501012010011001",
+     "no_hp": "081234567890",
+     "email": "budi.santoso@rsudmerauke.go.id",
+     "password": "secret123",
+     "password2": "secret123"
+   }
+
+   Response 201:
+   {
+     "sukses": true,
+     "pesan": "Pendaftaran berhasil. Menunggu verifikasi dari kepegawaian."
+   }
+
+   Response 422 (Error):
+   {
+     "sukses": false,
+     "pesan": "Email sudah terdaftar."
+   }
+
+   Catatan:
+   - Status awal: status_verifikasi = 'pending', status = 'nonaktif'
+   - Pegawai belum bisa login sampai disetujui admin
+
+───────────────────────────────────────────────────────────────────────────────
+
+
+─── ADMIN (Butuh Auth Admin) ─────────────────────────────────────────────────
+
+2. GET /admin/registrasi
+   Fungsi: Halaman daftar permintaan registrasi
+
+   Query Parameters:
+   - q         : Search nama/email
+   - status    : Filter status (pending/disetujui/ditolak)
+   - page      : Halaman pagination
+
+   Return: View blade admin/registrasi/index.blade.php
+
+───────────────────────────────────────────────────────────────────────────────
+
+3. GET /admin/registrasi/data
+   Fungsi: Data AJAX untuk tabel registrasi (pagination)
+
+   Query Parameters:
+   - q, status, page
+
+   Response JSON:
+   {
+     "sukses": true,
+     "total": 10,
+     "dari": 1,
+     "sampai": 5,
+     "halaman": 1,
+     "totalHal": 2,
+     "tbody": "<tr>...</tr>",
+     "paginasi": "<div>...</div>"
+   }
+
+───────────────────────────────────────────────────────────────────────────────
+
+4. GET /admin/registrasi/{id}
+   Fungsi: Detail data registrasi + form proses
+
+   Response JSON:
+   {
+     "sukses": true,
+     "registrasi": {
+       "id": 1,
+       "nama_lengkap": "Budi Santoso",
+       "nip": "198501012010011001",
+       "nik": null,
+       "no_hp": "081234567890",
+       "email": "budi.santoso@rsudmerauke.go.id",
+       "created_at": "2026-08-08 10:00:00"
+     },
+     "master": {
+       "unit": [...],
+       "sub": [...],
+       "profesi": [...],
+       "jabatan": [...],
+       "kategori_jabatan": [...],
+       "posisi": [...]
+     }
+   }
+
+───────────────────────────────────────────────────────────────────────────────
+
+5. POST /admin/registrasi/proses
+   Fungsi: Approve atau tolak registrasi
+
+   Request Body:
+   {
+     "id": 1,
+     "aksi": "setujui",  // atau "tolak"
+     "unit_kerja_id": 1,
+     "sub_unit_id": 2,
+     "profesi_id": 1,
+     "jabatan_kategori": "Kepala Bidang",
+     "jabatan_id": 5,
+     "posisi": "Kepala",
+     "status_pegawai": "PNS",
+     "seksi_pembina_id": null,
+     "shift_id": 3,
+     "atasan_id": [10, 11],
+     "catatan": ""
+   }
+
+   Response 200 (Setuju):
+   {
+     "sukses": true,
+     "pesan": "Registrasi disetujui. Akun pegawai telah aktif."
+   }
+
+   Response 200 (Tolak):
+   {
+     "sukses": true,
+     "pesan": "Registrasi ditolak."
+   }
+
+   Response 422 (Error):
+   {
+     "sukses": false,
+     "pesan": "Unit kerja wajib dipilih."
+   }
+
+   Catatan:
+   - Jika 'setujui': update semua field + status_verifikasi='disetujui' + status='aktif'
+   - Jika 'tolak': status_verifikasi='ditolak' + catatan_verifikasi diisi
+
+───────────────────────────────────────────────────────────────────────────────
+
+
+================================================================================
+E. MIDDLEWARE CHECKMOBILEAUTH
+================================================================================
+
+Status yang diperiksa saat login/access:
+
+┌─────────────────────────┬───────────────────────────────────────────┐
+│  Kondisi                │  Response                                 │
+├─────────────────────────┼───────────────────────────────────────────┤
+│  status = nonaktif      │  403 "Akun dinonaktifkan"                 │
+│  status_verifikasi =    │  403 "Menunggu verifikasi kepegawaian"   │
+│    pending              │                                           │
+│  status_verifikasi =    │  403 "Akun ditolak. Hubungi kepegawaian" │
+│    ditolak              │                                           │
+│  status = aktif AND     │  ✅ Login berhasil                        │
+│  status_verifikasi =    │                                           │
+│    disetujui            │                                           │
+└─────────────────────────┴───────────────────────────────────────────┘
+
+
+================================================================================
+F. VIEWS (BLADE TEMPLATES)
+================================================================================
+
+1. admin/registrasi/index.blade.php
+   - Header: "Registrasi Pegawai"
+   - Filter: Search, Status (Pending/Disetujui/Ditolak)
+   - Tabel: Nama, NIP/NIK, Email, No HP, Tanggal Daftar, Status, Aksi
+   - Aksi: Tombol "Proses" (hanya untuk status pending)
+   - Pagination
+
+2. admin/registrasi/rows.blade.php
+   - Partial view untuk baris tabel (dimuat via AJAX)
+
+3. admin/registrasi/paginasi.blade.php
+   - Partial view untuk pagination
+
+4. admin/registrasi/modal_proses.blade.php
+   - Modal untuk approve/reject
+   - Bagian atas: Data dari pegawai (readonly)
+   - Form: Dropdown unit, sub, profesi, jabatan, posisi, status, atasan, shift
+   - Tombol: Setujui (hijau), Tolak (merah)
+
+
+================================================================================
+G. SIDEBAR MENU
+================================================================================
+
+Menu baru di sidebar admin:
+
+  └── Kepegawaian
+      ├── Data Pegawai
+      ├── Registrasi Pegawai  ← MENU BARU (dengan badge counter pending)
+      ├── Atasan Langsung
+      ├── Struktur Jabatan
+      └── ...
+
+
+================================================================================
+H. NOTIFIKASI (Opsional - Versi Mendatang)
+================================================================================
+
+Ketika status berubah, kirim notifikasi:
+
+1. Setelah pegawai daftar:
+   - Notifikasi ke admin: "Ada registrasi baru dari [nama]"
+
+2. Setelah disetujui:
+   - Email ke pegawai: "Akun Anda telah disetujui. Silakan login."
+
+3. Setelah ditolak:
+   - Email ke pegawai: "Akun Anda ditolak. Alasan: [catatan]"
+
+
+================================================================================
+I. VALIDASI & ATURAN
+================================================================================
+
+1. NIP/NIK:
+   - Wajib diisi salah satu (NIP atau NIK)
+   - NIP: 18 digit (format NIP nasional)
+   - NIK: 16 digit (format KTP)
+   - Harus unik di tabel users
+
+2. Email:
+   - Wajib unik
+   - Format valid email
+
+3. Status Verifikasi:
+   - Default: pending
+   - Hanya admin yang bisa mengubah
+   - Bisa diubah ke: disetujui atau ditolak
+
+4. Approve:
+   - Semua field kepegawaian wajib diisi
+   - Shift wajib dipilih
+   - Atasan wajib dipilih minimal 1
+
+5. Tolak:
+   - Catatan wajib diisi (alasan penolakan)
+
+
+================================================================================
+J. RINGKASAN PERUBAHAN CODE
+================================================================================
+
+File yang dibuat baru:
+  - database/migrations/2026_09_08_000001_add_status_verifikasi_to_users_table.php
+  - app/Http/Controllers/Admin/RegistrasiController.php
+  - resources/views/admin/registrasi/index.blade.php
+  - resources/views/admin/registrasi/rows.blade.php
+  - resources/views/admin/registrasi/paginasi.blade.php
+  - resources/views/admin/registrasi/modal_proses.blade.php
+
+File yang diubah:
+  - app/Http/Controllers/Api/AuthController.php
+      → Simplifikasi method register()
+      → Hapus method registerDataMaster()
+  - app/Http/Middleware/CheckMobileAuth.php
+      → Tambah pengecekan status_verifikasi
+  - routes/admin.php
+      → Tambah route registrasi
+  - resources/views/layouts/sidebar.blade.php
+      → Tambah menu registrasi
+  - resources/views/admin/documentation/index.blade.php
+      → Update dokumentasi API
+
+================================================================================

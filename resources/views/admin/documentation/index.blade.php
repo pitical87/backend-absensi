@@ -408,6 +408,11 @@ JSON,
 }
 JSON,
       ],
+    ],
+  ],
+  [
+    'id' => 'jadwal', 'judul' => 'Jadwal Shift', 'ikon' => 'kalender',
+    'endpoints' => [
       [
         'metode' => 'GET', 'jalur' => '/jadwal', 'akses' => 'Token',
         'deskripsi' => 'Shift efektif hari ini (dari jadwal shift bila ada, fallback shift profil) dan flag boleh memilih shift sendiri.',
@@ -476,6 +481,105 @@ JSON,
   "sukses": true,
   "periode": { "bulan": 8, "tahun": 2026, "label": "Agustus 2026" },
   "data": [{ "tanggal": "2026-08-01", "hari": "Sabtu", "shift": { "id": 12, "kategori": "Sore", "jam_masuk": "14:00", "jam_pulang": "20:00" } }]
+}
+JSON,
+      ],
+      [
+        'metode' => 'GET', 'jalur' => '/jadwal/kelola?sub_unit=&bulan=&tahun=', 'akses' => 'Token',
+        'deskripsi' => 'Rekapitulasi pengaturan jadwal shift pegawai — serupa halaman admin <code>jadwal/index</code>. Mengembalikan daftar sub unit + unit, shift aktif, pegawai per sub unit beserta grid jadwal bulanan, seluruh pegawai aktif, dan pegawai yang sudah punya jadwal tersimpan pada periode terpilih. <code>sub_unit</code> kosong → daftar pegawai &amp; grid jadwal sub unit bernilai kosong, namun <code>semua_pegawai</code>, <code>jadwal_pegawai</code>, dan <code>pegawai_bertugas</code> tetap memuat seluruh pegawai aktif.',
+        'parameter' => [
+          ['sub_unit', 'query', 'int', false, 'ID sub unit (opsional). Kosongkan untuk memuat semua pegawai aktif.'],
+          ['bulan', 'query', 'int 1-12', false, 'Default bulan berjalan.'],
+          ['tahun', 'query', 'int', false, 'Default tahun berjalan.'],
+        ],
+        'status' => '200 sukses · 422 parameter tidak valid',
+                'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/jadwal/kelola?sub_unit=5&bulan=8&tahun=2026'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
+{
+  "sukses": true,
+  "periode": { "bulan": 8, "tahun": 2026, "label": "Agustus 2026", "hari_dalam_bulan": 31 },
+  "sub_unit_dipilih": { "id": 5, "nama": "Farmasi", "unit_nama": "Instalasi Rawat Jalan" },
+  "sub_units": [{ "id": 5, "nama": "Farmasi", "unit_nama": "Instalasi Rawat Jalan" }],
+  "shift": [{ "id": 2, "kategori": "Siang", "jam_masuk": "14:00", "jam_pulang": "21:00" }],
+  "pegawai": [{ "id": 2, "nama_lengkap": "Budi Santoso" }],
+  "jadwal": { "2": { "2026-08-23": 2 } },
+  "semua_pegawai": [{ "id": 2, "nama_lengkap": "Budi Santoso", "unit_nama": "Instalasi Rawat Jalan", "sub_unit_nama": "Farmasi" }],
+  "jadwal_pegawai": { "2": { "2026-08-23": 2 } },
+  "pegawai_bertugas": [{ "id": 2, "nama_lengkap": "Budi Santoso", "unit_nama": "Instalasi Rawat Jalan", "sub_unit_nama": "Farmasi" }]
+}
+JSON,
+      ],
+      [
+        'metode' => 'POST', 'jalur' => '/jadwal/kelola/unit', 'akses' => 'Token',
+        'deskripsi' => 'Simpan/replace jadwal shift satu sub unit untuk satu bulan — serupa tab <strong>Per Unit</strong> pada admin <code>jadwal/index</code>. Jadwal lama milik semua pegawai non-admin di sub unit tsb pada bulan terpilih dihapus lalu diganti dengan <code>grid</code>. Hanya baris dengan <code>shift_id</code> tidak kosong &amp; tanggal berformat <code>YYYY-MM-DD</code> yang disimpan (sel kosong = libur/jadi kosong).',
+        'parameter' => [
+          ['sub_unit_id', 'body', 'int', true, 'ID sub unit.'],
+          ['bulan', 'body', 'int 1-12', false, 'Default bulan berjalan.'],
+          ['tahun', 'body', 'int', false, 'Default tahun berjalan.'],
+          ['grid', 'body', 'object', true, 'grid[user_id][YYYY-MM-DD] = shift_id.'],
+        ],
+        'status' => '200 sukses · 422 sub_unit_id wajib / bulan-tahun tidak valid',
+                'body' => <<<'JSON'
+curl -X POST 'https://rsud-merauke.id/api/mobile/jadwal/kelola/unit'
+  -H 'Accept: application/json'
+  -H 'Content-Type: application/json'
+  -d '{
+    "sub_unit_id": 5,
+    "bulan": 8,
+    "tahun": 2026,
+    "grid": {
+      "2":   { "2026-08-01": 1, "2026-08-02": 2, "2026-08-03": null },
+      "10":  { "2026-08-01": 2, "2026-08-02": 1 }
+    }
+  }'
+JSON,
+'respons' => <<<'JSON'
+{
+  "sukses": true,
+  "pesan": "Jadwal shift Farmasi berhasil disimpan (4 entri).",
+  "sub_unit_id": 5,
+  "bulan": 8,
+  "tahun": 2026,
+  "terhapus": 6,
+  "disimpan": 4
+}
+JSON,
+      ],
+      [
+        'metode' => 'POST', 'jalur' => '/jadwal/kelola/pegawai', 'akses' => 'Token',
+        'deskripsi' => 'Simpan jadwal bulanan untuk beberapa pegawai terpilih sekaligus — serupa tab <strong>Per Pegawai</strong> pada admin <code>jadwal/index</code>. Jadwal lama milik pegawai terpilih pada bulan tsb dihapus lalu diganti dengan <code>grid</code>. Pegawai admin diabaikan otomatis.',
+        'parameter' => [
+          ['users', 'body', 'int[]', true, 'ID pegawai yang diatur. Minimal satu.'],
+          ['bulan', 'body', 'int 1-12', false, 'Default bulan berjalan.'],
+          ['tahun', 'body', 'int', false, 'Default tahun berjalan.'],
+          ['grid', 'body', 'object', true, 'grid[user_id][YYYY-MM-DD] = shift_id.'],
+        ],
+        'status' => '200 sukses · 422 minimal satu pegawai / bulan-tahun tidak valid',
+                'body' => <<<'JSON'
+curl -X POST 'https://rsud-merauke.id/api/mobile/jadwal/kelola/pegawai'
+  -H 'Accept: application/json'
+  -H 'Content-Type: application/json'
+  -d '{
+    "users": [2, 10],
+    "bulan": 8,
+    "tahun": 2026,
+    "grid": {
+      "2":  { "2026-08-01": 1, "2026-08-02": 2 },
+      "10": { "2026-08-01": 3, "2026-08-02": 1 }
+    }
+  }'
+JSON,
+'respons' => <<<'JSON'
+{
+  "sukses": true,
+  "pesan": "Jadwal 2 pegawai berhasil disimpan (4 entri).",
+  "bulan": 8,
+  "tahun": 2026,
+  "pegawai": 2,
+  "disimpan": 4
 }
 JSON,
       ],
@@ -1015,6 +1119,9 @@ JSON,
   ],
   [
     'id' => 'lembur', 'judul' => 'Pengajuan & Absen Lembur', 'ikon' => 'jam',
+    'info' => 'Bila pengaturan admin <code>Aktifkan modul lembur</code> dimatikan, seluruh endpoint di dalam
+        tab ini menolak permintaan dengan status <strong>403</strong> dan respons
+        <code>{ "sukses": false, "pesan": "Modul lembur sedang tidak aktif. Hubungi administrator." }</code>.',
     'endpoints' => [
       [
         'metode' => 'GET', 'jalur' => '/lembur', 'akses' => 'Token',
@@ -1255,6 +1362,10 @@ JSON,
       <h2>{!! ikon($g['ikon']) !!} {{ $g['judul'] }}</h2>
       <span class="badge badge-abu">{{ count($g['endpoints']) }} endpoint</span>
     </div>
+
+    @if(! empty($g['info']))
+      <div class="mx-3 mt-3 flash flash-info">{!! $g['info'] !!}</div>
+    @endif
 
     <div class="p-3 flex flex-col gap-3">
       @foreach($g['endpoints'] as $e)

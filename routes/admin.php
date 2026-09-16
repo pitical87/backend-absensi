@@ -25,6 +25,7 @@ use App\Http\Controllers\Admin\ShiftController;
 use App\Http\Controllers\Admin\SimrsController;
 use App\Http\Controllers\Admin\StrukturController;
 use App\Http\Controllers\Admin\UnitController;
+use App\Http\Controllers\Admin\UserLoginController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('admin')->middleware('admin')->group(function () {
@@ -120,6 +121,10 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::post('ubah-password', [PengaturanController::class, 'ubahPasswordSaya'])->name('admin.ubah-password');
 
     Route::get('aktivitas', [AktivitasController::class, 'index'])->name('admin.aktivitas.index');
+
+    Route::get('user-login', [UserLoginController::class, 'index'])->name('admin.user_login.index');
+    Route::post('user-login/logout', [UserLoginController::class, 'logout'])->name('admin.user_login.logout');
+    Route::post('user-login/logout-semua', [UserLoginController::class, 'logoutSemua'])->name('admin.user_login.logout_semua');
 
     Route::get('documentation', [DokumentasiController::class, 'index'])->name('admin.documentation.index');
 });

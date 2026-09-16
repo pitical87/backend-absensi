@@ -13,10 +13,31 @@ use Illuminate\Http\Request;
 class LemburController extends Controller
 {
     /**
+     * Bila modul lembur dimatikan lewat Pengaturan, semua endpoint lembur
+     * menolak dengan 403 "Modul lembur tidak aktif".
+     */
+    private function cekModulAktif(): ?JsonResponse
+    {
+        if (pengaturan('aktifkan_lembur', '1') === '1') {
+            return null;
+        }
+
+        return response()->json([
+            'sukses' => false,
+            'pesan'  => 'Modul lembur sedang tidak aktif. Hubungi administrator.',
+        ], 403);
+    }
+
+    /**
      * GET /lembur — daftar pengajuan lembur sendiri + disetujui (untuk absen).
      */
     public function daftar(Request $req): JsonResponse
     {
+        $nonAktif = $this->cekModulAktif();
+        if ($nonAktif) {
+            return $nonAktif;
+        }
+
         $u   = $req->get('user');
         $svc = app(PengajuanLemburService::class);
 
@@ -75,6 +96,11 @@ class LemburController extends Controller
      */
     public function ajukan(Request $req): JsonResponse
     {
+        $nonAktif = $this->cekModulAktif();
+        if ($nonAktif) {
+            return $nonAktif;
+        }
+
         $u         = $req->get('user');
         $svc       = app(PengajuanLemburService::class);
         $tanggal   = trim((string) $req->input('tanggal'));
@@ -107,6 +133,11 @@ class LemburController extends Controller
      */
     public function batal(Request $req, int $id): JsonResponse
     {
+        $nonAktif = $this->cekModulAktif();
+        if ($nonAktif) {
+            return $nonAktif;
+        }
+
         $u = $req->get('user');
         $pj = PengajuanLembur::where('id', $id)
             ->where('user_id', $u->id)
@@ -135,6 +166,11 @@ class LemburController extends Controller
      */
     public function menungguTotal(Request $req): JsonResponse
     {
+        $nonAktif = $this->cekModulAktif();
+        if ($nonAktif) {
+            return $nonAktif;
+        }
+
         $u = $req->get('user');
         $total = count(app(PengajuanLemburService::class)->tugasAtasan($u));
 
@@ -146,6 +182,11 @@ class LemburController extends Controller
      */
     public function menungguDaftar(Request $req): JsonResponse
     {
+        $nonAktif = $this->cekModulAktif();
+        if ($nonAktif) {
+            return $nonAktif;
+        }
+
         $u      = $req->get('user');
         $daftar = app(PengajuanLemburService::class)->tugasAtasan($u);
 
@@ -176,6 +217,11 @@ class LemburController extends Controller
      */
     public function proses(Request $req): JsonResponse
     {
+        $nonAktif = $this->cekModulAktif();
+        if ($nonAktif) {
+            return $nonAktif;
+        }
+
         $u       = $req->get('user');
         $svc     = app(PengajuanLemburService::class);
         $id      = (int) $req->input('id');
@@ -211,6 +257,11 @@ class LemburController extends Controller
      */
     public function riwayatPersetujuan(Request $req): JsonResponse
     {
+        $nonAktif = $this->cekModulAktif();
+        if ($nonAktif) {
+            return $nonAktif;
+        }
+
         $u = $req->get('user');
         $riwayat = PengajuanLembur::with('user:id,nama_lengkap')
             ->where('diproses_oleh', $u->id)
@@ -238,6 +289,11 @@ class LemburController extends Controller
      */
     public function absenMasuk(Request $req): JsonResponse
     {
+        $nonAktif = $this->cekModulAktif();
+        if ($nonAktif) {
+            return $nonAktif;
+        }
+
         $u = $req->get('user');
         $tanggal = (string) $req->input('tanggal', now()->toDateString());
         $lat = (float) $req->input('lat');
@@ -269,6 +325,11 @@ class LemburController extends Controller
      */
     public function absenPulang(Request $req): JsonResponse
     {
+        $nonAktif = $this->cekModulAktif();
+        if ($nonAktif) {
+            return $nonAktif;
+        }
+
         $u = $req->get('user');
         $tanggal = (string) $req->input('tanggal', now()->toDateString());
         $lat = (float) $req->input('lat');
@@ -315,6 +376,11 @@ class LemburController extends Controller
      */
     public function statusLembur(Request $req): JsonResponse
     {
+        $nonAktif = $this->cekModulAktif();
+        if ($nonAktif) {
+            return $nonAktif;
+        }
+
         $u       = $req->get('user');
         $tanggal = (string) $req->query('tanggal', now()->toDateString());
 

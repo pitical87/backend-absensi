@@ -8,6 +8,14 @@
     <span class="badge badge-amber">{{ $menunggu }} menunggu</span>
   </div>
 
+  @if(! $lemburAktif)
+    <div class=" flash-info mb-4 teks-redup rounded-md p-4">
+      Modul lembur sedang <strong>tidak aktif</strong>. Nyalakan pengaturan
+      <em>“Aktifkan modul lembur”</em> di halaman Pengaturan untuk menerima pengajuan baru.
+      Data di bawah tetap tampil untuk keperluan monitoring, namun aksi memproses dinonaktifkan.
+    </div>
+  @endif
+
   <div class="chips">
     @foreach(['Menunggu', 'Disetujui', 'Ditolak', 'Semua'] as $st)
       <a class="chip {{ $status === $st ? 'aktif' : '' }}"
@@ -40,15 +48,19 @@
           <td>{!! badge_tahap($r->status) !!}</td>
           <td>
             @if($r->status === 'Menunggu')
-              <form method="post" action="{{ url('admin/lembur/proses') }}" class="bilah-alat m-0">
-                @csrf
-                <input type="hidden" name="id" value="{{ (int) $r->id }}">
-                <input type="text" name="catatan" placeholder="Catatan (opsional)…" class="min-w-[120px]">
-                <button type="submit" name="putusan" value="setuju" class="btn btn-primer btn-kecil"
-                        onclick="return confirm('Setujui pengajuan lembur ini?');">Setujui</button>
-                <button type="submit" name="putusan" value="tolak" class="btn btn-bahaya btn-kecil"
-                        onclick="return confirm('Tolak pengajuan lembur ini?');">Tolak</button>
-              </form>
+              @if($lemburAktif)
+                <form method="post" action="{{ url('admin/lembur/proses') }}" class="bilah-alat m-0">
+                  @csrf
+                  <input type="hidden" name="id" value="{{ (int) $r->id }}">
+                  <input type="text" name="catatan" placeholder="Catatan (opsional)…" class="min-w-[120px]">
+                  <button type="submit" name="putusan" value="setuju" class="btn btn-primer btn-kecil"
+                          onclick="return confirm('Setujui pengajuan lembur ini?');">Setujui</button>
+                  <button type="submit" name="putusan" value="tolak" class="btn btn-bahaya btn-kecil"
+                          onclick="return confirm('Tolak pengajuan lembur ini?');">Tolak</button>
+                </form>
+              @else
+                <span class="teks-kecil teks-redup">Menunggu — modul lembur tidak aktif.</span>
+              @endif
             @else
               <span class="teks-kecil">
                 {{ $r->catatan_keputusan ?? '—' }}
