@@ -7,6 +7,7 @@ use App\Models\HariLibur;
 use App\Models\Izin;
 use App\Models\LogLokasi;
 use DateTime;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
 class AbsenService
@@ -427,15 +428,12 @@ class AbsenService
             return null;
         }
 
-        $dir = storage_path('app/public/selfie/'.now()->format('Ym'));
-        if (! is_dir($dir) && ! mkdir($dir, 0775, true)) {
-            return null;
-        }
+        $relatif = 'selfie/'.now()->format('Ym');
         $nama = $userId.'_'.$tipe.'_'.now()->format('Ymd_His').'_'.bin2hex(random_bytes(3))
               .($jpeg ? '.jpg' : '.png');
 
-        return file_put_contents($dir.'/'.$nama, $bin) !== false
-            ? 'selfie/'.now()->format('Ym').'/'.$nama
+        return Storage::disk('public')->put($relatif.'/'.$nama, $bin)
+            ? $relatif.'/'.$nama
             : null;
     }
 }
