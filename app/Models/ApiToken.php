@@ -18,7 +18,7 @@ class ApiToken extends Model
         ];
     }
 
-    protected function user():BelongsTo{
+    public function user():BelongsTo{
         return $this->belongsTo(User::class);
     }
 
