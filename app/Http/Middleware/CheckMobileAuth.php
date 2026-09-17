@@ -35,7 +35,17 @@ class  CheckMobileAuth {
             ],401);
         }
         if(!$apitoken->last_aktivitas || $apitoken->last_aktivitas->lte(now()->subMinute())){
-            $apitoken->forceFill(['last_aktivitas' => now()])->save();
+            $ubah = ['last_aktivitas' => now()];
+            if (! $apitoken->ip) {
+                $ubah['ip'] = $request->ip();
+            }
+            if (! $apitoken->perangkat) {
+                $ubah['perangkat'] = substr(trim((string) ($request->header('X-Device-Name', ''))), 0, 150);
+            }
+            if (empty($apitoken->user_agent)) {
+                $ubah['user_agent'] = substr((string) $request->header('User-Agent', ''), 0, 255);
+            }
+            $apitoken->forceFill($ubah)->save();
         }
         $user = User::where('id',$apitoken->user_id)
             ->first();
