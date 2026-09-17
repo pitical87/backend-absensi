@@ -123,6 +123,8 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::get('aktivitas', [AktivitasController::class, 'index'])->name('admin.aktivitas.index');
 
     Route::get('user-login', [UserLoginController::class, 'index'])->name('admin.user_login.index');
+    Route::get('user-login/data', [UserLoginController::class, 'data'])->name('admin.user_login.data');
+    Route::get('user-login/detail', [UserLoginController::class, 'detail'])->name('admin.user_login.detail');
     Route::post('user-login/logout', [UserLoginController::class, 'logout'])->name('admin.user_login.logout');
     Route::post('user-login/logout-semua', [UserLoginController::class, 'logoutSemua'])->name('admin.user_login.logout_semua');
 
