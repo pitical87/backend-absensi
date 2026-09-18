@@ -133,6 +133,22 @@ JSON,
 { "sukses": true, "pesan": "Berhasil logout" }
 JSON,
       ],
+      [
+        'metode' => 'POST', 'jalur' => '/lupa-password', 'akses' => 'Publik',
+        'deskripsi' => 'Mengirim email berisi tautan reset password ke akun (yang berstatus aktif, role selain admin). Tautan menuju halaman reset di <strong>web utama</strong>; pengubahan password sendiri dilakukan di web utama. Token berlaku <strong>60 menit</strong>.',
+        'parameter' => [
+          ['email', 'body', 'string', true, 'Email akun terdaftar & aktif.'],
+        ],
+        'body' => <<<'JSON'
+{
+  "email": "budi@example.com"
+}
+JSON,
+        'status' => '200 sukses · 404 email tidak terdaftar/aktif · 422 email tidak valid · 500 gagal kirim email',
+        'respons' => <<<'JSON'
+{ "sukses": true, "pesan": "Tautan reset password telah dikirim ke email Anda." }
+JSON,
+      ],
     ],
   ],
   [

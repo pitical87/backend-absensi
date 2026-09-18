@@ -35,6 +35,13 @@
 
         @if((int) $p->id !== (int) session('uid'))
 
+            <button type="button"
+                    class="btn btn-garis btn-kecil btn-ganti-password"
+                    data-id="{{ (int) $p->id }}"
+                    data-nama="{{ $p->nama_lengkap }}">
+                Ganti Password
+            </button>
+
             <form method="post" action="{{ url('admin/pegawai/status') }}">
                 @csrf
                 <input type="hidden" name="id" value="{{ (int) $p->id }}">

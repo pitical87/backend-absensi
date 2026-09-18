@@ -28,6 +28,12 @@
       <a class="inline-flex items-center gap-1.5 py-2 px-3 text-xs font-semibold text-white bg-white/15 hover:bg-white/25 border border-white/25 rounded-xl backdrop-blur-md shadow-sm no-underline transition-all active:scale-95" href="{{ route('logbook') }}">
         {!! ikon('log', 14) !!} <span class="hidden sm:inline">Logbook</span>
       </a>
+
+      @if(config('services.web_absen.url'))
+        <a class="inline-flex items-center gap-1.5 py-2 px-3 text-xs font-semibold text-white bg-emerald-500/90 hover:bg-emerald-500 border border-white/25 rounded-xl backdrop-blur-md shadow-sm no-underline transition-all active:scale-95" href="{{ route('sso-absen') }}" title="Buka Web Absen (login otomatis)">
+          {!! ikon('gedung', 14) !!} <span class="hidden sm:inline">Web Absen</span>
+        </a>
+      @endif
       
       {{-- DROPDOWN AKUN --}}
       <div class="relative" id="menu-akun-grup">

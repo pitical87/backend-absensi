@@ -57,6 +57,7 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::post('pegawai/import', [PegawaiController::class, 'impor'])->name('admin.pegawai.import');
     Route::get('pegawai/template', [PegawaiController::class, 'template'])->name('admin.pegawai.template');
     Route::post('pegawai/status', [PegawaiController::class, 'ubahStatus'])->name('admin.pegawai.status');
+    Route::post('pegawai/ganti-password', [PegawaiController::class, 'gantiPassword'])->name('admin.pegawai.ganti_password');
     Route::post('pegawai/hapus', [PegawaiController::class, 'hapus'])->name('admin.pegawai.hapus');
 
     Route::get('unit', [UnitController::class, 'index'])->name('admin.unit.index');

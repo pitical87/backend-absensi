@@ -69,6 +69,38 @@
   </div>
 </section>
 
+<div id="modal-ganti-password" class="modal-tirai">
+  <div class="modal-kamera max-w-md w-full">
+    <header class="flex items-center justify-between">
+      <span class="flex items-center gap-2">
+        <svg class="w-4 h-4 text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+        </svg> Ganti Password Pegawai
+      </span>
+      <button type="button" class="btn-tutup-modal text-white/80 hover:text-white bg-transparent border-0 cursor-pointer text-lg leading-none">&times;</button>
+    </header>
+    <div class="isi">
+      <p class="teks-kecil teks-redup mt-0 mb-3" id="label-ganti-password"></p>
+      <form method="post" action="{{ url('admin/pegawai/ganti-password') }}" class="space-y-3.5">
+        @csrf
+        <input type="hidden" name="id" id="input-ganti-id">
+        <div class="form-grup mb-0">
+          <label class="wajib">Password Baru</label>
+          <input type="password" name="password" required minlength="6" placeholder="Minimal 6 karakter" autocomplete="new-password">
+        </div>
+        <div class="form-grup mb-0">
+          <label class="wajib">Konfirmasi Password Baru</label>
+          <input type="password" name="password_konfirmasi" required minlength="6" placeholder="Ulangi password baru" autocomplete="new-password">
+        </div>
+        <div class="pt-2 flex items-center justify-end gap-2">
+          <button type="button" class="btn btn-garis btn-kecil btn-tutup-modal">Batal</button>
+          <button type="submit" class="btn btn-primer btn-kecil">Simpan Password</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 @endsection
 
 @section('script')
@@ -174,6 +206,38 @@
   selectU.addEventListener('change', function () { isiSubBidang(); muat(true); });
   selectS.addEventListener('change', function () { muat(true); });
   selectJ.addEventListener('change', function () { muat(true); });
+
+  const modalGanti   = document.getElementById('modal-ganti-password');
+  const inputGantiId = document.getElementById('input-ganti-id');
+  const labelGanti   = document.getElementById('label-ganti-password');
+
+  function bukaGanti(id, nama) {
+    inputGantiId.value = id;
+    labelGanti.textContent = 'Ganti password untuk: ' + nama;
+    modalGanti.classList.add('terbuka');
+  }
+
+  function tutupGanti() {
+    modalGanti.classList.remove('terbuka');
+  }
+
+  tbody.addEventListener('click', function (e) {
+    const btn = e.target.closest('.btn-ganti-password');
+    if (btn) bukaGanti(btn.getAttribute('data-id'), btn.getAttribute('data-nama'));
+  });
+
+  if (modalGanti) {
+    modalGanti.querySelectorAll('.btn-tutup-modal').forEach(function (b) {
+      b.addEventListener('click', tutupGanti);
+    });
+    modalGanti.addEventListener('click', function (e) {
+      if (e.target === modalGanti) tutupGanti();
+    });
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') tutupGanti();
+  });
 
   isiSubBidang();
   pasangPaginasi();

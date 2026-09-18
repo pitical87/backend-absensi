@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'web_absen' => [
+        'url' => env('WEB_ABSEN_URL'),
+    ],
+
 ];

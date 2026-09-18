@@ -179,7 +179,7 @@
 
               {{-- Forgot Password Link --}}
               <div class="flex justify-end mt-1.5">
-                <a href="#" class="text-xs text-blue-500 hover:text-blue-600 hover:underline transition font-normal">
+                <a href="{{ route('lupa-password') }}" class="text-xs text-blue-500 hover:text-blue-600 hover:underline transition font-normal">
                   Forgot Password
                 </a>
               </div>

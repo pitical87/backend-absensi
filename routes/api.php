@@ -16,6 +16,7 @@ Route::prefix('mobile')->group(function (){
     Route::post('login',[AuthController::class, 'login']);
     Route::get('register/master',[AuthController::class, 'registerDataMaster']);
     Route::post('register',[AuthController::class, 'register']);
+    Route::post('lupa-password',[AuthController::class, 'lupaPassword']);
     Route::middleware('mobile.auth')->group(function(){
         Route::get('me',[AuthController::class, 'me']);
         Route::post('logout',[AuthController::class, 'logout']);

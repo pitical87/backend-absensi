@@ -15,7 +15,7 @@ class AuthController extends Controller
     private const MAKS_GAGAL = 5;
     private const JENDELA_MNT = 15;
     private const MIN_ISI_DETIK = 3;
-    private const KUNCI_CACHE_LOGIN = 'auth.login.html.v1';
+    private const KUNCI_CACHE_LOGIN = 'auth.login.html.v2';
 
     public function beranda()
     {

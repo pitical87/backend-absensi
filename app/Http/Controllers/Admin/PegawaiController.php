@@ -7,6 +7,7 @@ use App\Http\Requests\Admin\PegawaiRequest;
 use App\Models\JadwalShift;
 use App\Models\AtasanLangsung;
 use App\Models\Jabatan;
+use App\Models\LoginAttempt;
 use App\Models\Profesi;
 use App\Models\Shift;
 use App\Models\SubUnit;
@@ -520,6 +521,31 @@ class PegawaiController extends Controller
         }
 
         return redirect('admin/pegawai')->with('success', 'Status pegawai diperbarui.');
+    }
+
+    public function gantiPassword(Request $request)
+    {
+        $id = (int) $request->input('id');
+        $pass = (string) $request->input('password');
+        $konf = (string) $request->input('password_konfirmasi');
+
+        $u = User::where('id', $id)->where('role', '!=', 'admin')->first();
+        if (! $u) {
+            return back()->with('error', 'Pegawai tidak ditemukan.');
+        }
+        if (strlen($pass) < 6) {
+            return back()->with('error', 'Password baru minimal 6 karakter.');
+        }
+        if ($pass !== $konf) {
+            return back()->with('error', 'Konfirmasi password baru tidak cocok.');
+        }
+
+        $u->update(['password_hash' => Hash::make($pass)]);
+        LoginAttempt::where('email', $u->email)->where('sukses', 0)->delete();
+
+        catat_aktivitas('Ganti Password Pegawai', 'Password '.$u->nama_lengkap.' ('.$u->email.') diganti oleh admin');
+
+        return back()->with('success', 'Password '.$u->nama_lengkap.' berhasil diganti.');
     }
 
     public function hapus(Request $request)

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\ResetPasswordMail;
 use App\Models\ApiToken;
 use App\Models\LoginAttempt;
 use App\Models\Profesi;
@@ -14,6 +15,9 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -22,6 +26,8 @@ class AuthController extends Controller
     private const WINDOW_MINUTE = 15;
 
     private const TOKEN_EXP_DAYS = 7;
+
+    private const RESET_EXP_MENIT = 60;
 
     public function login(Request $req): JsonResponse
     {
@@ -279,6 +285,59 @@ class AuthController extends Controller
             Cookie::forget('auth_token', '/', null)
         ));
 
+    }
+
+    public function lupaPassword(Request $req): JsonResponse
+    {
+        $email = strtolower(trim((string) $req->input('email')));
+
+        if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return response()->json([
+                'sukses' => false,
+                'pesan' => 'Masukkan alamat email yang valid.',
+            ], 422);
+        }
+
+        $user = User::where('email', $email)->where('status', 'aktif')->first();
+
+        if (! $user) {
+            catat_aktivitas('Lupa Password', 'Percobaan reset untuk email yang tidak terdaftar/aktif: '.$email);
+            return response()->json([
+                'sukses' => false,
+                'pesan' => 'Email tersebut tidak terdaftar pada sistem.',
+            ], 404);
+        }
+
+        $token = Str::random(64);
+        DB::table('password_reset_tokens')->updateOrInsert(
+            ['email' => $email],
+            ['token' => bcrypt($token), 'created_at' => now()]
+        );
+
+        $url = route('reset-password', ['token' => $token, 'email' => $email]);
+        $nomor = 'ABS/'.now()->format('Ymd').'/'.strtoupper(substr($token, 0, 6));
+
+        try {
+            Mail::to($email)->send(new ResetPasswordMail(
+                (string) $user->nama_lengkap,
+                $url,
+                self::RESET_EXP_MENIT,
+                $nomor,
+            ));
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json([
+                'sukses' => false,
+                'pesan' => 'Terjadi kendala saat mengirim email. Coba lagi nanti.',
+            ], 500);
+        }
+
+        catat_aktivitas('Lupa Password', 'Tautan reset password dikirim untuk '.$email.' (API)');
+
+        return response()->json([
+            'sukses' => true,
+            'pesan' => 'Tautan reset password telah dikirim ke email Anda.',
+        ]);
     }
 
     private function catatPercobaan(string $email, string $ip, bool $sukses): void
