@@ -25,7 +25,7 @@
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center flex-1 my-auto">
 
       {{-- LEFT COLUMN --}}
-      <div class="lg:col-span-7 flex flex-col justify-between h-full py-2">
+      <div class="lg:col-span-7 flex flex-col  h-full py-2">
 
         {{-- HERO TEXT & ROCKET ILLUSTRATION (Inside Blue Area) --}}
         <div class="relative min-h-[280px] sm:min-h-[320px] lg:min-h-[350px] flex items-center">
