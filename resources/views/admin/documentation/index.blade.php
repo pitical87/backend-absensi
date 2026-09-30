@@ -135,7 +135,7 @@ JSON,
       ],
       [
         'metode' => 'POST', 'jalur' => '/lupa-password', 'akses' => 'Publik',
-        'deskripsi' => 'Mengirim email berisi tautan reset password ke akun (yang berstatus aktif, role selain admin). Tautan menuju halaman reset di <strong>web utama</strong>; pengubahan password sendiri dilakukan di web utama. Token berlaku <strong>60 menit</strong>.',
+        'deskripsi' => 'Mengirim email berisi tautan reset password ke akun (yang berstatus aktif, role selain admin). Tautan menuju halaman reset di <strong>web utama</strong>; pengubahan password sendiri dilakukan di web utama. Token berlaku <strong>60 menit</strong>. <strong>Email belum diverifikasi:</strong> token tidak dibuat dan tidak ada email yang dikirim (respons 403), token reset lama dicabut, lalu permintaan dicatat di Log Aktivitas dan diteruskan ke admin lewat Notifikasi (dibatasi satu notifikasi per email per jam).',
         'parameter' => [
           ['email', 'body', 'string', true, 'Email akun terdaftar & aktif.'],
         ],
@@ -144,9 +144,121 @@ JSON,
   "email": "budi@example.com"
 }
 JSON,
-        'status' => '200 sukses · 404 email tidak terdaftar/aktif · 422 email tidak valid · 500 gagal kirim email',
+        'status' => '200 sukses · 403 email belum diverifikasi · 404 email tidak terdaftar/aktif · 422 email tidak valid · 500 gagal kirim email',
         'respons' => <<<'JSON'
+// 200 — email terverifikasi
 { "sukses": true, "pesan": "Tautan reset password telah dikirim ke email Anda." }
+
+// 403 — email belum diverifikasi
+{
+  "sukses": false,
+  "pesan": "Email ini belum diverifikasi, sehingga tautan reset password tidak dapat dikirim. Keadaan ini telah dilaporkan kepada administrator. Silakan hubungi administrator untuk memverifikasi email Anda terlebih dahulu.",
+  "email_terverifikasi": false
+}
+JSON,
+      ],
+    ],
+  ],
+  [
+    'id' => 'profil-verifikasi', 'judul' => 'Profil & Verifikasi Email', 'ikon' => 'centang',
+    'info' => 'Alur verifikasi email: aplikasi meminta tautan lewat <code>POST /api/mobile/verifikasi-email</code>, lalu pengguna membuka tautan dari email memakai browser (halaman web publik <code>/verifikasi-email/konfirmasi/{id}/{token}</code> &mdash; bukan dari aplikasi, agar tautan tetap bisa dibuka dari perangkat lain). Verifikasi dilakukan di backend web; endpoint mobile tidak memverifikasi langsung. Login tetap bisa dipakai sebelum email terverifikasi, namun email yang belum terverifikasi tidak dapat meminta reset password.',
+    'endpoints' => [
+      [
+        'metode' => 'POST', 'jalur' => '/profil', 'akses' => 'Token',
+        'deskripsi' => 'Memperbarui data akun milik sendiri. Field <code>nama_lengkap</code> dan <code>email</code> wajib diisi; field lain hanya disentuh bila kuncinya ada pada request, jadi form yang tidak mengirim <code>nip</code> tidak ikut mengosongkan NIP. Nilai string kosong berarti mengosongkan field. Email dinormalisasi (trim + huruf kecil); bila email benar-benar berubah maka <code>email_verified_at</code> dikosongkan sehingga email wajib diverifikasi ulang. Response mengembalikan data user beserta relasi unit/sub unit/profesi/jabatan dan field shift.',
+        'parameter' => [
+          ['nama_lengkap', 'body', 'string', true, 'Wajib diisi, maksimal 150 karakter.'],
+          ['email', 'body', 'string', true, 'Wajib diisi, format email valid, maksimal 150 karakter, dan belum dipakai akun lain.'],
+          ['tempat_lahir', 'body', 'string', false, 'Maksimal 100 karakter.'],
+          ['tanggal_lahir', 'body', 'date YYYY-MM-DD', false, 'Harus tanggal yang benar, mis. 1990-05-17.'],
+          ['jenis_kelamin', 'body', 'enum', false, 'Laki-Laki atau Perempuan.'],
+          ['agama', 'body', 'enum', false, 'Katolik, Kristen, Islam, Hindu, Budha, atau Lainnya.'],
+          ['no_hp', 'body', 'string', false, 'Maksimal 30 karakter.'],
+          ['nip', 'body', 'string', false, 'Maksimal 30 karakter.'],
+        ],
+        'body' => <<<'JSON'
+{
+  "nama_lengkap": "Budi Santoso",
+  "email": "budi@example.com",
+  "tempat_lahir": "Merauke",
+  "tanggal_lahir": "1990-05-17",
+  "jenis_kelamin": "Laki-Laki",
+  "agama": "Islam",
+  "no_hp": "08123456789"
+}
+JSON,
+        'status' => '200 diperbarui · 401 token tidak valid · 422 validasi (rincian per field di \'errors\')',
+        'respons' => <<<'JSON'
+{
+  "sukses": true,
+  "pesan": "Data profil berhasil diperbarui.",
+  "user": {
+    "id": 2,
+    "nama_lengkap": "Budi Santoso",
+    "email": "budi@example.com",
+    "email_verified_at": null,
+    "unit_kerja": { "id": 1, "nama": "Instalasi Rawat Jalan" },
+    "sub_unit": null,
+    "profesi": { "...": "data profesi" },
+    "jabatan": { "...": "data jabatan" },
+    "shift": { "id": 1, "kategori": "Pagi", "jam_masuk": "07:00", "jam_pulang": "14:00" }
+  }
+}
+JSON,
+      ],
+      [
+        'metode' => 'GET', 'jalur' => '/verifikasi-email', 'akses' => 'Token',
+        'deskripsi' => 'Status verifikasi email akun yang sedang login: sudah terverifikasi atau belum, waktu verifikasi bila ada, apakah masih ada tautan yang menunggu dibuka, dan sisa cooldown (detik) sebelum boleh meminta tautan baru. Dipanggil saat aplikasi membuka halaman verifikasi email untuk menentukan tampilan tombol kirim.',
+        'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/verifikasi-email'
+  -H 'Accept: application/json'
+JSON,
+        'status' => '200 sukses · 401 token tidak valid',
+        'respons' => <<<'JSON'
+{
+  "sukses": true,
+  "terverifikasi": false,
+  "email": "budi@example.com",
+  "email_terverifikasi_at": null,
+  "menunggu": true,
+  "sisa_detik": 42
+}
+
+// setelah tautan dari email dibuka: terverifikasi = true, menunggu = false, sisa_detik = 0
+JSON,
+      ],
+      [
+        'metode' => 'POST', 'jalur' => '/verifikasi-email', 'akses' => 'Token',
+        'deskripsi' => 'Membuat tautan verifikasi lalu mengirimkannya ke email akun. Email pada body wajib sama dengan email akun (setelah trim + huruf kecil). Tautan berlaku <strong>60 menit</strong> dan tidak dihapus setelah dipakai &mdash; klik kedua tetap dijawab sukses agar pratinjau email tidak menampilkan error. Bila email sudah terverifikasi, tidak ada email yang dikirim dan endpoint hanya mengonfirmasi statusnya. Pengiriman email dilakukan sinkron pada proses request; bila cooldown 60 detik masih berjalan permintaan ditolak.',
+        'parameter' => [
+          ['email', 'body', 'string', true, 'Email akun yang akan diverifikasi.'],
+        ],
+        'body' => <<<'JSON'
+{
+  "email": "budi@example.com"
+}
+JSON,
+        'status' => '200 tautan terkirim · 200 email sudah terverifikasi · 401 token tidak valid · 422 email tidak valid atau tidak cocok dengan akun · 429 cooldown (lihat sisa_detik) · 500 gagal kirim email',
+        'respons' => <<<'JSON'
+{
+  "sukses": true,
+  "pesan": "Tautan verifikasi telah dikirim ke email Anda.",
+  "terverifikasi": false,
+  "menunggu": true,
+  "sisa_detik": 60,
+  "kirim_ulang_pada": "2026-09-30T16:40:00+09:00"
+}
+
+// 429 cooldown: sukses = false, pesan berisi sisa waktu tunggu
+// 422 tidak cocok: sukses = false + "errors": { "email": "Email tidak sesuai dengan akun Anda. ..." }
+JSON,
+      ],
+      [
+        'metode' => 'GET', 'jalur' => 'web /verifikasi-email/konfirmasi/{id}/{token}', 'akses' => 'Publik (web)',
+        'deskripsi' => 'Halaman web tujuan tautan di email. Dipanggil hanya dari browser, bukan dari aplikasi, sehingga tidak memerlukan token API. Berhasil mengisi <code>email_verified_at</code> lalu redirect ke halaman hasil (PRG) agar refresh tidak mengirim ulang. Tautan yang sudah pernah dipakai tetap dianggap sukses, token yang tidak dikenal/tidak cocok/kedaluwarsa ditolak, dan akun nonaktif tidak bisa memverifikasi.',
+        'status' => '302 ke halaman hasil (sukses/gagal, selalu 200 di halaman hasil) · bukan endpoint JSON',
+        'respons' => <<<'JSON'
+// halaman hasil verifikasi (web): memuat nama, email, dan waktu verifikasi
 JSON,
       ],
     ],
@@ -1393,7 +1505,7 @@ JSON,
           </header>
 
           <div class="p-3 text-sm flex flex-col gap-2">
-            <p>{{ $e['deskripsi'] }}</p>
+            <p>{!! $e['deskripsi'] !!}</p>
 
             @if(! empty($e['parameter']))
               <div class="overflow-x-auto">

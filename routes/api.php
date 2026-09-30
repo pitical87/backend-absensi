@@ -7,8 +7,10 @@ use App\Http\Controllers\Api\JadwalController;
 use App\Http\Controllers\Api\LogbookController;
 use App\Http\Controllers\Api\LemburController;
 use App\Http\Controllers\Api\PerubahanJadwalController;
+use App\Http\Controllers\Api\ProfilController;
 use App\Http\Controllers\Api\RekapController;
 use App\Http\Controllers\Api\V1Controller;
+use App\Http\Controllers\Api\VerifikasiEmailController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('mobile')->group(function (){
@@ -20,6 +22,13 @@ Route::prefix('mobile')->group(function (){
     Route::middleware('mobile.auth')->group(function(){
         Route::get('me',[AuthController::class, 'me']);
         Route::post('logout',[AuthController::class, 'logout']);
+
+        // Profil
+        Route::post('profil',[ProfilController::class, 'update']);
+
+        // Verifikasi email
+        Route::get('verifikasi-email',[VerifikasiEmailController::class, 'status']);
+        Route::post('verifikasi-email',[VerifikasiEmailController::class, 'kirim']);
 
         // Absensi
         Route::post('absen',[AbsenController::class, 'absen']);

@@ -4,15 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\MappingSIMRSAccount;
 use App\Models\User;
+use App\Services\ProfilService;
 use App\Services\SimrsService;
 use Illuminate\Http\Request;
 
 class ProfilController extends Controller
 {
-    private const AGAMA = ['Katolik', 'Kristen', 'Islam', 'Hindu', 'Budha', 'Lainnya'];
-
-    private const JENIS_KELAMIN = ['Laki-Laki', 'Perempuan'];
-
     public function form()
     {
         $u = User::with(['unitKerja', 'subUnit', 'profesi', 'jabatan', 'mappingSimrs'])
@@ -25,7 +22,7 @@ class ProfilController extends Controller
         return view('pegawai.update_data', [
             'judulHalaman' => 'Update Data',
             'u'            => $u,
-            'agamaList'    => self::AGAMA,
+            'agamaList'    => ProfilService::AGAMA,
         ]);
     }
 
@@ -136,69 +133,27 @@ class ProfilController extends Controller
         return back()->with('success', 'Password Anda berhasil diperbarui.');
     }
 
-    public function updateData(Request $request)
+    public function updateData(Request $request, ProfilService $profil)
     {
         $user = User::find(session('uid'));
         if (! $user) {
             return redirect()->route('pegawai.update-data')->with('error', 'Sesi login tidak valid.');
         }
 
-        $nama   = trim((string) $request->input('nama_lengkap'));
-        $email  = strtolower(trim((string) $request->input('email')));
-        $noHp   = trim((string) $request->input('no_hp'));
-        $tempat = trim((string) $request->input('tempat_lahir'));
-        $tgl    = trim((string) $request->input('tanggal_lahir'));
-        $jk     = (string) $request->input('jenis_kelamin', '');
-        $agama  = (string) $request->input('agama', '');
+        $hasil = $profil->perbarui($user, $request->all());
 
-        if ($nama === '' || $email === '') {
+        if (! $hasil['sukses']) {
             return redirect()->route('pegawai.update-data')
-                ->with('error', 'Nama lengkap dan email wajib diisi.');
+                ->withInput()
+                ->with('error', $hasil['pesan']);
         }
-
-        if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            return redirect()->route('pegawai.update-data')
-                ->with('error', 'Format email tidak valid.');
-        }
-
-        if (User::where('email', $email)->where('id', '!=', $user->id)->exists()) {
-            return redirect()->route('pegawai.update-data')
-                ->with('error', 'Email sudah digunakan oleh akun lain.');
-        }
-
-        if ($jk !== '' && ! in_array($jk, self::JENIS_KELAMIN, true)) {
-            return redirect()->route('pegawai.update-data')
-                ->with('error', 'Jenis kelamin tidak valid.');
-        }
-
-        if ($agama !== '' && ! in_array($agama, self::AGAMA, true)) {
-            return redirect()->route('pegawai.update-data')
-                ->with('error', 'Agama tidak valid.');
-        }
-
-        if ($tgl !== '' && strtotime($tgl) === false) {
-            return redirect()->route('pegawai.update-data')
-                ->with('error', 'Tanggal lahir tidak valid.');
-        }
-
-        $user->update([
-            'nama_lengkap'  => mb_substr($nama, 0, 150),
-            'email'         => mb_substr($email, 0, 150),
-            'no_hp'         => $noHp !== '' ? mb_substr($noHp, 0, 30) : null,
-            'tempat_lahir'  => $tempat !== '' ? mb_substr($tempat, 0, 100) : null,
-            'tanggal_lahir' => $tgl !== '' ? date('Y-m-d', strtotime($tgl)) : null,
-            'jenis_kelamin' => $jk !== '' ? $jk : null,
-            'agama'         => $agama !== '' ? $agama : null,
-        ]);
 
         session()->put([
             'nama'  => $user->nama_lengkap,
             'email' => $user->email,
         ]);
 
-        catat_aktivitas('Update Data', $user->nama_lengkap . ' memperbarui data akunnya');
-
         return redirect()->route('pegawai.update-data')
-            ->with('success', 'Data akun berhasil diperbarui.');
+            ->with('success', $hasil['pesan']);
     }
 }

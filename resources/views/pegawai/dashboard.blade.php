@@ -5,6 +5,24 @@ $hariIni = date('Y-m-d');
 
 @section('content')
 
+@if (empty($u['email_verified_at']))
+  <div class="flash flash-info items-start flex-wrap">
+    <svg class="w-5 h-5 shrink-0 mt-0.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+    <div class="flex-1 min-w-[200px]">
+      <strong class="block">Email belum diverifikasi</strong>
+      <span class="font-normal">
+        Email {{ $u['email'] }} belum diverifikasi. Anda tetap dapat masuk dan absensi, namun
+        verifikasi ini disarankan agar email akun Anda aman saat lupa password.
+      </span>
+    </div>
+    <a href="{{ route('verifikasi-email') }}" class="btn btn-navy btn-kecil shrink-0 no-underline">
+      Verifikasi Email
+    </a>
+  </div>
+@endif
+
 <!-- ============ IDENTITAS ============ -->
 <section class="bg-blue-500 text-white p-4 rounded-xl mb-3">
   <span class="text-white">{{ tgl_id($hariIni) }}</span>

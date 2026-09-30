@@ -40,6 +40,7 @@ trait HasPenggunaAktif
             'nama_lengkap'          => $user->nama_lengkap,
             'nip'                   => $user->nip,
             'email'                 => $user->email,
+            'email_verified_at'     => $user->email_verified_at,
             'no_hp'                 => $user->no_hp,
             'role'                  => $user->role,
             'status'                => $user->status,

@@ -23,6 +23,7 @@ class User extends Authenticatable
     {
         return [
             'tanggal_lahir' => 'date',
+            'email_verified_at' => 'datetime',
         ];
     }
 

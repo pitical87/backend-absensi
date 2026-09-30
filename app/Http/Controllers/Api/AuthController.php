@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Concerns\LaporResetDitolak;
 use App\Http\Controllers\Controller;
 use App\Mail\ResetPasswordMail;
 use App\Models\ApiToken;
@@ -21,6 +22,8 @@ use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
+    use LaporResetDitolak;
+
     private const MAX_FAIL = 5;
 
     private const WINDOW_MINUTE = 15;
@@ -306,6 +309,23 @@ class AuthController extends Controller
                 'sukses' => false,
                 'pesan' => 'Email tersebut tidak terdaftar pada sistem.',
             ], 404);
+        }
+
+        catat_aktivitas('Lupa Password', 'Permintaan reset password untuk '.$email);
+
+        // Email belum diverifikasi: tautan reset password tidak dibuat/dikirim sama sekali.
+        if (is_null($user->email_verified_at)) {
+            $adaTokenLama = $this->cabutTokenReset($email);
+
+            $this->laporkanResetDitolak($user, $adaTokenLama);
+
+            return response()->json([
+                'sukses' => false,
+                'pesan' => 'Email ini belum diverifikasi, sehingga tautan reset password tidak dapat dikirim. '
+                    .'Keadaan ini telah dilaporkan kepada administrator. '
+                    .'Silakan hubungi administrator untuk memverifikasi email Anda terlebih dahulu.',
+                'email_terverifikasi' => false,
+            ], 403);
         }
 
         $token = Str::random(64);

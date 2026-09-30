@@ -86,11 +86,11 @@ if (! function_exists('simpan_pengaturan')) {
 }
 
 if (! function_exists('catat_aktivitas')) {
-    function catat_aktivitas(string $aksi, ?string $detail = null): void
+    function catat_aktivitas(string $aksi, ?string $detail = null, ?int $userId = null): void
     {
         try {
             DB::table('aktivitas_log')->insert([
-                'user_id' => session('uid') ?: null,
+                'user_id' => $userId ?: (session('uid') ?: null),
                 'aksi' => $aksi,
                 'detail' => $detail,
                 'ip' => Request::ip(),

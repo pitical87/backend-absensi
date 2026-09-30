@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\LaporResetDitolak;
 use App\Mail\ResetPasswordMail;
 use App\Models\LoginAttempt;
 use App\Models\User;
@@ -12,6 +13,8 @@ use Illuminate\Support\Str;
 
 class LupaPasswordController extends Controller
 {
+    use LaporResetDitolak;
+
     private const MASA_BERLAKU_MENIT = 60;
 
     public function form()
@@ -35,6 +38,18 @@ class LupaPasswordController extends Controller
         if (! $user) {
             catat_aktivitas('Lupa Password', 'Percobaan reset untuk email yang tidak terdaftar/aktif: '.$email);
             return back()->withInput()->with('galat', 'Email tersebut tidak terdaftar pada sistem.');
+        }
+
+        // Email belum diverifikasi: tautan reset password tidak dibuat/dikirim sama sekali.
+        if (is_null($user->email_verified_at)) {
+            $adaTokenLama = $this->cabutTokenReset($email);
+
+            $this->laporkanResetDitolak($user, $adaTokenLama);
+
+            return back()->withInput()->with('galat',
+                'Email ini belum diverifikasi, sehingga tautan reset password tidak dapat dikirim. '
+                .'Keadaan ini telah dilaporkan kepada administrator. '
+                .'Silakan hubungi administrator untuk memverifikasi email Anda terlebih dahulu.');
         }
 
         $token = Str::random(64);
@@ -76,6 +91,15 @@ class LupaPasswordController extends Controller
                 ->with('galat', 'Tautan reset password tidak valid atau sudah kedaluwarsa. Silakan ulangi permintaan.');
         }
 
+        // Email belum terverifikasi: tautan tidak berlaku meskipun tokennya masih sah.
+        if ($this->emailBelumTerverifikasi($email)) {
+            $this->cabutTokenReset($email);
+
+            return redirect(route('lupa-password'))
+                ->with('galat', 'Email ini belum diverifikasi sehingga tautan reset password tidak berlaku. '
+                    .'Keadaan ini telah dilaporkan kepada administrator.');
+        }
+
         return view('auth.reset-password', [
             'token' => $token,
             'email' => $email,
@@ -106,6 +130,18 @@ class LupaPasswordController extends Controller
                 ->with('galat', 'Akun tidak ditemukan atau telah dinonaktifkan.');
         }
 
+        // Tautan yang terbit sebelum email diverifikasi (mis. email lalu diganti) tidak berlaku.
+        if ($this->emailBelumTerverifikasi($email)) {
+            $this->cabutTokenReset($email);
+
+            catat_aktivitas('Lupa Password',
+                'Reset password untuk '.$email.' ditolak: email belum diverifikasi. Token dicabut.');
+
+            return redirect(route('lupa-password'))
+                ->with('galat', 'Email ini belum diverifikasi sehingga reset password tidak dapat diproses. '
+                    .'Keadaan ini telah dilaporkan kepada administrator.');
+        }
+
         $user->update(['password_hash' => bcrypt($passBaru)]);
 
         DB::table('password_reset_tokens')->where('email', $email)->delete();
@@ -114,6 +150,12 @@ class LupaPasswordController extends Controller
         catat_aktivitas('Reset Password', 'Password akun '.$email.' direset melalui tautan lupa password');
 
         return redirect(route('login'))->with('success', 'Password berhasil direset. Silakan masuk dengan password baru.');
+    }
+
+    private function emailBelumTerverifikasi(string $email): bool
+    {
+        return User::where('email', $email)->where('status', 'aktif')
+            ->whereNull('email_verified_at')->exists();
     }
 
     private function tokenSah(string $token, string $email): bool

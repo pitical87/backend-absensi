@@ -15,6 +15,7 @@ use App\Http\Controllers\SsoController;
 use App\Http\Controllers\StrukturController;
 use App\Http\Controllers\UbahJadwalController;
 use App\Http\Controllers\VerifikasiController;
+use App\Http\Controllers\VerifikasiEmailController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [AuthController::class, 'beranda']);
@@ -30,6 +31,10 @@ Route::get('captcha', [AuthController::class, 'captcha'])->name('captcha');
 Route::get('captcha/gambar/{token}', [AuthController::class, 'gambarCaptcha'])->name('captcha.gambar');
 Route::get('logout', [AuthController::class, 'logout'])->name('logout');
 Route::get('verifikasi/{kode?}', [VerifikasiController::class, 'index'])->name('verifikasi');
+Route::get('verifikasi-email/konfirmasi/{id}/{token}', [VerifikasiEmailController::class, 'konfirmasi'])
+    ->whereNumber('id')
+    ->name('verifikasi-email.konfirmasi');
+Route::get('verifikasi-email/hasil', [VerifikasiEmailController::class, 'hasil'])->name('verifikasi-email.hasil');
 
 Route::middleware('auth')->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -55,6 +60,8 @@ Route::middleware('auth')->group(function () {
     Route::get('foto/{id}/{tipe}', [FotoController::class, 'tampil'])->name('foto');
     Route::get('lampiran-izin/{id}', [FotoController::class, 'lampiranIzin'])->name('lampiran');
     Route::post('ubah-password', [ProfilController::class, 'ubahPassword'])->name('pegawai.ubah-password');
+    Route::get('verifikasi-email', [VerifikasiEmailController::class, 'form'])->name('verifikasi-email');
+    Route::post('verifikasi-email', [VerifikasiEmailController::class, 'kirim'])->name('verifikasi-email.kirim');
     Route::get('sso-absen', [SsoController::class, 'masuk'])->name('sso-absen');
     Route::get('update-data', [ProfilController::class, 'form'])->name('pegawai.update-data');
     Route::post('update-data', [ProfilController::class, 'updateData'])->name('pegawai.update-data.simpan');
