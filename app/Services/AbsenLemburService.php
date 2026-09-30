@@ -148,7 +148,9 @@ class AbsenLemburService
         $durasiMenit = (int) floor($absen->waktu_masuk->diffInSeconds($now) / 60);
 
         $bintangMasuk = $absen->bintang_masuk;
-        $bintangPulang = 0;
+        // Tanpa pengajuan yang disetujui tidak ada acuan jam selesai, tetapi
+        // tetap minimal 1 bintang supaya yang sudah absen tidak pernah bernilai 0.
+        $bintangPulang = BintangService::MIN;
         $bintangHarian = null;
 
         // Bintang pulang: dinilai terhadap jam selesai yang disetujui.

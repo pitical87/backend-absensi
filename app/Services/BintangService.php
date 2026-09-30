@@ -7,12 +7,18 @@ use DateTime;
 class BintangService
 {
     public const MAKS = 5;
+
+    /** Batas bawah bintang: siapa pun yang sudah absen tetap minimal 1 bintang. */
+    public const MIN = 1;
+
     public const GRACE_MENIT = 10;
 
     /**
      * $menitSetelahJadwal bertanda: negatif = absen lebih awal dari jadwal.
      * Lebih awal -> 5 · tepat s.d. toleransi 10' -> 4 · pelanggaran efektif
-     * (setelah dikurangi 10'): <=5' -> 4, <=10' -> 3, <=15' -> 2, <=30' -> 1, >30' -> 0.
+     * (setelah dikurangi 10'): <=5' -> 4, <=10' -> 3, <=15' -> 2, >15' -> 1.
+     * Tidak ada bintang 0: berapa pun keterlambatannya, yang sudah absen
+     * tetap mendapat minimal MIN (1) bintang.
      */
     public static function bintangMasuk(int $menitSetelahJadwal): int
     {
@@ -26,15 +32,15 @@ class BintangService
             $eff <= 5 => 4,
             $eff <= 10 => 3,
             $eff <= 15 => 2,
-            $eff <= 30 => 1,
-            default => 0,
+            default => self::MIN,
         };
     }
 
     /**
      * $menitLebihAwal bertanda: negatif = pulang melewati jam pulang.
      * Melewati jam pulang -> 5 · tepat -> 4 · pulang cepat efektif
-     * (setelah dikurangi 10'): <=5' -> 4, <=10' -> 3, <=15' -> 2, <=30' -> 1, >30' -> 0.
+     * (setelah dikurangi 10'): <=5' -> 4, <=10' -> 3, <=15' -> 2, >15' -> 1.
+     * Sama seperti masuk, tidak ada bintang 0 untuk yang sudah absen pulang.
      */
     public static function bintangPulang(int $menitLebihAwal): int
     {
@@ -52,8 +58,7 @@ class BintangService
             $eff <= 5 => 4,
             $eff <= 10 => 3,
             $eff <= 15 => 2,
-            $eff <= 30 => 1,
-            default => 0,
+            default => self::MIN,
         };
     }
 
