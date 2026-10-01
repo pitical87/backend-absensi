@@ -7,6 +7,8 @@ use App\Models\JadwalShift;
 use App\Models\Shift;
 use App\Models\SubUnit;
 use App\Models\User;
+use App\Services\JadwalImportService;
+use App\Services\JadwalTemplateService;
 use Illuminate\Http\Request;
 
 class JadwalController extends Controller
@@ -225,5 +227,70 @@ class JadwalController extends Controller
         return redirect()
             ->route('admin.jadwal.index', ['tab' => 'pegawai'])
             ->with('success', 'Jadwal '.count($userIds).' pegawai berhasil disimpan ('.count($rows).' entri).');
+    }
+
+    /**
+     * Unduh template Excel untuk import jadwal.
+     *
+     * Format grid sama seperti layar: NIP | Email | Nama Lengkap | 01 | 02 | ... ,
+     * sel berisi nama shift dengan dropdown, bulan/tahun mengikuti periode
+     * yang sedang dipilih di halaman jadwal.
+     */
+    public function template(Request $request, JadwalTemplateService $template)
+    {
+        [$bulan, $tahun] = $this->periode($request);
+
+        return response()
+            ->download($template->buat($bulan, $tahun), $template->namaBerkas($bulan, $tahun))
+            ->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Import jadwal shift dari Excel.
+     */
+    public function impor(Request $request, JadwalImportService $import)
+    {
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:xlsx,xls,csv'],
+        ]);
+
+        [$bulan, $tahun] = $this->periode($request);
+
+        $hasil = $import->impor($request->file('file')->getRealPath(), $bulan, $tahun);
+
+        $pesan = $hasil['sukses'] > 0
+            ? $hasil['sukses'].' pegawai berhasil diimpor ('.$hasil['entri'].' entri jadwal).'
+            : 'Tidak ada jadwal yang diimpor.';
+        if ($hasil['galat']) {
+            $pesan .= ' '.count($hasil['galat']).' catatan: '.implode(' | ', array_slice($hasil['galat'], 0, 8));
+        }
+
+        catat_aktivitas('Import Jadwal Shift',
+            $bulan.'/'.$tahun.' · '.$hasil['sukses'].' pegawai · '.$hasil['entri'].' entri'
+            .($hasil['galat'] ? ' · '.count($hasil['galat']).' catatan' : ''));
+
+        return redirect()->route('admin.jadwal.index', [
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'tab' => 'data',
+        ])->with($hasil['sukses'] > 0 ? 'success' : 'error', $pesan);
+    }
+
+    /**
+     * @return array{0: int, 1: int} [bulan, tahun] dari request dengan default bulan ini
+     */
+    private function periode(Request $request): array
+    {
+        $bulan = (int) $request->get('bulan', now()->month);
+        $tahun = (int) $request->get('tahun', now()->year);
+
+        if ($bulan < 1 || $bulan > 12) {
+            $bulan = (int) now()->month;
+        }
+        if ($tahun < now()->year - 3 || $tahun > now()->year + 3) {
+            $tahun = (int) now()->year;
+        }
+
+        return [$bulan, $tahun];
     }
 }

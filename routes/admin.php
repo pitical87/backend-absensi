@@ -75,6 +75,8 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::get('jadwal', [JadwalController::class, 'index'])->name('admin.jadwal.index');
     Route::post('jadwal/aksi', [JadwalController::class, 'aksi'])->name('admin.jadwal.aksi');
     Route::post('jadwal/aksi-pegawai', [JadwalController::class, 'aksiPegawai'])->name('admin.jadwal.pegawai');
+    Route::get('jadwal/template', [JadwalController::class, 'template'])->name('admin.jadwal.template');
+    Route::post('jadwal/import', [JadwalController::class, 'impor'])->name('admin.jadwal.import');
 
     Route::get('kehadiran', [KehadiranController::class, 'index'])->name('admin.kehadiran.index');
     Route::post('kehadiran/simpan', [KehadiranController::class, 'simpan'])->name('admin.kehadiran.simpan');

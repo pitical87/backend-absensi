@@ -30,6 +30,24 @@
       </select>
       <button type="submit" class="btn btn-navy btn-kecil">Tampilkan</button>
     </form>
+
+    <div class="bilah-alat" style="border-top:1px dashed var(--warna-garis);padding-top:12px;margin-top:4px">
+      <a class="btn btn-garis btn-kecil" href="{{ route('admin.jadwal.template', ['bulan' => $bulan, 'tahun' => $tahun]) }}">
+        {!! ikon('unduh', 15) !!} Template Excel
+      </a>
+      <form method="post" action="{{ route('admin.jadwal.import') }}" enctype="multipart/form-data"
+            class="flex flex-wrap items-center gap-2">
+        @csrf
+        <input type="hidden" name="bulan" value="{{ $bulan }}">
+        <input type="hidden" name="tahun" value="{{ $tahun }}">
+        <input type="file" name="file" accept=".xlsx,.xls,.csv" required>
+        <button type="submit" class="btn btn-navy btn-kecil">{!! ikon('unggah', 15) !!} Import Excel</button>
+        <span class="teks-kecil teks-redup">
+          Format: NIP/Email/Nama + kolom tanggal 01–{{ sprintf('%02d', $hariDalamBulan) }}. Jadwal
+          {{ BULAN_ID[$bulan] }} {{ $tahun }} untuk pegawai di file diganti penuh; sel kosong = libur.
+        </span>
+      </form>
+    </div>
   </section>
 
   @if(count($pegawaiBertugas))

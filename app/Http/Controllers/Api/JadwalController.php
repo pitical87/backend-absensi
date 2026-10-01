@@ -7,6 +7,8 @@ use App\Models\JadwalShift;
 use App\Models\Shift;
 use App\Models\SubUnit;
 use App\Models\User;
+use App\Services\JadwalImportService;
+use App\Services\JadwalTemplateService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -392,5 +394,81 @@ class JadwalController extends Controller
             'pegawai' => count($userIds),
             'disimpan' => count($rows),
         ]);
+    }
+    /**
+     * Unduh template Excel import jadwal — serupa admin/jadwal/template.
+     *
+     * Query: bulan, tahun (opsional, default bulan ini). Mengembalikan berkas
+     * .xlsx, bukan JSON.
+     */
+    public function template(Request $req, JadwalTemplateService $template)
+    {
+        [$bulan, $tahun] = $this->periodeImport($req);
+
+        return response()
+            ->download($template->buat($bulan, $tahun), $template->namaBerkas($bulan, $tahun))
+            ->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Import jadwal shift dari Excel — serupa admin/jadwal/import.
+     *
+     * Multipart: file (xlsx/xls/csv), bulan, tahun. Format grid:
+     * NIP | Email | Nama Lengkap | 01 | 02 | ... . Satu baris = satu pegawai,
+     * jadwal bulan tujuan untuk pegawai tersebut diganti penuh oleh isi file.
+     */
+    public function impor(Request $req, JadwalImportService $import): JsonResponse
+    {
+        $user = $req->get('user');
+
+        $req->validate([
+            'file' => ['required', 'file', 'mimes:xlsx,xls,csv'],
+        ]);
+
+        [$bulan, $tahun] = $this->periodeImport($req);
+
+        $hasil = $import->impor($req->file('file')->getRealPath(), $bulan, $tahun, (int) $user->id);
+
+        $pesan = $hasil['sukses'] > 0
+            ? $hasil['sukses'].' pegawai berhasil diimpor ('.$hasil['entri'].' entri jadwal).'
+            : 'Tidak ada jadwal yang diimpor.';
+        if ($hasil['galat']) {
+            $pesan .= ' '.count($hasil['galat']).' catatan.';
+        }
+
+        catat_aktivitas('Import Jadwal Shift (Mobile)', $user->nama_lengkap
+            . ' · bulan '.BULAN_ID[$bulan]."/$tahun"
+            .' · '.$hasil['sukses'].' pegawai · '.$hasil['entri'].' entri'
+            .($hasil['galat'] ? ' · '.count($hasil['galat']).' catatan' : ''), (int) $user->id);
+
+        return response()->json([
+            'sukses' => $hasil['sukses'] > 0,
+            'pesan' => $pesan,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'pegawai' => $hasil['sukses'],
+            'entri' => $hasil['entri'],
+            'galat' => $hasil['galat'],
+        ]);
+    }
+
+    /**
+     * Periode import dari request, dibatasi +-3 tahun seperti halaman admin.
+     *
+     * @return array{0: int, 1: int}
+     */
+    private function periodeImport(Request $req): array
+    {
+        $bulan = (int) ($req->input('bulan') ?: now()->month);
+        $tahun = (int) ($req->input('tahun') ?: now()->year);
+
+        if ($bulan < 1 || $bulan > 12) {
+            $bulan = (int) now()->month;
+        }
+        if ($tahun < now()->year - 3 || $tahun > now()->year + 3) {
+            $tahun = (int) now()->year;
+        }
+
+        return [$bulan, $tahun];
     }
 }
