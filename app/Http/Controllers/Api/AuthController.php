@@ -2,17 +2,17 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Concerns\BatasiPercobaanLogin;
 use App\Http\Controllers\Concerns\LaporResetDitolak;
+use App\Http\Controllers\Concerns\TerbitkanTokenMobile;
 use App\Http\Controllers\Controller;
 use App\Mail\ResetPasswordMail;
 use App\Models\ApiToken;
-use App\Models\LoginAttempt;
 use App\Models\Profesi;
 use App\Models\SubUnit;
 use App\Models\UnitKerja;
 use App\Models\User;
 use App\Services\StrukturService;
-use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
@@ -22,13 +22,9 @@ use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
+    use BatasiPercobaanLogin;
     use LaporResetDitolak;
-
-    private const MAX_FAIL = 5;
-
-    private const WINDOW_MINUTE = 15;
-
-    private const TOKEN_EXP_DAYS = 7;
+    use TerbitkanTokenMobile;
 
     private const RESET_EXP_MENIT = 60;
 
@@ -39,7 +35,9 @@ class AuthController extends Controller
         $password = $req->input('password');
         $ip = $req->ip();
 
-        if ($email === '' || $password === '') {
+        // Kosong dari form JSON terubah null oleh middleware, jadi periksa tipe
+        // juga; sebelumnya null lolos ke bawah dan berakhir jadi galat 500.
+        if (! is_string($email) || ! is_string($password) || trim($email) === '' || $password === '') {
             return response()->json([
                 'sukses' => false,
                 'pesan' => 'Email dan password harus diisi.',
@@ -74,35 +72,9 @@ class AuthController extends Controller
             ], 403);
         }
         $this->catatPercobaan($email, $ip, true);
-        LoginAttempt::where('email', $email)->where('sukses', 0)->delete();
+        $this->hapusPercobaanGagal($email);
 
-        $token = bin2hex(random_bytes(32));
-        $expiresAt = Carbon::now()->addDays(self::TOKEN_EXP_DAYS);
-        ApiToken::create([
-            'user_id' => $user->id,
-            'token' => $token,
-            'expires_at' => $expiresAt,
-            'perangkat' => substr(trim((string) ($req->input('perangkat') ?: $req->header('X-Device-Name', ''))), 0, 150),
-            'ip' => $ip,
-            'user_agent' => substr((string) $req->header('User-Agent', ''), 0, 255),
-            'last_aktivitas' => now(),
-        ]);
-
-        $user->load(['unitKerja', 'subUnit', 'profesi', 'jabatan']);
-        catat_aktivitas('Login Mobile', $user->nama_lengkap.' masuk dari aplikasi mobile');
-
-        $menit = self::TOKEN_EXP_DAYS * 24 * 60;
-        $cookie = Cookie::make('auth_token', $token, $menit, '/', null, false, true, false, 'Lax');
-
-        return response()->json([
-            'sukses' => true,
-            'user' => $user,
-            'lokasi' => [
-                'lat' => (float) pengaturan('lokasi_lat', -8.4991120),
-                'lng' => (float) pengaturan('lokasi_lng', 140.4049840),
-                'radius' => (float) pengaturan('radius_meter', 100),
-            ],
-        ])->withCookie($cookie);
+        return $this->terbitkanTokenMobile($req, $user, $ip, $user->nama_lengkap.' masuk dari aplikasi mobile');
 
     }
 
@@ -360,48 +332,8 @@ class AuthController extends Controller
         ]);
     }
 
-    private function catatPercobaan(string $email, string $ip, bool $sukses): void
-    {
-        LoginAttempt::create([
-            'email' => mb_substr($email, 0, 150),
-            'ip' => $ip,
-            'sukses' => $sukses ? 1 : 0,
-            'waktu' => now(),
-        ]);
-        LoginAttempt::where('waktu', '<', now()->subDays(2))->delete();
-    }
-
-    private function jumlahGagal(string $email, string $ip): int
-    {
-        $sejak = now()->subMinutes(self::WINDOW_MINUTE);
-
-        return LoginAttempt::where('sukses', 0)
-            ->where('waktu', '>=', $sejak)
-            ->where(function ($q) use ($email, $ip) {
-                $q->where('email', $email)
-                    ->orWhere('ip', $ip);
-            })
-            ->count();
-    }
-
     private function sisaPercobaan(string $email, string $ip): int
     {
         return max(0, self::MAX_FAIL - $this->jumlahGagal($email, $ip));
-    }
-
-    private function sisaBlokir(string $email, string $ip): int
-    {
-        if ($this->jumlahGagal($email, $ip) < self::MAX_FAIL) {
-            return 0;
-        }
-        $sejak = now()->subMinutes(self::WINDOW_MINUTE);
-        $terbaru = LoginAttempt::where('sukses', 0)
-            ->where('waktu', '>=', $sejak)
-            ->where(function ($q) use ($email, $ip) {
-                $q->where('email', $email)->orWhere('ip', $ip);
-            })->orderBy('waktu', 'desc')->first();
-        $habis = strtotime((string) ($terbaru->waktu ?? 'now')) + self::WINDOW_MINUTE * 60;
-
-        return max(1,(int) ceil(($habis - time()) / 60));
     }
 }

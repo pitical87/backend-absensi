@@ -9,6 +9,7 @@ Dimigrasi dari CodeIgniter 4 ke Laravel (dokumentasi migrasi: [`MIGRASI_LARAVEL.
 ## Fitur Utama
 
 ### Pegawai
+- Login dengan email & password atau akun Google (verifikasi email otomatis)
 - Absen masuk/keluar dengan validasi GPS geofencing + selfie
 - Pilihan shift harian
 - Pengajuan izin/sakit/cuti/dinas luar dengan upload lampiran
@@ -30,7 +31,7 @@ Dimigrasi dari CodeIgniter 4 ke Laravel (dokumentasi migrasi: [`MIGRASI_LARAVEL.
 - Log aktivitas sistem
 
 ### API
-- **Mobile API** - autentikasi token untuk aplikasi mobile
+- **Mobile API** - autentikasi token untuk aplikasi mobile (login email/password atau `id_token` Google)
 - **SIMRS Integration API** - autentikasi API key untuk integrasi dengan sistem informasi rumah sakit
 
 ---
@@ -90,6 +91,14 @@ DB_CONNECTION=sqlite
 # DB_DATABASE=absensi_rsud_merauke
 # DB_USERNAME=root
 # DB_PASSWORD=
+
+# Login dengan Google (opsional, kosongkan = tombol disembunyikan)
+# Lihat bagian "Login dengan Google" untuk langkah registrasi credential.
+# GOOGLE_CLIENT_ID=
+# GOOGLE_CLIENT_SECRET=
+# GOOGLE_REDIRECT_URI="${APP_URL}/auth/google/callback"
+# GOOGLE_MOBILE_CLIENT_IDS=
+# GOOGLE_HD=
 ```
 
 ### 5. Jalankan Migrasi & Seeder
@@ -219,7 +228,7 @@ backend-absensi/
 
 ## Autentikasi
 
-Sistem ini menggunakan **3 mekanisme autentikasi kustom** (tanpa Sanctum/Passport):
+Sistem ini menggunakan **4 mekanisme autentikasi kustom** (tanpa Sanctum/Passport):
 
 ### 1. Web (Session-based)
 - Middleware: `CheckAuth` (alias `auth`)
@@ -231,7 +240,92 @@ Sistem ini menggunakan **3 mekanisme autentikasi kustom** (tanpa Sanctum/Passpor
 - Token 64 karakter disimpan di tabel `api_tokens`, di-set sebagai HttpOnly cookie `auth_token`
 - Masa berlaku token: 7 hari
 
-### 3. SIMRS Integration API (API Key)
+### 3. Login dengan Google (Web + Mobile API)
+- Web: `GET /auth/google` &rarr; `GET /auth/google/callback` (menggunakan `laravel/socialite`)
+- Mobile: `POST /api/mobile/login/google` dengan body `{ "id_token": "..." }` (JWT dari Google Identity Services)
+- Verifikasi `id_token`: tanda tangan RS256 lewat JWKS Google (di-cache 1 jam), `iss`, `aud`, `exp`, dan `email_verified`
+- Kebijakan: email harus sudah terdaftar, hanya role pegawai, akun aktif, email terverifikasi di Google
+- Efek samping: `email_verified_at` terisi otomatis bila belum diverifikasi
+- Implementasi bersama: `app/Services/GoogleLoginService.php`, endpoint `app/Http/Controllers/Api/GoogleAuthController.php`
+- Detail endpoint ada di dokumentasi admin &rarr; grup "Autentikasi & Akun"
+
+#### Cara mengaktifkan
+
+1. Di [Google Cloud Console](https://console.cloud.google.com/) buat project (atau pakai yang sudah ada).
+2. Aktifkan **Google Identity** API &mdash; OAuth consent screen: pilih *Internal* bila seluruh akun berada dalam satu organisasi Google Workspace, selain itu *External* (tambahkan akun uji atau terublikasikan).
+3. Buat **OAuth client ID** tipe *Web application* untuk server backend:
+   - Authorized redirect URI **harus sama persis** dengan nilai `GOOGLE_REDIRECT_URI` di `.env` (huruf besar-kecil, `http` vs `https`, dan **port**). Tanpa port, Google akan membalas `Error 400: redirect_uri_mismatch`.
+   - Dev dengan `php artisan serve`: `http://localhost:8000/auth/google/callback` **dan** `http://127.0.0.1:8000/auth/google/callback` (keduanya tetap dipakai saat lokal, lihat catatan `localhost` vs `127.0.0.1` di bawah)
+   - Produksi: `https://rsud-merauke.id/auth/google/callback`
+   - Isi `GOOGLE_CLIENT_ID` dan `GOOGLE_CLIENT_SECRET` di `.env`
+4. Buat **OAuth client ID** tipe *Web application* terpisah untuk aplikasi web (React). Client id inilah yang menjadi `aud` pada `id_token`; masukkan ke `GOOGLE_MOBILE_CLIENT_IDS` (pisahkan dengan koma bila lebih dari satu).
+5. `php artisan config:clear && php artisan cache:clear`. Tombol *Sign in with Google* otomatis muncul di halaman login setelah `GOOGLE_CLIENT_ID` terisi. (HTML halaman login di-cache 5 menit, jadi `cache:clear` mempercepat tampilnya tombol.)
+6. Opsional: isi `GOOGLE_HD=rsud-merauke.id` untuk membatasi hanya akun Google Workspace milik domain tersebut.
+
+```env
+GOOGLE_CLIENT_ID=1234567890-abc.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=GOCSPX-xxxxxxxxxxxx
+GOOGLE_REDIRECT_URI="https://rsud-merauke.id/auth/google/callback"
+GOOGLE_MOBILE_CLIENT_IDS=9876543210-xyz.apps.googleusercontent.com
+GOOGLE_HD=
+```
+
+#### Kalau muncul `Error 400: redirect_uri_mismatch`
+
+Jalankan perintah ini; nilai yang dicetak adalah yang **harus** disalin persis ke
+*Authorized redirect URIs* pada OAuth client tersebut:
+
+```bash
+php artisan google:cek
+php artisan config:clear && php artisan cache:clear
+```
+
+Penyebab yang sering terjadi: port tidak dicocokkan (`localhost` vs `localhost:8000`),
+pakai `http` padahal Google memakai `https`, ada garis miring di akhir, atau
+URI didaftarkan pada client ID yang berbeda dari `GOOGLE_CLIENT_ID`.
+Nilai persis yang dikirim server juga dicatat di `storage/logs/laravel.log`
+(baris `Login Google dimulai, redirect_uri: ...`).
+
+##### `localhost` vs `127.0.0.1` saat login lokal
+
+Cookie sesi terikat host, jadi callback yang kembali ke host berbeda tidak
+membawa cookie -&gt; `Sesi login Google tidak cocok`. Karena itu saat developing,
+`redirect_uri` otomatis mengikuti host yang dipakai browser di antara
+`localhost`, `127.0.0.1`, dan `::1` (lihat baris log
+`Login Google dimulai, redirect_uri: ... (configured: ...)`). Di produksi nilai
+`.env` tidak pernah ditimpa, sehingga `Host` header tidak bisa menyuntik redirect.
+
+Akan tetapi URI hasil penyesuaian itu **wajib** didaftarkan juga di
+*Authorized redirect URIs*. Jadi untuk `php artisan serve` daftarkan keduanya:
+
+```text
+http://localhost:8000/auth/google/callback
+http://127.0.0.1:8000/auth/google/callback
+```
+
+Kalau "klik dua kali" tetap terjadi, pastikan hanya satu tab login Google yang
+dibuka, dan buka `/login` dari URL yang sama persis dengan callback.
+
+Contoh pemakaian dari aplikasi web (React):
+
+```js
+google.accounts.id.initialize({
+  client_id: 'GOOGLE_CLIENT_ID_APLIKASI_REACT',
+  callback: async ({ credential }) => {
+    const res = await fetch('https://rsud-merauke.id/api/mobile/login/google', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ id_token: credential }),
+    });
+    const data = await res.json();
+    // res.ok === false berarti 401/403/422/429/503, pesan ada di data.pesan
+  },
+});
+google.accounts.id.renderButton(document.getElementById('tombol-google'), { type: 'standard' });
+```
+
+### 4. SIMRS Integration API (API Key)
 - Middleware: `CheckApiKey` (alias `api.key`)
 - Header: `X-API-KEY`
 - Key disimpan di tabel `pengaturan`, dapat di-regenerate oleh admin
@@ -249,6 +343,8 @@ Sistem ini menggunakan **3 mekanisme autentikasi kustom** (tanpa Sanctum/Passpor
 | POST | `/install` | Buat admin pertama |
 | GET | `/login` | Halaman login |
 | POST | `/login` | Proses login |
+| GET | `/auth/google` | Mulai login dengan Google (redirect) |
+| GET | `/auth/google/callback` | Penerima balasan Google |
 | GET | `/register` | Halaman registrasi |
 | POST | `/register` | Proses registrasi |
 | GET | `/logout` | Logout |
@@ -305,7 +401,8 @@ Sistem ini menggunakan **3 mekanisme autentikasi kustom** (tanpa Sanctum/Passpor
 
 | Method | URL | Auth | Keterangan |
 |--------|-----|------|------------|
-| POST | `/api/mobile/login` | - | Login mobile |
+| POST | `/api/mobile/login` | - | Login mobile (email & password) |
+| POST | `/api/mobile/login/google` | - | Login mobile dengan `id_token` Google |
 | GET | `/api/mobile/register/master` | - | Data master registrasi |
 | POST | `/api/mobile/register` | - | Registrasi mobile |
 | GET | `/api/mobile/me` | Token | Profil pengguna |

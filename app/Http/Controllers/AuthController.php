@@ -15,7 +15,7 @@ class AuthController extends Controller
     private const MAKS_GAGAL = 5;
     private const JENDELA_MNT = 15;
     private const MIN_ISI_DETIK = 3;
-    private const KUNCI_CACHE_LOGIN = 'auth.login.html.v2';
+    private const KUNCI_CACHE_LOGIN = 'auth.login.html.v3';
 
     public function beranda()
     {
@@ -37,6 +37,13 @@ class AuthController extends Controller
             return redirect(session('role') === 'admin' ? 'admin' : 'dashboard');
         }
         session(['login_form_started' => time()]);
+
+        // Pesan galat (mis. login dengan Google ditolak) selalu dirender langsung
+        // agar tidak ikut tersimpan di cache dan tampil direspons berikutnya.
+        if ($flash = session('galat')) {
+            return response(view('auth.login', ['galat' => $flash])->render());
+        }
+
         return response($this->htmlLogin());
     }
 

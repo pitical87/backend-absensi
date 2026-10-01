@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AbsenController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\GoogleAuthController;
 use App\Http\Controllers\Api\IzinController;
 use App\Http\Controllers\Api\JadwalController;
 use App\Http\Controllers\Api\LogbookController;
@@ -16,6 +17,7 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('mobile')->group(function (){
     // Auth
     Route::post('login',[AuthController::class, 'login']);
+    Route::post('login/google',[GoogleAuthController::class, 'login']);
     Route::get('register/master',[AuthController::class, 'registerDataMaster']);
     Route::post('register',[AuthController::class, 'register']);
     Route::post('lupa-password',[AuthController::class, 'lupaPassword']);

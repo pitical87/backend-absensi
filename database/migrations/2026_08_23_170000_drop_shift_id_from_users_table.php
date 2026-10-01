@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (! Schema::hasColumn('users', 'shift_id')) {
+            return;
+        }
+
         Schema::table('users', function (Blueprint $table) {
             $table->dropConstrainedForeignId('shift_id');
         });

@@ -39,4 +39,34 @@ return [
         'url' => env('WEB_ABSEN_URL'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Google
+    |--------------------------------------------------------------------------
+    |
+    | Login dengan Google. `client_id`/`secret` dipakai alur redirect browser
+    | pada halaman login web (laravel/socialite), sedangkan `mobile_client_ids`
+    | dipakai sebagai daftar `aud` yang sah saat aplikasi web terpisah
+    | (React) mengirim id_token ke /api/mobile/login/google.
+    |
+    | `hd` opsional untuk membatasi hanya akun Google Workspace milik satu
+    | domain, mis. "rsud-merauke.id" (tanpa titik). Kosongkan = semua akun
+    | Google, asalkan email-nya sudah terdaftar di tabel users.
+    |
+    */
+
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        // Wajib diisi Socialite: harus sama persis (huruf besar-kecil, protocol,
+        // domain, dan PORT) dengan Authorized redirect URI di Google Cloud
+        // Console, termasuk tanpa garis miring di akhir.
+        'redirect' => rtrim((string) (env('GOOGLE_REDIRECT_URI') ?: rtrim((string) env('APP_URL'), '/').'/auth/google/callback'), '/'),
+        'mobile_client_ids' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('GOOGLE_MOBILE_CLIENT_IDS', ''))
+        ))),
+        'hd' => env('GOOGLE_HD') ?: null,
+    ],
+
 ];

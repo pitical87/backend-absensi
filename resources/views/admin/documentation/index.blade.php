@@ -8,6 +8,7 @@ $badgeMetode = ['GET' => 'badge-hijau', 'POST' => 'badge-biru', 'PUT' => 'badge-
 $grupApi = [
   [
     'id' => 'autentikasi', 'judul' => 'Autentikasi & Akun', 'ikon' => 'kunci',
+    'info' => 'Ada dua cara masuk: (1) email &amp; password seperti biasa, atau (2) akun Google. Login dengan Google tersedia di halaman login web (tombol <em>Sign in with Google</em>, alur redirect ke Google lalu kembali ke <code>/auth/google/callback</code>) dan di aplikasi web terpisah lewat <code>POST /api/mobile/login/google</code> yang mengirim <code>id_token</code>. Keduanya memakai aturan yang sama: email harus <strong>sudah terdaftar</strong> di sistem (tidak ada pendaftaran otomatis), hanya role pegawai (admin memakai email &amp; password), akun harus aktif, dan Google harus menyatakan email terverifikasi. Bila email terverifikasi Google dan belum pernah diverifikasi di sistem, <code>email_verified_at</code> diisi otomatis sehingga banner verifikasi hilang dan reset password kembali bisa dipakai. Data master (nama, NIP, unit kerja) tidak pernah diambil dari Google. <strong>Catatan develops lokal:</strong> cookie sesi terikat host, jadi callback yang kembali ke host berbeda tidak membawa cookie dan muncul pesan <em>Sesi login Google tidak cocok</em>. Saat lokal, server memakai <code>localhost</code>, <code>127.0.0.1</code>, atau <code>::1</code> sesuai host yang dipakai browser, dan nilai itu <strong>wajib</strong> didaftarkan di <em>Authorized redirect URIs</em> (untuk <code>php artisan serve</code>: <code>http://localhost:8000/auth/google/callback</code> dan <code>http://127.0.0.1:8000/auth/google/callback</code>). Di produksi nilai <code>GOOGLE_REDIRECT_URI</code> tidak pernah ditimpa. Nilai yang benar-benar dikirim dapat dibaca di <code>php artisan google:cek</code> dan <code>storage/logs/laravel.log</code>.',
     'endpoints' => [
       [
         'metode' => 'POST', 'jalur' => '/login', 'akses' => 'Publik',
@@ -36,6 +37,40 @@ JSON,
     "shift": { "id": 1, "kategori": "Pagi", "jam_masuk": "07:00", "jam_pulang": "14:00" }
   },
   "lokasi": { "lat": -8.499112, "lng": 140.404984, "radius": 100 }
+}
+JSON,
+      ],
+      [
+        'metode' => 'POST', 'jalur' => '/login/google', 'akses' => 'Publik',
+        'deskripsi' => 'Masuk dengan akun Google untuk aplikasi web terpisah (React). Aplikasi memakai Google Identity Services, mengambil <code>credential</code> berupa <strong>id_token</strong> (JWT), lalu mengirimkannya ke endpoint ini. Server memverifikasi tanda tangan RSA memakai kunci publik JWKS Google (di-cache 1 jam), penerbit (<code>accounts.google.com</code>), <code>aud</code> harus salah satu client id yang terdaftar di server, masa berlaku, dan status verifikasi email. Sukses memakai respons, cookie httpOnly, dan masa berlaku token yang sama persis dengan <code>POST /login</code>. Batas percobaan gagal dihitung per IP (bukan per email) karena alamat email pada request berasal dari klien. <strong>Akun tidak dibuat otomatis</strong>: email yang belum terdaftar akan ditolak. <strong>Konfigurasi server:</strong> <code>GOOGLE_CLIENT_ID</code> + <code>GOOGLE_CLIENT_SECRET</code> untuk halaman login web, dan <code>GOOGLE_MOBILE_CLIENT_IDS</code> untuk client id aplikasi web (nilai itu yang menjadi <code>aud</code> pada <code>id_token</code>). Nilai <code>GOOGLE_REDIRECT_URI</code> harus sama persis dengan <em>Authorized redirect URIs</em> di Google Cloud Console &mdash; termasuk protocol dan <strong>port</strong>, tanpa garis miring di akhir &mdash; jika tidak Google membalas <code>Error 400: redirect_uri_mismatch</code>. Jalankan <code>php artisan google:cek</code> di server untuk melihat nilai yang wajib didaftarkan.',
+        'parameter' => [
+          ['id_token', 'body', 'string', true, 'ID token (JWT) dari Google Identity Services, maksimal 4096 karakter.'],
+          ['perangkat', 'body', 'string', false, 'Nama perangkat, tersimpan di daftar token aktif.'],
+        ],
+        'body' => <<<'JSON'
+{
+  "id_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6Ii4uLiJ9.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20ifQ.c2lnbmF0dXJlLi4u"
+}
+JSON,
+        'status' => '200 sukses · 401 id_token tidak valid/kedaluwarsa/diterbitkan untuk client lain · 403 email belum terdaftar, akun nonaktif, role admin, atau email belum terverifikasi di Google · 422 id_token kosong · 429 diblokir sementara · 503 konfigurasi atau kunci Google belum siap',
+        'respons' => <<<'JSON'
+// 200 — sama seperti POST /login
+{
+  "sukses": true,
+  "user": {
+    "id": 2,
+    "nama_lengkap": "Budi Santoso",
+    "email": "budi@example.com",
+    "email_verified_at": "2026-10-01T09:15:00.000000Z",
+    "unit_kerja": { "id": 1, "nama": "Instalasi Rawat Jalan" }
+  },
+  "lokasi": { "lat": -8.499112, "lng": 140.404984, "radius": 100 }
+}
+
+// 403 — email belum terdaftar
+{
+  "sukses": false,
+  "pesan": "Email ini belum terdaftar di sistem. Silakan hubungi administrator untuk pendaftaran akun."
 }
 JSON,
       ],
@@ -1492,7 +1527,7 @@ JSON,
     </div>
 
     @if(! empty($g['info']))
-      <div class="mx-3 mt-3 flash flash-info">{!! $g['info'] !!}</div>
+      <div class="mx-3 mt-3 p-3 bg-blue-100 border border-blue-300 rounded-xl text-blue-800">{!! $g['info'] !!}</div>
     @endif
 
     <div class="p-3 flex flex-col gap-3">
