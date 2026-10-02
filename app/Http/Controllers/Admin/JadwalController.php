@@ -57,7 +57,7 @@ class JadwalController extends Controller
         $hariDalamBulan = (int) cal_days_in_month(CAL_GREGORIAN, $bulan, $tahun);
 
         $semuaPegawai = User::select('users.id', 'users.nama_lengkap',
-                'uk.nama AS unit_nama', 'su.nama AS sub_unit_nama')
+            'uk.nama AS unit_nama', 'su.nama AS sub_unit_nama')
             ->leftJoin('unit_kerja as uk', 'uk.id', '=', 'users.unit_kerja_id')
             ->leftJoin('sub_unit as su', 'su.id', '=', 'users.sub_unit_id')
             ->where('role', '!=', 'admin')
@@ -86,7 +86,7 @@ class JadwalController extends Controller
         $pegawaiBertugas = collect();
         if ($jadwalPegawai) {
             $pegawaiBertugas = User::select('users.id', 'users.nama_lengkap',
-                    'uk.nama AS unit_nama', 'su.nama AS sub_unit_nama')
+                'uk.nama AS unit_nama', 'su.nama AS sub_unit_nama')
                 ->leftJoin('unit_kerja as uk', 'uk.id', '=', 'users.unit_kerja_id')
                 ->leftJoin('sub_unit as su', 'su.id', '=', 'users.sub_unit_id')
                 ->whereIn('users.id', array_keys($jadwalPegawai))
@@ -110,6 +110,25 @@ class JadwalController extends Controller
             'jadwalPegawai' => $jadwalPegawai,
             'pegawaiBertugas' => $pegawaiBertugas,
         ]);
+    }
+
+    /**
+     * Baca nilai JSON dari request; menerima juga array biasa supaya permintaan
+     * lama (grid per-input) tetap jalan.
+     */
+    private function bacaJson($nilai): array
+    {
+        if (is_array($nilai)) {
+            return $nilai;
+        }
+
+        if (! is_string($nilai) || $nilai === '') {
+            return [];
+        }
+
+        $hasil = json_decode($nilai, true);
+
+        return is_array($hasil) ? $hasil : [];
     }
 
     public function aksi(Request $request)
@@ -173,8 +192,11 @@ class JadwalController extends Controller
     {
         $bulan = (int) $request->input('bulan');
         $tahun = (int) $request->input('tahun');
-        $pilih = array_map('intval', (array) $request->input('users', []));
-        $grid  = (array) $request->input('grid', []);
+
+        // Grid dikirim sebagai satu JSON, bukan thousands input terpisah, supaya
+        // tidak dipotong max_input_vars PHP (1000) untuk jadwal skala besar.
+        $pilih = array_map('intval', (array) $this->bacaJson($request->input('users_json')));
+        $grid = (array) $this->bacaJson($request->input('grid_json'));
 
         $awal = sprintf('%04d-%02d-01', $tahun, $bulan);
         $akhir = sprintf('%04d-%02d-%02d', $tahun, $bulan,

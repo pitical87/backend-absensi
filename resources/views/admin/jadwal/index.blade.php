@@ -72,7 +72,7 @@
     </div>
 
     <div class="tabel-bungkus overflow-x-auto">
-      <table class="tabel jadwal-grid" style="min-width:{{ 210 + ($hariDalamBulan * 46) }}px">
+      <table id="grid-unit" class="tabel jadwal-grid" style="min-width:{{ 210 + ($hariDalamBulan * 46) }}px">
         <thead>
           <tr>
             <th class="angka min-w-[36px]">No</th>
@@ -242,8 +242,8 @@
                 <td class="p-0.5 text-center">
                   <select name="grid[{{ $p->id }}][{{ $tgl }}]"
                           data-user="{{ $p->id }}"
-                          class="jadwal-select"
-                          style="width:50px;padding:2px 1px;font-size:.72rem;border:1px solid var(--garis);border-radius:4px;background:{{ $val ? 'var(--biru-muda)' : 'var(--latar)' }}">
+                          class="jadwal-select{{ $val ? ' terisi' : '' }}"
+                          style="width:50px;padding:2px 1px;font-size:.72rem;border:1px solid var(--garis);border-radius:4px">
                     <option value="">—</option>
                     @foreach($shiftList as $s)
                       <option value="{{ (int) $s->id }}" {{ $val == $s->id ? 'selected' : '' }}>
@@ -298,6 +298,10 @@
     @csrf
     <input type="hidden" name="bulan" value="{{ $bulan }}">
     <input type="hidden" name="tahun" value="{{ $tahun }}">
+    {{-- Grid dikirim sebagai satu JSON agar tidak terkena batas max_input_vars PHP
+         (1000) ketika jumlah pegawai × tanggal sudah besar. --}}
+    <input type="hidden" name="grid_json" id="grid-json-pegawai">
+    <input type="hidden" name="users_json" id="users-json-pegawai">
 
     <section class="kartu">
       <div class="kartu-kepala">
@@ -306,6 +310,7 @@
         </h2>
         <div class="flex gap-3 items-center">
           <button type="submit" class="btn btn-primer btn-kecil">Simpan Jadwal</button>
+          <button type="button" id="tombol-semua-pegawai" class="btn btn-navy btn-kecil">Atur Semua Pegawai</button>
           <button type="button" id="tombol-tambah-pegawai" class="btn btn-navy btn-kecil">+ Tambah Pegawai</button>
         </div>
       </div>
@@ -345,7 +350,7 @@
     <template id="template-baris-pegawai">
       <tr class="baris-pgw" data-user="">
         <td class="sticky left-0 bg-white z-[1] whitespace-nowrap">
-          <input type="hidden" name="users[]" value="" class="input-user-pgw">
+          <input type="hidden" value="" class="input-user-pgw">
           <button type="button" class="hapus-baris-pgw ms-1 text-red-800  cursor-pointer" title="Hapus baris ini">&times;</button>
           <strong class="nama-pgw"></strong>
         </td>
@@ -362,7 +367,7 @@
           <td class="p-0.5 text-center">
             <select data-tanggal="{{ $tgl3 }}"
                     class="sel-hari"
-                    style="width:50px;padding:2px 1px;font-size:.72rem;border:1px solid var(--garis);border-radius:4px;background:var(--latar)">
+                    style="width:50px;padding:2px 1px;font-size:.72rem;border:1px solid var(--garis);border-radius:4px">
               <option value="">—</option>
               @foreach($shiftList as $s)
                 <option value="{{ (int) $s->id }}">
@@ -387,6 +392,11 @@
     <div class="p-3 flex flex-col gap-2 overflow-hidden flex-1">
       <input type="text" id="cari-pegawai-modal" placeholder="Cari nama / unit…"
              class="w-full px-3 py-1.5 text-sm border border-garis rounded-lg">
+      <label class="flex items-center gap-2 px-1 text-sm cursor-pointer select-none">
+        <input type="checkbox" id="pilih-semua-pegawai" class="accent-[var(--biru)]">
+        <span class="font-medium">Pilih semua</span>
+        <span class="teks-redup teks-kecil" id="ringkas-terpilih-modal">0 dipilih</span>
+      </label>
       <div id="daftar-modal-pegawai" class="overflow-y-auto border border-garis rounded-xl divide-y divide-slate-100 flex-1">
         @forelse($semuaPegawai as $pg)
           <label class="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-slate-50 cursor-pointer baris-modal-pegawai"
@@ -405,6 +415,45 @@
     <div class="px-3 pb-3 pt-1 flex justify-end gap-2">
       <button type="button" id="modal-pegawai-batal" class="btn btn-garis btn-kecil">Batal</button>
       <button type="button" id="modal-pegawai-tambahkan" class="btn btn-primer btn-kecil">Tambahkan ke Daftar</button>
+    </div>
+  </section>
+</div>
+
+{{-- ── POPUP ATUR SEMUA PEGAWAI ── --}}
+<div id="modal-semua-pegawai" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
+  <section class="kartu w-full max-w-md flex flex-col">
+    <div class="kartu-kepala">
+      <h2>{!! ikon('jam') !!} Atur Semua Pegawai Sekaligus</h2>
+      <button type="button" id="modal-semua-tutup" class="btn btn-garis btn-kecil">&times;</button>
+    </div>
+    <div class="p-4 flex flex-col gap-3">
+      <p class="teks-kecil teks-redup">
+        Pilih satu shift untuk <b>semua tanggal</b> pada periode
+        <b id="modal-semus-periode"></b>. Jadwal yang sudah terisi akan ditimpa.
+      </p>
+      <label class="flex flex-col gap-1">
+        <span class="teks-kecil font-medium">Shift untuk semua tanggal</span>
+        <select id="modal-semua-shift"
+                class="px-3 py-2 text-sm border border-garis rounded-lg">
+          <option value="">— Pilih shift —</option>
+          @foreach($shiftList as $s)
+            <option value="{{ (int) $s->id }}">
+              {{ $s->kategori }} = {{ $s->jam_masuk->format('H:i') }} - {{ $s->jam_pulang->format('H:i') }}
+            </option>
+          @endforeach
+        </select>
+      </label>
+      <label class="flex items-center gap-2 text-sm cursor-pointer">
+        <input type="checkbox" id="modal-semua-terpilih" class="accent-[var(--biru)]" checked>
+        <span>Hanya untuk <b id="modal-semua-jumlah">0</b> pegawai yang dipilih</span>
+      </label>
+      <p class="teks-kecil teks-redup">
+        Kosongkan centang <b>Hanya untuk</b> bila ingin menerapkan ke seluruh pegawai aktif.
+      </p>
+    </div>
+    <div class="px-4 pb-4 pt-1 flex justify-end gap-2">
+      <button type="button" id="modal-semua-batal" class="btn btn-garis btn-kecil">Batal</button>
+      <button type="button" id="modal-semua-terapkan" class="btn btn-primer btn-kecil">Terapkan</button>
     </div>
   </section>
 </div>
@@ -445,8 +494,52 @@
 @endsection
 
 @section('script')
+<style>
+  /* Sel jadwal yang terisi shift ditandai dengan kelas, bukan style inline,
+     supaya pengisian hundreds sel tidak memicu hitung ulang style berulang. */
+  select.sel-hari.terisi,
+  select.jadwal-select.terisi {
+    background-color: var(--biru-muda);
+  }
+</style>
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+  // ── Indikator proses pada tombol ──
+  // Tombol submit yang dipakai berubah jadi spinner + teks proses lalu
+  // dinonaktifkan, supaya jelas permintaan berjalan dan tidak terkirim dua kali.
+  const SPINNER_PROSES = '<svg class="animate-spin h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" aria-hidden="true" style="animation-duration:0.7s">'
+    + '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity="0.3" stroke-width="3"></circle>'
+    + '<path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"></path>'
+    + '</svg>';
+
+  function labelProses(aksi) {
+    if (/import/i.test(aksi)) return 'Mengimpor…';
+    if (/aksi-pegawai/.test(aksi)) return 'Menyimpan…';
+    if (/jadwal\/aksi/.test(aksi)) return 'Menyimpan…';
+    if (/struktur|shift/.test(aksi)) return 'Menyimpan…';
+    if (/jadwal/.test(aksi)) return 'Memuat…';
+    return 'Memproses…';
+  }
+
+  function nyalakanProses(form, tombol) {
+    if (!tombol) return;
+    tombol.dataset.teksProses = labelProses(form.getAttribute('action') || '');
+    tombol.innerHTML = SPINNER_PROSES + '<span>' + tombol.dataset.teksProses + '</span>';
+    tombol.disabled = true;
+  }
+
+  document.querySelectorAll('form').forEach(function (form) {
+    form.addEventListener('submit', function (e) {
+      // Ditunda satu tick supaya handler validasi lain yang menolak submit
+      // sempat memutuskan lebih dulu; tombol tidak berubah kalau batal.
+      setTimeout(function () {
+        if (e.defaultPrevented) return;
+        nyalakanProses(form, e.submitter || form.querySelector('button[type="submit"]'));
+      }, 0);
+    });
+  });
+
   // ── Tab switcher ──
   const tombolTab = document.querySelectorAll('.jadwal-tab');
   const panelTab  = document.querySelectorAll('.jadwal-panel');
@@ -525,22 +618,25 @@ document.addEventListener('DOMContentLoaded', function () {
   segarkanFilter();
 
   // ── Tab Per Unit: isi semua & warna ──
-  document.querySelectorAll('.jadwal-isiSemua').forEach(function (el) {
-    el.addEventListener('change', function () {
-      var userId = this.getAttribute('data-user');
-      var val = this.value;
-      document.querySelectorAll('.jadwal-select[data-user="' + userId + '"]').forEach(function (sel) {
-        sel.value = val;
-        sel.style.background = val ? 'var(--biru-muda)' : 'var(--latar)';
-      });
-      this.value = '';
-    });
-  });
+  // Delegasi di level tabel agar tidak memasang listener per select (ratusan
+  // select per unit) yang bikin halaman lambat dibuka.
+  const gridUnit = document.getElementById('grid-unit');
 
-  document.querySelectorAll('.jadwal-select').forEach(function (sel) {
-    sel.addEventListener('change', function () {
-      this.style.background = this.value ? 'var(--biru-muda)' : 'var(--latar)';
-    });
+  gridUnit?.addEventListener('change', function (e) {
+    const isiSemua = e.target.closest('.jadwal-isiSemua');
+    if (isiSemua) {
+      const userId = isiSemua.getAttribute('data-user');
+      const val = isiSemua.value;
+      gridUnit.querySelectorAll('.jadwal-select[data-user="' + userId + '"]').forEach(function (sel) {
+        sel.value = val;
+        sel.classList.toggle('terisi', Boolean(val));
+      });
+      isiSemua.value = '';
+      return;
+    }
+
+    const sel = e.target.closest('.jadwal-select');
+    if (sel) sel.classList.toggle('terisi', Boolean(sel.value));
   });
 
   // ── Tab Per Pegawai: baris dinamis per pegawai ──
@@ -553,13 +649,19 @@ document.addEventListener('DOMContentLoaded', function () {
   const modal   = document.getElementById('modal-pegawai');
   const cariBox = document.getElementById('cari-pegawai-modal');
 
+  // Id yang sudah punya baris. Disimpan sebagai Set supaya pengecekan "sudah ada"
+  // tetap:O(1) dan tidak memindai tabel untuk tiap pegawai yang ditambahkan.
+  const idTerpasang = new Set(
+    Array.from(tubuh.querySelectorAll('tr.baris-pgw')).map(function (tr) { return tr.getAttribute('data-user'); })
+  );
+
   function barisPegawai() {
     return tubuh.querySelectorAll('tr.baris-pgw');
   }
 
   function segarkanCounter() {
-    counter.textContent = barisPegawai().length + ' pegawai';
-    kosong.style.display = barisPegawai().length ? 'none' : '';
+    counter.textContent = idTerpasang.size + ' pegawai';
+    kosong.style.display = idTerpasang.size ? 'none' : '';
   }
 
   function pasangBaris(tr, id, nama) {
@@ -569,45 +671,64 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const isiLama = jadwalTersimpan[id] || {};
     tr.querySelectorAll('select.sel-hari').forEach(function (sel) {
-      sel.name = 'grid[' + id + '][' + sel.dataset.tanggal + ']';
       if (isiLama[sel.dataset.tanggal]) {
         sel.value = String(isiLama[sel.dataset.tanggal]);
-        sel.style.background = 'var(--biru-muda)';
+        sel.classList.add('terisi');
       }
     });
-
-    tr.querySelector('.hapus-baris-pgw').addEventListener('click', function () {
-      tr.remove();
-      segarkanCounter();
-    });
-
-    tr.querySelector('.isi-semua-baris').addEventListener('change', function () {
-      var val = this.value;
-      tr.querySelectorAll('select.sel-hari').forEach(function (sel) {
-        sel.value = val;
-        sel.style.background = val ? 'var(--biru-muda)' : 'var(--latar)';
-      });
-      this.value = '';
-    });
-
-    tr.querySelectorAll('select.sel-hari').forEach(function (sel) {
-      sel.addEventListener('change', function () {
-        this.style.background = this.value ? 'var(--biru-muda)' : 'var(--latar)';
-      });
-    });
   }
+
+  function tambahBaris(id, nama) {
+    if (idTerpasang.has(id)) return false;
+    const tr = template.content.firstElementChild.cloneNode(true);
+    pasangBaris(tr, id, nama);
+    tubuh.appendChild(tr);
+    idTerpasang.add(id);
+    return true;
+  }
+
+  function isiBaris(tr, idShift) {
+    let terisi = 0;
+    tr.querySelectorAll('select.sel-hari').forEach(function (sel) {
+      sel.value = idShift;
+      sel.classList.toggle('terisi', Boolean(idShift));
+      terisi++;
+    });
+    return terisi;
+  }
+
+  // Satu listener untuk seluruh tabel, bukan satu listener per select. Versi
+  // sebelumnya memasang 31 listener × jumlah baris sehingga halaman berat.
+  tubuh.addEventListener('click', function (e) {
+    const hapus = e.target.closest('.hapus-baris-pgw');
+    if (!hapus) return;
+    const tr = hapus.closest('tr.baris-pgw');
+    if (!tr) return;
+    idTerpasang.delete(tr.getAttribute('data-user'));
+    tr.remove();
+    segarkanCounter();
+  });
+
+  tubuh.addEventListener('change', function (e) {
+    const kolomSemua = e.target.closest('.isi-semua-baris');
+    if (kolomSemua) {
+      isiBaris(kolomSemua.closest('tr'), kolomSemua.value);
+      kolomSemua.value = '';
+      return;
+    }
+    const sel = e.target.closest('select.sel-hari');
+    if (sel) sel.classList.toggle('terisi', Boolean(sel.value));
+  });
 
   function bukaModal() {
     modal.classList.remove('hidden');
     modal.classList.add('flex');
     cariBox.value = '';
     saring('');
-    const ada = new Set(barisPegawai().length
-      ? Array.from(barisPegawai()).map(function (tr) { return tr.getAttribute('data-user'); })
-      : []);
-    document.querySelectorAll('#daftar-modal-pegawai .baris-modal-pegawai').forEach(function (row) {
-      row.querySelector('.checkbox-modal-pegawai').checked = ada.has(row.dataset.id);
+    semuaBarisModal.forEach(function (row) {
+      row.querySelector('.checkbox-modal-pegawai').checked = idTerpasang.has(row.dataset.id);
     });
+    segarkanRingkasModal();
   }
   function tutupModal() {
     modal.classList.add('hidden');
@@ -621,31 +742,191 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function saring(q) {
     q = q.toLowerCase().trim();
-    document.querySelectorAll('#daftar-modal-pegawai .baris-modal-pegawai').forEach(function (row) {
+    semuaBarisModal.forEach(function (row) {
       row.style.display = row.dataset.cari.includes(q) ? '' : 'none';
     });
+    segarkanRingkasModal();
   }
-  cariBox.addEventListener('input', function () { saring(this.value); });
 
-  document.getElementById('modal-pegawai-tambahkan').addEventListener('click', function () {
-    let baru = 0;
-    document.querySelectorAll('#daftar-modal-pegawai .checkbox-modal-pegawai:checked').forEach(function (c) {
-      const id = c.value;
-      if (tubuh.querySelector('tr.baris-pgw[data-user="' + id + '"]')) return; // sudah ada
-      const tr = template.content.firstElementChild.cloneNode(true);
-      pasangBaris(tr, id, c.dataset.nama);
-      tubuh.appendChild(tr);
-      baru++;
+  // Pencarian ditunda sedikit supaya mengetik tidak memicu saring berkali-kali.
+  let jedaCari = null;
+  cariBox.addEventListener('input', function () {
+    const nilai = this.value;
+    clearTimeout(jedaCari);
+    jedaCari = setTimeout(function () { saring(nilai); }, 150);
+  });
+
+  const pilihSemua = document.getElementById('pilih-semua-pegawai');
+  const ringkasModal = document.getElementById('ringkas-terpilih-modal');
+  const semuaBarisModal = Array.from(document.querySelectorAll('#daftar-modal-pegawai .baris-modal-pegawai'));
+
+  function barisTersaring() {
+    return semuaBarisModal.filter(function (row) { return row.style.display !== 'none'; });
+  }
+
+  function segarkanRingkasModal() {
+    const tampil = barisTersaring();
+    const nTerpilih = tampil.filter(function (row) { return row.querySelector('.checkbox-modal-pegawai').checked; }).length;
+    ringkasModal.textContent = nTerpilih + ' dipilih' + (tampil.length !== semuaBarisModal.length
+      ? ' dari ' + tampil.length + ' yang tampil' : '');
+    pilihSemua.checked = tampil.length > 0 && nTerpilih === tampil.length;
+  }
+
+  pilihSemua.addEventListener('change', function () {
+    const nyala = this.checked;
+    barisTersaring().forEach(function (row) { row.querySelector('.checkbox-modal-pegawai').checked = nyala; });
+    segarkanRingkasModal();
+  });
+
+  // Delegasi di daftar, bukan satu listener per checkbox pegawai.
+  document.getElementById('daftar-modal-pegawai')?.addEventListener('change', function (e) {
+    if (e.target.classList.contains('checkbox-modal-pegawai')) segarkanRingkasModal();
+  });
+
+  // ── Proses berat: tampilkan spinner lalu kerjakan per potongan ──
+  // Satu potongan per frame supaya browser sempat menggambar indikator proses
+  // dan halaman tetap responsif saat ratusan baris ditambahkan atau diisi.
+  // formatLabel(i, total) menyisipkan angka progres ke teks tombol.
+  function jalanBertahap(tombol, formatLabel, tugas, perPotongan) {
+    if (!tugas.length) return Promise.resolve();
+
+    const isiAsli = tombol.innerHTML;
+    const total = tugas.length;
+    let i = 0;
+
+    tombol.innerHTML = SPINNER_PROSES + '<span>' + formatLabel(0, total) + '</span>';
+    tombol.disabled = true;
+
+    return new Promise(function (selesai) {
+      function lanjut() {
+        const akhir = Math.min(i + perPotongan, total);
+        for (; i < akhir; i++) tugas[i]();
+
+        if (i < total) {
+          // Progres diperbarui tiap potongan supaya terlihat bergerak.
+          tombol.innerHTML = SPINNER_PROSES + '<span>' + formatLabel(i, total) + '</span>';
+          requestAnimationFrame(lanjut);
+        } else {
+          tombol.innerHTML = isiAsli;
+          tombol.disabled = false;
+          selesai();
+        }
+      }
+      requestAnimationFrame(lanjut);
     });
-    if (baru) segarkanCounter();
+  }
+
+  const tombolTambah = document.getElementById('tombol-tambah-pegawai');
+  document.getElementById('modal-pegawai-tambahkan').addEventListener('click', function () {
+    const terpilih = Array.from(
+      document.querySelectorAll('#daftar-modal-pegawai .checkbox-modal-pegawai:checked')
+    ).filter(function (c) { return !idTerpasang.has(c.value); });
+
+    if (!terpilih.length) {
+      tutupModal();
+      return;
+    }
+
     tutupModal();
+    jalanBertahap(tombolTambah, function (i, total) {
+      return 'Menambah ' + Math.min(i, total) + '/' + total + ' pegawai…';
+    }, terpilih.map(function (c) {
+      return function () { tambahBaris(c.value, c.dataset.nama); };
+    }), 25).then(function () { segarkanCounter(); });
+  });
+
+  // ── Atur semua pegawai sekaligus ──
+  const modalSemua = document.getElementById('modal-semua-pegawai');
+  const shiftSemua = document.getElementById('modal-semua-shift');
+  const hanyaDipilih = document.getElementById('modal-semua-terpilih');
+  const jumlahSemua = document.getElementById('modal-semua-jumlah');
+
+  function bukaModalSemua() {
+    if (!modalSemua) return;
+    jumlahSemua.textContent = idTerpasang.size;
+    document.getElementById('modal-semus-periode').textContent = @json($bulan.' '.$tahun);
+    shiftSemua.value = '';
+    hanyaDipilih.checked = idTerpasang.size > 0;
+    modalSemua.classList.remove('hidden');
+    modalSemua.classList.add('flex');
+  }
+  function tutupModalSemua() {
+    modalSemua.classList.add('hidden');
+    modalSemua.classList.remove('flex');
+  }
+
+  const tombolSemua = document.getElementById('tombol-semua-pegawai');
+  tombolSemua.addEventListener('click', bukaModalSemua);
+  document.getElementById('modal-semua-tutup').addEventListener('click', tutupModalSemua);
+  document.getElementById('modal-semua-batal').addEventListener('click', tutupModalSemua);
+  modalSemua.addEventListener('click', function (e) { if (e.target === modalSemua) tutupModalSemua(); });
+
+  document.getElementById('modal-semua-terapkan').addEventListener('click', function () {
+    const idShift = shiftSemua.value;
+
+    if (!idShift) {
+      alert('Pilih shift terlebih dahulu.');
+      return;
+    }
+
+    tutupModalSemua();
+
+    // Baris untuk seluruh pegawai aktif dibuat dari template bila belum ada,
+    // supaya yang disimpan tetap mencakup seluruh pegawai aktif.
+    const tambah = hanyaDipilih.checked ? [] : semuaBarisModal
+      .filter(function (row) { return !idTerpasang.has(row.dataset.id); })
+      .map(function (row) {
+        return function () {
+          tambahBaris(row.dataset.id, row.querySelector('.checkbox-modal-pegawai').dataset.nama);
+        };
+      });
+
+    return jalanBertahap(tombolSemua, function (i, total) {
+      return 'Menyusun ' + Math.min(i, total) + '/' + total + ' pegawai…';
+    }, tambah, 25)
+      .then(function () {
+        segarkanCounter();
+        const target = Array.from(barisPegawai());
+
+        if (target.length === 0) {
+          alert('Belum ada pegawai aktif. Tambahkan pegawai terlebih dahulu.');
+          return;
+        }
+
+        let terisi = 0;
+        return jalanBertahap(tombolSemua, function (i, total) {
+          return 'Mengisi ' + Math.min(i, total) + '/' + total + ' pegawai…';
+        }, target.map(function (tr) {
+          return function () { terisi += isiBaris(tr, idShift); };
+        }), 20).then(function () {
+          alert('Jadwal ' + terisi + ' sel sudah diisi untuk ' + target.length + ' pegawai. Klik "Simpan Jadwal" untuk menyimpan.');
+        });
+      });
   });
 
   formPeg?.addEventListener('submit', function (e) {
-    if (barisPegawai().length === 0) {
+    if (idTerpasang.size === 0) {
       e.preventDefault();
       alert('Tambahkan minimal satu pegawai terlebih dahulu.');
+      return;
     }
+
+    // Kumpulkan baris jadi JSON sebelum form dikirim.
+    const users = [];
+    const grid = {};
+    barisPegawai().forEach(function (tr) {
+      const id = tr.getAttribute('data-user');
+      if (!id) return;
+      users.push(id);
+      const selisih = {};
+      tr.querySelectorAll('select.sel-hari').forEach(function (sel) {
+        if (sel.value) selisih[sel.dataset.tanggal] = sel.value;
+      });
+      grid[id] = selisih;
+    });
+
+    formPeg.querySelector('#users-json-pegawai').value = JSON.stringify(users);
+    formPeg.querySelector('#grid-json-pegawai').value = JSON.stringify(grid);
   });
 
   segarkanCounter();
