@@ -1,6 +1,7 @@
 @php
 $menuAktif = $menuAktif ?? '';
 $badgeIzin = $badgeIzin ?? 0;
+$jumlahAncaman = $jumlahAncaman ?? 0;
 
 // Grup menu dengan accordion dropdown
 $grupMenu = [
@@ -66,6 +67,7 @@ $grupMenu = [
     'items' => [
       'aktivitas'  => ['admin/aktivitas',  'log',  'Log Aktivitas'],
       'user_login' => ['admin/user-login', 'kunci', 'User Login'],
+      'login_gagal' => ['admin/login-gagal', 'peringatan', 'Login Gagal'],
       'pengaturan' => ['admin/pengaturan', 'atur', 'Pengaturan'],
     ],
   ],
@@ -176,6 +178,8 @@ $grupMenu = [
                 <span class="flex-1 truncate">{{ $label }}</span>
                 @if($kunci === 'izin' && $badgeIzin > 0)
                   <span class="ml-auto px-2 py-0.5 text-[0.65rem] font-bold rounded-full bg-amber-400 text-slate-900 shadow-sm">{{ $badgeIzin }}</span>
+                @elseif($kunci === 'login_gagal' && $jumlahAncaman > 0)
+                  <span class="ml-auto px-2 py-0.5 text-[0.65rem] font-bold rounded-full bg-red-500 text-white shadow-sm">{{ $jumlahAncaman }}</span>
                 @endif
               </a>
             @endforeach

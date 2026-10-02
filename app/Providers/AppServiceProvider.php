@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Services\AncamanLoginService;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -20,6 +22,25 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->registerBrainPackage();
+        $this->registerBadgeAncaman();
+    }
+
+    /**
+     * Bagikan jumlah ancaman login ke layout admin supaya sidebar dan lonceng
+     * navbar bisa menampilkan badge. Hanya dihitung untuk admin, dan
+     * di-cache singkat oleh service agar tidak agregasi di setiap halaman.
+     */
+    private function registerBadgeAncaman(): void
+    {
+        View::composer('layouts.admin', function ($view) {
+            $jumlah = 0;
+
+            if (session('role') === 'admin') {
+                $jumlah = app(AncamanLoginService::class)->jumlahBadge();
+            }
+
+            $view->with('jumlahAncaman', $jumlah);
+        });
     }
 
     /**

@@ -56,7 +56,7 @@ class AuthController extends Controller
 
         $user = User::where('email', $email)->where('role', '!=', 'admin')->first();
         if (! $user || ! password_verify($password, $user->password_hash)) {
-            $this->catatPercobaan($email, $ip, false);
+            $this->catatPercobaan($email, $ip, false, 'api');
             $tersisa = $this->sisaPercobaan($email, $ip);
             $msg = 'Email atau password tidak valid';
             if ($tersisa <= 2) {
@@ -71,7 +71,7 @@ class AuthController extends Controller
                 'pesan' => 'Akun Anda dinonaktifkan. Hubungi administrator.',
             ], 403);
         }
-        $this->catatPercobaan($email, $ip, true);
+        $this->catatPercobaan($email, $ip, true, 'api');
         $this->hapusPercobaanGagal($email);
 
         return $this->terbitkanTokenMobile($req, $user, $ip, $user->nama_lengkap.' masuk dari aplikasi mobile');

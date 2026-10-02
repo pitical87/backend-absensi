@@ -41,7 +41,7 @@ use Illuminate\Support\Facades\DB;
 class MobileController extends Controller
 {
     private const MAX_FAIL = 5;
-    private const WINDOW_MINUTE = 15;
+    private const WINDOW_MINUTE = 10;
     private const TOKEN_EXP_DAYS = 7;
     private const JENIS = ['Izin', 'Sakit', 'Cuti', 'Dinas Luar'];
     private const BERJENJANG = ['Izin', 'Cuti'];

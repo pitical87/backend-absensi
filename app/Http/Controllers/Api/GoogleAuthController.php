@@ -46,13 +46,13 @@ class GoogleAuthController extends Controller
         $user = $hasil['user'];
 
         if (! $user) {
-            $this->catatPercobaan(null, $ip, false);
+            $this->catatPercobaan(null, $ip, false, 'google');
 
             return $this->gagal((string) $hasil['pesan'], (int) $hasil['kode']);
         }
 
         $this->hapusPercobaanGagal((string) $user->email);
-        $this->catatPercobaan((string) $user->email, $ip, true);
+        $this->catatPercobaan((string) $user->email, $ip, true, 'google');
 
         return $this->terbitkanTokenMobile(
             $req,

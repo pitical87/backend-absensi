@@ -16,7 +16,16 @@ trait BatasiPercobaanLogin
 {
     private const MAX_FAIL = 5;
 
-    private const WINDOW_MINUTE = 15;
+    /**
+     * Lama penundaan setelah batas gagal tercapai. Percobaan tidak dicatat
+     * selama sudah diblokir, sehingga blokir selalu habis tepat
+     * WINDOW_MINUTE menit setelah kegagalan terakhir; percobaan ulang saat
+     * diblokir tidak menggeser jendela.
+     */
+    private const WINDOW_MINUTE = 10;
+
+    /** Berapa hari riwayat percobaan login disimpan untuk tracker admin. */
+    private const RETENSI_HARI = 30;
 
     /** Sisa menit penundaan, 0 bila tidak sedang diblokir. */
     protected function sisaBlokir(?string $email, string $ip): int
@@ -33,15 +42,21 @@ trait BatasiPercobaanLogin
         return max(1, (int) ceil(($habis - time()) / 60));
     }
 
-    protected function catatPercobaan(?string $email, string $ip, bool $sukses): void
+    /**
+     * Catat satu percobaan login beserta asal jalurnya (web/api/google) dan
+     * user agent, dipakai tracker ancaman di panel admin.
+     */
+    protected function catatPercobaan(?string $email, string $ip, bool $sukses, string $sumber = 'api'): void
     {
         LoginAttempt::create([
             'email' => mb_substr((string) $email, 0, 150),
             'ip' => $ip,
+            'sumber' => $sumber,
+            'user_agent' => mb_substr((string) request()->userAgent(), 0, 255),
             'sukses' => $sukses ? 1 : 0,
             'waktu' => now(),
         ]);
-        LoginAttempt::where('waktu', '<', now()->subDays(2))->delete();
+        LoginAttempt::where('waktu', '<', now()->subDays(self::RETENSI_HARI))->delete();
     }
 
     protected function jumlahGagal(?string $email, string $ip): int

@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Cache;
 class AuthController extends Controller
 {
     private const MAKS_GAGAL = 5;
-    private const JENDELA_MNT = 15;
+    private const JENDELA_MNT = 10;
     private const MIN_ISI_DETIK = 3;
     private const KUNCI_CACHE_LOGIN = 'auth.login.html.v3';
 
@@ -207,12 +207,14 @@ class AuthController extends Controller
     private function catatPercobaan(string $email, string $ip, bool $sukses): void
     {
         \App\Models\LoginAttempt::create([
-            'email' => mb_substr($email, 0, 150),
-            'ip'    => $ip,
-            'sukses'=> $sukses ? 1 : 0,
-            'waktu' => now(),
+            'email'      => mb_substr($email, 0, 150),
+            'ip'         => $ip,
+            'sumber'     => 'web',
+            'user_agent' => mb_substr((string) request()->userAgent(), 0, 255),
+            'sukses'     => $sukses ? 1 : 0,
+            'waktu'      => now(),
         ]);
-        \App\Models\LoginAttempt::where('waktu', '<', now()->subDays(2))->delete();
+        \App\Models\LoginAttempt::where('waktu', '<', now()->subDays(30))->delete();
     }
 
     private function jumlahGagal(string $email, string $ip): int

@@ -13,7 +13,7 @@ class LoginAttempt extends Model
 
     public $timestamps = false;
 
-    protected $fillable = ['email', 'ip', 'sukses', 'waktu'];
+    protected $fillable = ['email', 'ip', 'sumber', 'user_agent', 'sukses', 'waktu'];
 
     protected function casts(): array
     {
@@ -21,5 +21,17 @@ class LoginAttempt extends Model
             'sukses' => 'boolean',
             'waktu' => 'datetime',
         ];
+    }
+
+    /** Hanya percobaan yang gagal. */
+    public function scopeGagal($query)
+    {
+        return $query->where('sukses', 0);
+    }
+
+    /** Hanya percobaan dalam rentang waktu terakhir. */
+    public function scopeSejak($query, int $jam)
+    {
+        return $query->where('waktu', '>=', now()->subHours($jam));
     }
 }

@@ -1,4 +1,9 @@
 {{-- TOP NAVBAR --}}
+@php
+  $jumlahAncaman = $jumlahAncaman ?? 0;
+  $badgeIzin = $badgeIzin ?? 0;
+  $totalNotifikasi = $badgeIzin + $jumlahAncaman;
+@endphp
 <header class="bg-white/95 backdrop-blur-md border-b border-slate-200/80 py-3 px-4 sm:px-6 flex items-center justify-between gap-3 sticky top-0 z-30 shadow-sm dark:bg-[#0D1830]/95 dark:border-slate-800 dark:shadow-none">
   <div class="flex items-center gap-3">
     <button type="button" class="lg:hidden inline-flex p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer border-0 transition-colors" id="tombol-menu" aria-label="Buka menu">
@@ -45,15 +50,27 @@
         <div class="p-3.5 px-4 bg-slate-50/80 border-b border-slate-100 flex items-center justify-between">
           <div class="flex items-center gap-2">
             <strong class="text-xs font-bold text-navy uppercase tracking-wider">Notifikasi</strong>
-            @if(($badgeIzin ?? 0) > 0)
-              <span class="px-2 py-0.5 text-[0.65rem] font-bold rounded-full bg-amber-100 text-amber-800">{{ $badgeIzin }} baru</span>
+            @if($totalNotifikasi > 0)
+              <span class="px-2 py-0.5 text-[0.65rem] font-bold rounded-full bg-amber-100 text-amber-800">{{ $totalNotifikasi }} baru</span>
             @endif
           </div>
           <span class="text-[0.7rem] text-slate-400">RSUD Merauke</span>
         </div>
 
         <div class="divide-y divide-slate-100 max-h-72 overflow-y-auto">
-          @if(($badgeIzin ?? 0) > 0)
+          @if($jumlahAncaman > 0)
+            <a href="{{ url('admin/login-gagal') }}" class="p-3 px-4 flex items-start gap-3 hover:bg-red-50/50 transition-colors no-underline group">
+              <div class="w-8 h-8 rounded-xl bg-red-100 text-red-600 flex items-center justify-center shrink-0 mt-0.5">
+                {!! ikon('peringatan', 15) !!}
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs font-semibold text-slate-800 group-hover:text-blue-600 mb-0.5">Ancaman Login</p>
+                <p class="text-[0.75rem] text-slate-500 leading-snug">Ada <strong class="text-red-600">{{ $jumlahAncaman }}</strong> akun dengan percobaan login gagal berulang. Perlu ditinjau dan diblokir bila perlu.</p>
+              </div>
+            </a>
+          @endif
+
+          @if($badgeIzin > 0)
             <a href="{{ url('admin/izin') }}" class="p-3 px-4 flex items-start gap-3 hover:bg-amber-50/50 transition-colors no-underline group">
               <div class="w-8 h-8 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0 mt-0.5">
                 {!! ikon('surat', 15) !!}
@@ -63,14 +80,14 @@
                 <p class="text-[0.75rem] text-slate-500 leading-snug">Ada <strong>{{ $badgeIzin }}</strong> pengajuan izin pegawai yang menunggu verifikasi Anda.</p>
               </div>
             </a>
-          @else
-            <div class="p-3 px-4 flex items-start gap-3 hover:bg-slate-50 transition-colors">
+          @elseif($jumlahAncaman === 0)
+            <div class="p-3 px-4 flex items-start gap-3 hover:bg-slate-50/50 transition-colors">
               <div class="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
                 {!! ikon('centang', 15) !!}
               </div>
               <div class="flex-1 min-w-0">
                 <p class="text-xs font-semibold text-slate-800 mb-0.5">Semua Beres</p>
-                <p class="text-[0.75rem] text-slate-500 leading-snug">Tidak ada pengajuan izin yang tertunda saat ini.</p>
+                <p class="text-[0.75rem] text-slate-500 leading-snug">Tidak ada pengajuan izin yang tertunda dan tidak ada ancaman login saat ini.</p>
               </div>
             </div>
           @endif
@@ -87,7 +104,7 @@
         </div>
 
         <div class="p-2.5 bg-slate-50 text-center border-t border-slate-100">
-          <a href="{{ url('admin/aktivitas') }}" class="text-[0.75rem] font-semibold text-biru hover:text-blue-700 no-underline">Lihat Log Aktivitas Sistem &rarr;</a>
+          <a href="{{ url('admin/login-gagal') }}" class="text-[0.75rem] font-semibold text-biru hover:text-blue-700 no-underline">Lihat Tracker Login Gagal &rarr;</a>
         </div>
       </div>
     </div>
