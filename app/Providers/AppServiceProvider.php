@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\Notifikasi;
 use App\Services\AncamanLoginService;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -23,6 +24,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->registerBrainPackage();
         $this->registerBadgeAncaman();
+        $this->registerNotifikasi();
     }
 
     /**
@@ -40,6 +42,38 @@ class AppServiceProvider extends ServiceProvider
             }
 
             $view->with('jumlahAncaman', $jumlah);
+        });
+    }
+
+    /**
+     * Bagikan notifikasi milik admin sendiri ke navbar, sehingga lonceng tidak
+     * hanya menampilkan pengajuan izin dan ancaman login. Query dibatasi ke
+     * user_id dari sesi; panel ini tidak pernah menampilkan notifikasi user lain.
+     */
+    private function registerNotifikasi(): void
+    {
+        View::composer('layouts.admin', function ($view) {
+            $daftar = collect();
+            $belum = 0;
+
+            if ($uid = (int) session('uid')) {
+                // Hanya yang belum dibaca: begitu ditandai terbaca, notifikasi
+                // hilang dari lonceng supaya panel tidak pernah menumpuk.
+                $daftar = Notifikasi::where('user_id', $uid)
+                    ->belumDibaca()
+                    ->orderByDesc('id')
+                    ->limit(8)
+                    ->get();
+
+                // Badge menghitung seluruh yang belum dibaca, bukan hanya 8 baris
+                // yang tampil, supaya angkanya tidak salah saat notifikasi banyak.
+                $belum = (int) Notifikasi::where('user_id', $uid)->belumDibaca()->count();
+            }
+
+            $view->with([
+                'notifikasiDaftar' => $daftar,
+                'notifikasiBelumDibaca' => $belum,
+            ]);
         });
     }
 

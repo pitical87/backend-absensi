@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\IzinController;
 use App\Http\Controllers\Api\JadwalController;
 use App\Http\Controllers\Api\LogbookController;
 use App\Http\Controllers\Api\LemburController;
+use App\Http\Controllers\Api\NotifikasiController;
 use App\Http\Controllers\Api\PerubahanJadwalController;
 use App\Http\Controllers\Api\ProfilController;
 use App\Http\Controllers\Api\RekapController;
@@ -31,6 +32,13 @@ Route::prefix('mobile')->group(function (){
         // Verifikasi email
         Route::get('verifikasi-email',[VerifikasiEmailController::class, 'status']);
         Route::post('verifikasi-email',[VerifikasiEmailController::class, 'kirim']);
+
+        // Notifikasi (tarik per user dari sesi login)
+        Route::get('notifikasi',[NotifikasiController::class, 'daftar']);
+        Route::get('notifikasi/total',[NotifikasiController::class, 'total']);
+        Route::post('notifikasi/baca-semua',[NotifikasiController::class, 'tandaiSemuaDibaca']);
+        Route::post('notifikasi/{id}/baca',[NotifikasiController::class, 'tandaiDibaca']);
+        Route::delete('notifikasi/{id}',[NotifikasiController::class, 'hapus']);
 
         // Absensi
         Route::post('absen',[AbsenController::class, 'absen']);

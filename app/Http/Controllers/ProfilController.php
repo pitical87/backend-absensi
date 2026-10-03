@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\MappingSIMRSAccount;
 use App\Models\User;
 use App\Services\ProfilService;
+use App\Services\PasswordService;
 use App\Services\SimrsService;
 use Illuminate\Http\Request;
 
@@ -101,7 +102,7 @@ class ProfilController extends Controller
         return redirect()->route('pegawai.update-data')
             ->with('success', 'Mapping akun SIMRS berhasil disimpan. Gunakan tombol Tes Mapping untuk memverifikasi.');
     }
-    public function ubahPassword(Request $request)
+    public function ubahPassword(Request $request, PasswordService $password)
     {
         $passLama = (string) $request->input('password_lama');
         $passBaru = (string) $request->input('password_baru');
@@ -127,6 +128,8 @@ class ProfilController extends Controller
         $user->update([
             'password_hash' => bcrypt($passBaru),
         ]);
+
+        $password->tandaiDiubah($user, 'di halaman profil');
 
         catat_aktivitas('Ubah Password', $user->nama_lengkap . ' mengubah password akunnya');
 

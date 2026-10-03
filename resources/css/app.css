@@ -307,6 +307,11 @@ select {
   @apply flex items-center justify-between gap-3 flex-wrap mb-4 pb-3 border-b border-slate-100;
 }
 
+/* Kartu statistik ringkas, mis. ringkasan status password di Data Pegawai. */
+.kartu-kecil {
+  @apply bg-slate-50/70 border border-slate-200/70 rounded-xl px-3.5 py-3;
+}
+
 .kartu-kepala h2 {
   @apply m-0 flex items-center gap-2.5 text-base sm:text-lg font-bold text-navy;
 }

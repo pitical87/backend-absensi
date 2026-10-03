@@ -2,7 +2,8 @@
 @php
   $jumlahAncaman = $jumlahAncaman ?? 0;
   $badgeIzin = $badgeIzin ?? 0;
-  $totalNotifikasi = $badgeIzin + $jumlahAncaman;
+  $notifikasiBelumDibaca = $notifikasiBelumDibaca ?? 0;
+  $totalNotifikasi = $badgeIzin + $jumlahAncaman + $notifikasiBelumDibaca;
 @endphp
 <header class="bg-white/95 backdrop-blur-md border-b border-slate-200/80 py-3 px-4 sm:px-6 flex items-center justify-between gap-3 sticky top-0 z-30 shadow-sm dark:bg-[#0D1830]/95 dark:border-slate-800 dark:shadow-none">
   <div class="flex items-center gap-3">
@@ -37,8 +38,8 @@
         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
         </svg>
-        @if(($badgeIzin ?? 0) > 0)
-          <span class="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
+        @if($totalNotifikasi > 0)
+          <span id="titik-notifikasi" class="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
             <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
             <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
           </span>
@@ -50,14 +51,50 @@
         <div class="p-3.5 px-4 bg-slate-50/80 border-b border-slate-100 flex items-center justify-between">
           <div class="flex items-center gap-2">
             <strong class="text-xs font-bold text-navy uppercase tracking-wider">Notifikasi</strong>
-            @if($totalNotifikasi > 0)
-              <span class="px-2 py-0.5 text-[0.65rem] font-bold rounded-full bg-amber-100 text-amber-800">{{ $totalNotifikasi }} baru</span>
+            @if($notifikasiBelumDibaca > 0)
+              <span id="badge-notifikasi" class="px-2 py-0.5 text-[0.65rem] font-bold rounded-full bg-amber-100 text-amber-800">{{ $notifikasiBelumDibaca }} baru</span>
             @endif
           </div>
           <span class="text-[0.7rem] text-slate-400">RSUD Merauke</span>
         </div>
 
-        <div class="divide-y divide-slate-100 max-h-72 overflow-y-auto">
+        <div class="divide-y divide-slate-100 max-h-72 overflow-y-auto" id="daftar-notifikasi">
+          @forelse($notifikasiDaftar ?? [] as $n)
+            <form method="post" action="{{ route('admin.notifikasi.baca', $n->id) }}"
+                  class="baris-notifikasi p-3 px-4 flex items-start gap-3 bg-amber-50/30">
+              @csrf
+              <div class="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5
+                {{ match ($n->tipe) {
+                  'success' => 'bg-emerald-100 text-emerald-600',
+                  'warning' => 'bg-amber-100 text-amber-600',
+                  'danger' => 'bg-red-100 text-red-600',
+                  default => 'bg-blue-100 text-blue-600',
+                } }}">
+                {!! ikon($n->tipe === 'warning' ? 'peringatan' : ($n->tipe === 'success' ? 'centang' : 'info'), 15) !!}
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs font-semibold text-slate-800 mb-0.5">{{ $n->labelKategori() }}</p>
+                <p class="text-[0.75rem] text-slate-500 leading-snug">{{ $n->isi }}</p>
+                <span class="text-[0.65rem] text-slate-400">{{ $n->created_at?->diffForHumans() }}</span>
+                <div class="flex items-center gap-2 mt-1">
+                  @if($n->url)
+                    <button type="submit" name="lanjut" value="{{ $n->url }}"
+                            class="bg-transparent border-0 p-0 cursor-pointer text-[0.7rem] font-semibold text-biru hover:text-blue-700">
+                      Buka &rarr;
+                    </button>
+                  @endif
+                  <button type="submit" class="bg-transparent border-0 p-0 cursor-pointer text-[0.7rem] font-semibold text-slate-400 hover:text-slate-600">
+                    Tandai dibaca
+                  </button>
+                </div>
+              </div>
+            </form>
+          @empty
+            <div class="p-3 px-4">
+              <p class="text-xs text-slate-400 text-center">Tidak ada notifikasi baru.</p>
+            </div>
+          @endforelse
+
           @if($jumlahAncaman > 0)
             <a href="{{ url('admin/login-gagal') }}" class="p-3 px-4 flex items-start gap-3 hover:bg-red-50/50 transition-colors no-underline group">
               <div class="w-8 h-8 rounded-xl bg-red-100 text-red-600 flex items-center justify-center shrink-0 mt-0.5">
@@ -80,7 +117,7 @@
                 <p class="text-[0.75rem] text-slate-500 leading-snug">Ada <strong>{{ $badgeIzin }}</strong> pengajuan izin pegawai yang menunggu verifikasi Anda.</p>
               </div>
             </a>
-          @elseif($jumlahAncaman === 0)
+          @elseif($jumlahAncaman === 0 && $notifikasiBelumDibaca === 0 && empty($notifikasiDaftar))
             <div class="p-3 px-4 flex items-start gap-3 hover:bg-slate-50/50 transition-colors">
               <div class="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
                 {!! ikon('centang', 15) !!}
@@ -103,7 +140,14 @@
           </a>
         </div>
 
-        <div class="p-2.5 bg-slate-50 text-center border-t border-slate-100">
+        <div class="p-2.5 bg-slate-50 flex items-center justify-between gap-2 border-t border-slate-100">
+          <form method="post" action="{{ route('admin.notifikasi.baca_semua') }}"
+                id="form-baca-semua" class="m-0">
+            @csrf
+            <button type="submit" class="bg-transparent border-0 p-0 cursor-pointer text-[0.75rem] font-semibold text-slate-500 hover:text-slate-700">
+              Tandai semua dibaca
+            </button>
+          </form>
           <a href="{{ url('admin/login-gagal') }}" class="text-[0.75rem] font-semibold text-biru hover:text-blue-700 no-underline">Lihat Tracker Login Gagal &rarr;</a>
         </div>
       </div>
@@ -362,5 +406,79 @@
       if (panelAkun) panelAkun.classList.add('hidden');
     }
   });
+
+  // Notifikasi: tandai terbaca tanpa reload, lalu baris langsung hilang dari panel.
+  const daftarNotif = document.getElementById('daftar-notifikasi');
+  const badgeNotif = document.getElementById('badge-notifikasi');
+  const titikNotif = document.getElementById('titik-notifikasi');
+  function totalTetap() {
+    // Badge lonceng gabungan (notifikasi + izin + ancaman), jadi bagian ini
+    // hanya boleh dikurangi sebanyak notifikasi yang baru ditandai terbaca.
+    return {{ (int) $badgeIzin }} + {{ (int) $jumlahAncaman }};
+  }
+
+  function perbaruiBadge(sisa) {
+    if (badgeNotif) {
+      if (sisa > 0) {
+        badgeNotif.textContent = sisa + ' baru';
+      } else {
+        badgeNotif.remove();
+      }
+    }
+
+    const total = totalTetap() + Math.max(sisa, 0);
+    if (titikNotif) {
+      titikNotif.classList.toggle('hidden', total === 0);
+    }
+    if (btnNotif) {
+      btnNotif.setAttribute('aria-label', 'Notifikasi, ' + total + ' baru');
+    }
+  }
+
+  function tandaiTerbaca(form) {
+    const data = new FormData(form);
+    data.delete('lanjut');
+
+    return fetch(form.action, {
+      method: 'POST',
+      headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      body: new URLSearchParams(data)
+    }).then(function(r) { return r.json(); });
+  }
+
+  if (daftarNotif) {
+    daftarNotif.querySelectorAll('form.baris-notifikasi').forEach(function(form) {
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const lanjut = form.querySelector('button[name="lanjut"]');
+        const tujuan = lanjut && lanjut.value ? lanjut.value : null;
+
+        tandaiTerbaca(form)
+          .then(function(h) {
+            form.remove();
+            perbaruiBadge(typeof h.belum_dibaca === 'number' ? h.belum_dibaca : 0);
+            if (tujuan) window.location = tujuan;
+          })
+          .catch(function() { form.submit(); });
+      });
+    });
+  }
+
+  const formSemua = document.getElementById('form-baca-semua');
+  if (formSemua) {
+    formSemua.addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      tandaiTerbaca(formSemua)
+        .then(function() {
+          if (daftarNotif) {
+            daftarNotif.querySelectorAll('form.baris-notifikasi').forEach(function(f) { f.remove(); });
+          }
+          perbaruiBadge(0);
+        })
+        .catch(function() { formSemua.submit(); });
+    });
+  }
 })();
 </script>

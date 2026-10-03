@@ -26,6 +26,23 @@
         : '<span class="badge badge-abu">Nonaktif</span>' !!}
 </td>
 
+@php($statusPassword = $p->statusPassword())
+<td>
+    @if(! $statusPassword['pernah'])
+        <span class="badge badge-merah">Belum pernah ganti</span>
+        <br><span class="teks-kecil teks-redup">Sejak akun dibuat {{ tgl_id($p->created_at?->format('Y-m-d')) }}</span>
+    @else
+        <span class="badge {{ match ($statusPassword['level']) {
+            'baru' => 'badge-hijau',
+            'perlu' => 'badge-amber',
+            default => 'badge-merah',
+        } }}">{{ $statusPassword['label'] }}</span>
+        <br><span class="teks-kecil teks-redup">
+            Terakhir {{ tgl_id($statusPassword['terakhir']) }} ({{ $statusPassword['umur_hari'] }} hari lalu)
+        </span>
+    @endif
+</td>
+
 <td>
     <div class="aksi-baris">
         <a class="btn btn-garis btn-kecil"
@@ -68,5 +85,5 @@
 </tr>
 @endforeach
 @if($pegawai->isEmpty())
-<tr><td colspan="5" class="tengah teks-redup">Tidak ada data pegawai.</td></tr>
+<tr><td colspan="6" class="tengah teks-redup">Tidak ada data pegawai.</td></tr>
 @endif

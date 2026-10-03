@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\HariLibur;
+use App\Models\Notifikasi;
 use App\Models\Pengaturan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Request;
@@ -98,6 +99,90 @@ if (! function_exists('catat_aktivitas')) {
             ]);
         } catch (\Throwable $e) {
             // jangan pernah menggagalkan aksi utama karena log
+        }
+    }
+}
+
+if (! function_exists('buat_notifikasi')) {
+    /**
+     * Simpan satu notifikasi in-app untuk seorang pengguna.
+     *
+     * Pemisahan dari aksi utama: kegagalan menulis notifikasi dilaporkan lewat
+     * report() tetapi tidak pernah menggagalkan aksi yang memicunya, sama
+     * seperti catat_aktivitas().
+     *
+     * @param  string  $tipe  info|warning|danger|success
+     * @param  string|null  $kategori  password|keamanan|jadwal|izin|lembur|sistem
+     * @return int|null  id notifikasi, null bila gagal disimpan
+     */
+    function buat_notifikasi(
+        int $userId,
+        string $isi,
+        string $tipe = 'info',
+        ?string $url = null,
+        ?string $kategori = null,
+    ): ?int {
+        if ($userId <= 0 || trim($isi) === '') {
+            return null;
+        }
+
+        try {
+            $baris = Notifikasi::create([
+                'user_id' => $userId,
+                'isi' => trim($isi),
+                'is_read' => false,
+                'url' => $url,
+                'tipe' => in_array($tipe, Notifikasi::TIPE, true) ? $tipe : 'info',
+                'kategori' => $kategori,
+            ]);
+
+            return (int) $baris->id;
+        } catch (\Throwable $e) {
+            report($e);
+
+            return null;
+        }
+    }
+}
+
+if (! function_exists('buat_notifikasi_banyak')) {
+    /**
+     * Kirim notifikasi yang sama ke banyak pengguna sekaligus, mis. ke semua
+     * administrator. Mengembalikan jumlah yang benar-benar tersimpan.
+     *
+     * @param  iterable<int>  $userIds
+     */
+    function buat_notifikasi_banyak(
+        iterable $userIds,
+        string $isi,
+        string $tipe = 'info',
+        ?string $url = null,
+        ?string $kategori = null,
+    ): int {
+        $jumlah = 0;
+        foreach ($userIds as $userId) {
+            if (buat_notifikasi((int) $userId, $isi, $tipe, $url, $kategori) !== null) {
+                $jumlah++;
+            }
+        }
+
+        return $jumlah;
+    }
+}
+
+if (! function_exists('jumlah_notifikasi_belum_dibaca')) {
+    /** Jumlah notifikasi belum dibaca seorang pengguna, untuk badge lonceng. */
+    function jumlah_notifikasi_belum_dibaca(?int $userId): int
+    {
+        $userId = $userId ?: (session('uid') ?: null);
+        if (! $userId) {
+            return 0;
+        }
+
+        try {
+            return (int) Notifikasi::where('user_id', $userId)->belumDibaca()->count();
+        } catch (\Throwable $e) {
+            return 0;
         }
     }
 }

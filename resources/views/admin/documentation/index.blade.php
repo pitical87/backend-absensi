@@ -144,7 +144,7 @@ JSON,
       ],
       [
         'metode' => 'GET', 'jalur' => '/me', 'akses' => 'Token',
-        'deskripsi' => 'Profil user yang sedang lengkap dengan relasi unit/sub/profesi/shift/jabatan serta titik lokasi RSUD.',
+        'deskripsi' => 'Profil user yang sedang login lengkap dengan relasi unit/sub/profesi/shift/jabatan serta titik lokasi RSUD. Sertakan <code>password</code> (status ganti password terakhir, lihat bagian Notifikasi &amp; Password) dan <code>notifikasi_belum_dibaca</code> untuk badge lonceng.',
                 'body' => <<<'JSON'
 curl 'https://rsud-merauke.id/api/mobile/me'
   -H 'Accept: application/json'
@@ -294,6 +294,183 @@ JSON,
         'status' => '302 ke halaman hasil (sukses/gagal, selalu 200 di halaman hasil) · bukan endpoint JSON',
         'respons' => <<<'JSON'
 // halaman hasil verifikasi (web): memuat nama, email, dan waktu verifikasi
+JSON,
+      ],
+    ],
+  ],
+  [
+    'id' => 'notifikasi-password', 'judul' => 'Notifikasi & Password', 'ikon' => 'kunci',
+    'info' => 'Notifikasi disimpan per pengguna di tabel <code>notifikasis</code> dan dibuat lewat helper <code>buat_notifikasi($userId, $isi, $tipe, $url, $kategori)</code> di <code>app/Helpers/absensi.php</code>, sehingga semua pemakai memakai aturan yang sama: isi wajib, <code>tipe</code> dibatasi (info/warning/danger/success), <code>kategori</code> untuk pengelompokan (password/keamanan/jadwal/izin/lembur/sistem), dan kegagalan simpan tidak pernah menggagalkan aksi utama. Endpoint di bawah hanya mengembalikan notifikasi milik user yang sedang login <strong>(tidak menerima parameter user_id)</strong>. <strong>Status password:</strong> kolom <code>users.password_changed_at</code> diisi setiap kali password benar-benar diganti (ubah password sendiri, ganti oleh admin, reset lewat email). Nilainya <code>null</code> untuk akun yang belum pernah mengganti password sejak dibuat. Ambang waktu: <strong>90 hari</strong> = perlu diperbarui, <strong>180 hari</strong> = terlalu lama. Panel admin bisa memfilter daftar pegawai berdasarkan status tersebut dan mengirim pengingat (maksimal sekali dalam 30 hari per pengguna). <strong>Lonceng navbar admin</strong> hanya menampilkan notifikasi yang belum dibaca; begitu ditandai terbaca lewat <code>POST /admin/notifikasi/{id}/baca</code> atau <code>POST /admin/notifikasi/baca-semua</code>, notifikasi langsung hilang dari panel.',
+    'endpoints' => [
+      [
+        'metode' => 'GET', 'jalur' => '/notifikasi', 'akses' => 'Token',
+        'deskripsi' => 'Daftar notifikasi milik user yang sedang login, terbaru dulu, dengan pagination. <code>kategori</code> opsional untuk memfilter kelompok notifikasi (hanya kategori yang dikenal; kategori lain dijawab 422 lengkap dengan daftar kategori yang tersedia), <code>belum_dibaca=true</code> untuk hanya yang baru, <code>per_page</code> 5&ndash;50 (default 15).',
+        'parameter' => [
+          ['kategori', 'query', 'string', false, 'password | keamanan | jadwal | izin | lembur | sistem'],
+          ['belum_dibaca', 'query', 'boolean', false, 'true = hanya notifikasi yang belum dibaca.'],
+          ['per_page', 'query', 'integer', false, 'Jumlah per halaman, dibatasi 5&ndash;50.'],
+        ],
+        'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/notifikasi?kategori=password&belum_dibaca=true'
+  -H 'Accept: application/json'
+JSON,
+        'status' => '200 sukses · 401 token tidak valid · 422 kategori tidak dikenal',
+        'respons' => <<<'JSON'
+{
+  "sukses": true,
+  "notifikasi": [
+    {
+      "id": 12,
+      "isi": "Password akun Anda belum pernah diganti sejak akun ini dibuat pada 03 Oktober 2026. Ganti password Anda sekarang untuk meningkatkan keamanan akun.",
+      "tipe": "warning",
+      "kategori": "password",
+      "kategori_label": "Password",
+      "url": null,
+      "is_read": false,
+      "dibuat_pada": "2026-10-03T16:40:00+09:00"
+    }
+  ],
+  "total": 1,
+  "halaman": 1,
+  "halaman_total": 1,
+  "per_halaman": 15,
+  "belum_dibaca": 1
+}
+JSON,
+      ],
+      [
+        'metode' => 'GET', 'jalur' => '/notifikasi/total', 'akses' => 'Token',
+        'deskripsi' => 'Jumlah notifikasi belum dibaca milik user yang sedang login. Endpoint ringan untuk mengisi badge lonceng tanpa menarik seluruh daftar.',
+        'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/notifikasi/total'
+  -H 'Accept: application/json'
+JSON,
+        'status' => '200 sukses · 401 token tidak valid',
+        'respons' => <<<'JSON'
+{ "sukses": true, "belum_dibaca": 3 }
+JSON,
+      ],
+      [
+        'metode' => 'POST', 'jalur' => '/notifikasi/{id}/baca', 'akses' => 'Token',
+        'deskripsi' => 'Menandai satu notifikasi sudah dibaca. Notifikasi milik user lain dijawab <strong>404</strong> (bukan 403), agar aplikasi tidak bisa menebak keberadaan notifikasi orang lain.',
+        'parameter' => [
+          ['id', 'path', 'integer', true, 'ID notifikasi milik user sendiri.'],
+        ],
+        'body' => <<<'JSON'
+curl -X POST 'https://rsud-merauke.id/api/mobile/notifikasi/12/baca'
+  -H 'Accept: application/json'
+JSON,
+        'status' => '200 sukses · 401 token tidak valid · 404 bukan milik user ini',
+        'respons' => <<<'JSON'
+{
+  "sukses": true,
+  "pesan": "Notifikasi ditandai sudah dibaca.",
+  "belum_dibaca": 2
+}
+
+// 404
+{ "sukses": false, "pesan": "Notifikasi tidak ditemukan." }
+JSON,
+      ],
+      [
+        'metode' => 'POST', 'jalur' => '/notifikasi/baca-semua', 'akses' => 'Token',
+        'deskripsi' => 'Menandai seluruh notifikasi milik user yang sedang login sebagai sudah dibaca. Aman dipanggil berkali-kali.',
+        'body' => <<<'JSON'
+curl -X POST 'https://rsud-merauke.id/api/mobile/notifikasi/baca-semua'
+  -H 'Accept: application/json'
+JSON,
+        'status' => '200 sukses · 401 token tidak valid',
+        'respons' => <<<'JSON'
+{
+  "sukses": true,
+  "pesan": "3 notifikasi ditandai sudah dibaca.",
+  "ditandai": 3,
+  "belum_dibaca": 0
+}
+JSON,
+      ],
+      [
+        'metode' => 'DELETE', 'jalur' => '/notifikasi/{id}', 'akses' => 'Token',
+        'deskripsi' => 'Menghapus satu notifikasi milik user yang sedang login. Notifikasi milik user lain dijawab <strong>404</strong>.',
+        'parameter' => [
+          ['id', 'path', 'integer', true, 'ID notifikasi milik user sendiri.'],
+        ],
+        'body' => <<<'JSON'
+curl -X DELETE 'https://rsud-merauke.id/api/mobile/notifikasi/12'
+  -H 'Accept: application/json'
+JSON,
+        'status' => '200 sukses · 401 token tidak valid · 404 bukan milik user ini',
+        'respons' => <<<'JSON'
+{ "sukses": true, "pesan": "Notifikasi dihapus.", "belum_dibaca": 1 }
+JSON,
+      ],
+      [
+        'metode' => 'GET', 'jalur' => '/me &rarr; field password', 'akses' => 'Token',
+        'deskripsi' => 'Bagian <code>password</code> pada respons <code>/me</code> memberi status ganti password milik user sendiri, sehingga aplikasi bisa memunculkan ajakan ganti password tanpa perlu endpoint tambahan.',
+        'status' => '200 sukses · 401 token tidak valid',
+        'respons' => <<<'JSON'
+{
+  "sukses": true,
+  "password": {
+    "pernah": true,
+    "terakhir": "2026-07-15T09:20:00+09:00",
+    "umur_hari": 80,
+    "level": "baru",
+    "label": "Aman",
+    "perlu_ganti": false
+  },
+  "notifikasi_belum_dibaca": 1
+}
+
+// belum pernah mengganti password
+{ "pernah": false, "terakhir": null, "umur_hari": null, "level": "belum", "perlu_ganti": true }
+JSON,
+      ],
+      [
+        'metode' => 'POST', 'jalur' => 'web /admin/notifikasi/{id}/baca', 'akses' => 'Admin (web)',
+        'deskripsi' => 'Menandai satu notifikasi lonceng navbar admin sebagai sudah dibaca. Lonceng hanya menampilkan notifikasi <strong>belum dibaca</strong>, jadi begitu ditandai terbaca notifikasi itu langsung hilang dari panel. Kirim <code>lanjut</code> (path internal) untuk sekaligus mengarahkan admin ke halaman tujuan; URL absolut, protocol-relative, atau path berisi <code>..</code> ditolak dan diarahkan ke dashboard. Akses JSON tersedia untuk pembaruan panel tanpa reload.',
+        'parameter' => [
+          ['id', 'path', 'integer', true, 'ID notifikasi milik admin yang sedang login.'],
+          ['lanjut', 'body', 'string', false, 'Path internal tujuan, mis. <code>admin/izin</code>.'],
+        ],
+        'body' => <<<'JSON'
+POST /admin/notifikasi/12/baca          (form + CSRF, sesi admin)
+// atau dengan tujuan:
+// POST /admin/notifikasi/12/baca   lanjut=admin/izin
+
+// jalur JSON (X-Requested-With: XMLHttpRequest)
+{ "sukses": true, "belum_dibaca": 2 }
+JSON,
+        'status' => '302 kembali ke halaman sebelumnya (atau ke <code>lanjut</code>) · 200 JSON · 302 ke login bila belum masuk sebagai admin',
+        'respons' => <<<'JSON'
+// Notifikasi milik admin lain tetap tidak tersentuh walaupun endpoint dipanggil.
+JSON,
+      ],
+      [
+        'metode' => 'POST', 'jalur' => 'web /admin/notifikasi/baca-semua', 'akses' => 'Admin (web)',
+        'deskripsi' => 'Menandai seluruh notifikasi lonceng admin sebagai sudah dibaca sekaligus mengosongkan panel. Aman dipanggil berkali-kali.',
+        'body' => <<<'JSON'
+POST /admin/notifikasi/baca-semua   (form + CSRF, sesi admin)
+JSON,
+        'status' => '302 kembali ke halaman sebelumnya dengan pesan · 200 JSON',
+        'respons' => <<<'JSON'
+// 200 JSON
+{ "sukses": true, "belum_dibaca": 0 }
+JSON,
+      ],
+      [
+        'metode' => 'POST', 'jalur' => 'web /admin/pegawai/ingatkan-password', 'akses' => 'Admin (web)',
+        'deskripsi' => 'Tombol <strong>Ingatkan Ganti Password</strong> di halaman Data Pegawai. Mengirim notifikasi pengingat ke pegawai yang passwordnya belum pernah diganti atau sudah melewati 90 hari. Admin sendiri tidak ikut, dan pengguna yang sudah dikirimi pengingat dalam <strong>30 hari terakhir</strong> dilewati supaya kotak masuknya tidak penuh pesan serupa.',
+        'body' => <<<'JSON'
+POST /admin/pegawai/ingatkan-password   (form + CSRF, sesi admin)
+
+Password Anda baru saja diperbarui (oleh administrator).
+Password akun Anda belum pernah diganti sejak akun ini dibuat pada 03 Oktober 2026.
+JSON,
+        'status' => '302 kembali ke Data Pegawai dengan pesan sukses/gagal',
+        'respons' => <<<'JSON'
+// flash message di halaman:
+// "Pengingat ganti password dikirim ke 7 pengguna."
 JSON,
       ],
     ],

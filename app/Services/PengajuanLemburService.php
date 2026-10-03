@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\AtasanLangsung;
 use App\Models\JadwalShift;
-use App\Models\Notifikasi;
 use App\Models\PengajuanLembur;
 use App\Models\User;
 use Carbon\Carbon;
@@ -197,18 +196,19 @@ class PengajuanLemburService
 
         $atasan = $this->atasanUntuk((int) $pemohon->id);
         if ($atasan) {
-            Notifikasi::create(['user_id' => $atasan->id, 'isi' => $isi, 'url' => $url, 'tipe' => 'warning']);
+            buat_notifikasi((int) $atasan->id, $isi, 'warning', $url, 'lembur');
 
             return;
         }
 
         foreach (User::where('role', 'admin')->where('status', 'aktif')->pluck('id') as $adminId) {
-            Notifikasi::create([
-                'user_id' => $adminId,
-                'isi'     => $isi . ' (tidak ditemukan atasan langsung)',
-                'url'     => 'admin/lembur',
-                'tipe'    => 'warning',
-            ]);
+            buat_notifikasi(
+                (int) $adminId,
+                $isi . ' (tidak ditemukan atasan langsung)',
+                'warning',
+                'admin/lembur',
+                'lembur',
+            );
         }
     }
 
@@ -232,15 +232,16 @@ class PengajuanLemburService
         ]);
 
         $tipe = $putusan === 'Disetujui' ? 'success' : 'danger';
-        Notifikasi::create([
-            'user_id' => $pj->user_id,
-            'isi'     => 'Pengajuan lembur ' . tgl_id($pj->tanggal->format('Y-m-d'), false)
+        buat_notifikasi(
+            (int) $pj->user_id,
+            'Pengajuan lembur ' . tgl_id($pj->tanggal->format('Y-m-d'), false)
                 . ' (' . Carbon::parse($pj->jam_mulai)->format('H.i') . ' - '
                 . Carbon::parse($pj->jam_selesai)->format('H.i') . ') '
                 . strtolower($putusan) . '.',
-            'url'     => 'lembur',
-            'tipe'    => $tipe,
-        ]);
+            $tipe,
+            'lembur',
+            'lembur',
+        );
 
         catat_aktivitas(
             'Keputusan Lembur',

@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\LaporResetDitolak;
 use App\Mail\ResetPasswordMail;
 use App\Models\LoginAttempt;
 use App\Models\User;
+use App\Services\PasswordService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -143,6 +144,7 @@ class LupaPasswordController extends Controller
         }
 
         $user->update(['password_hash' => bcrypt($passBaru)]);
+        app(PasswordService::class)->tandaiDiubah($user, 'melalui tautan lupa password');
 
         DB::table('password_reset_tokens')->where('email', $email)->delete();
         LoginAttempt::where('email', $email)->where('sukses', 0)->delete();

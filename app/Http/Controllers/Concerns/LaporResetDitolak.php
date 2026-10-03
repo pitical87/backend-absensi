@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Concerns;
 
-use App\Models\Notifikasi;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -41,13 +40,14 @@ trait LaporResetDitolak
             return;
         }
 
-        foreach (User::where('role', 'admin')->where('status', 'aktif')->get() as $admin) {
-            Notifikasi::create([
-                'user_id' => $admin->id,
-                'isi'     => $isi,
-                'url'     => 'admin/aktivitas',
-                'tipe'    => 'warning',
-            ]);
+        foreach (User::where('role', 'admin')->where('status', 'aktif')->pluck('id') as $idAdmin) {
+            buat_notifikasi(
+                (int) $idAdmin,
+                $isi,
+                'warning',
+                'admin/aktivitas',
+                'keamanan',
+            );
         }
     }
 

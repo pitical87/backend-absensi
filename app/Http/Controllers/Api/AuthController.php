@@ -237,6 +237,8 @@ class AuthController extends Controller
         return response()->json([
             'sukses' => true,
             'user' => $user,
+            'password' => $user->statusPassword(),
+            'notifikasi_belum_dibaca' => jumlah_notifikasi_belum_dibaca((int) $user->id),
             'lokasi' => [
                 'lat' => (float) pengaturan('lokasi_lat', -8.4991120),
                 'lng' => (float) pengaturan('lokasi_lng', 140.4049840),

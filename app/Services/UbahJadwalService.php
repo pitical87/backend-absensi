@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Absensi;
 use App\Models\AtasanLangsung;
 use App\Models\JadwalShift;
-use App\Models\Notifikasi;
 use App\Models\PengajuanJadwal;
 use App\Models\Shift;
 use App\Models\User;
@@ -190,18 +189,19 @@ class UbahJadwalService
 
         $atasan = $this->atasanUntuk((int) $pemohon->id);
         if ($atasan) {
-            Notifikasi::create(['user_id' => $atasan->id, 'isi' => $isi, 'url' => $url, 'tipe' => 'warning']);
+            buat_notifikasi((int) $atasan->id, $isi, 'warning', $url, 'jadwal');
 
             return;
         }
 
         foreach (User::where('role', 'admin')->where('status', 'aktif')->pluck('id') as $adminId) {
-            Notifikasi::create([
-                'user_id' => $adminId,
-                'isi'     => $isi . ' (tidak ditemukan atasan langsung)',
-                'url'     => 'admin/jadwal_pengajuan',
-                'tipe'    => 'warning',
-            ]);
+            buat_notifikasi(
+                (int) $adminId,
+                $isi . ' (tidak ditemukan atasan langsung)',
+                'warning',
+                'admin/jadwal_pengajuan',
+                'jadwal',
+            );
         }
     }
 
@@ -250,14 +250,15 @@ class UbahJadwalService
         });
 
         $tipe = $statusAkhir === 'Disetujui' ? 'success' : 'danger';
-        Notifikasi::create([
-            'user_id' => $pj->user_id,
-            'isi'     => 'Pengajuan ubah jadwal ' . tgl_id($pj->tanggal->format('Y-m-d'), false)
+        buat_notifikasi(
+            (int) $pj->user_id,
+            'Pengajuan ubah jadwal ' . tgl_id($pj->tanggal->format('Y-m-d'), false)
                 . ' (' . ($pj->shiftLama?->kategori ?? '?') . ' → ' . ($pj->shiftBaru?->kategori ?? '?') . ') '
                 . strtolower($statusAkhir) . '.',
-            'url'     => 'ubah-jadwal',
-            'tipe'    => $tipe,
-        ]);
+            $tipe,
+            'ubah-jadwal',
+            'jadwal',
+        );
 
         catat_aktivitas(
             'Keputusan Ubah Jadwal',

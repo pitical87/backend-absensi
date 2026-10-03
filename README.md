@@ -17,6 +17,7 @@ Dimigrasi dari CodeIgniter 4 ke Laravel (dokumentasi migrasi: [`MIGRASI_LARAVEL.
 - Dashboard kehadiran pribadi
 - Lihat struktur organisasi
 - Riwayat kehadiran 7 hari terakhir + statistik bulanan
+- Notifikasi in-app (izin, jadwal, lembur, keamanan) dan status password terakhir
 
 ### Admin
 - Dashboard dengan grafik kehadiran bulanan
@@ -29,6 +30,9 @@ Dimigrasi dari CodeIgniter 4 ke Laravel (dokumentasi migrasi: [`MIGRASI_LARAVEL.
 - Pengaturan sistem (lokasi, radius, toleransi, dll.)
 - Generate backup database
 - Log aktivitas sistem
+- Tracker login gagal (ancaman per akun/IP: level, IP & perangkat terakhir, tombol blokir)
+- Email peringatan aktivitas mencurigakan ke pemilik akun yang aktif saat login gagal > 5× dalam 24 jam
+- Pemantauan status password tiap pegawai (belum pernah ganti / terakhir ganti kapan) dengan filter dan pengingat otomatis
 
 ### API
 - **Mobile API** - autentikasi token untuk aplikasi mobile (login email/password atau `id_token` Google)
@@ -206,7 +210,7 @@ backend-absensi/
 
 | Model | Tabel | Keterangan |
 |-------|-------|------------|
-| `User` | `users` | Pegawai & admin |
+| `User` | `users` | Pegawai & admin (`password_changed_at` = kapan password terakhir diganti, `null` = belum pernah) |
 | `Absensi` | `absensi` | Catatan kehadiran harian |
 | `Izin` | `pengajuan_izin` | Pengajuan izin/sakit/cuti |
 | `IzinPersetujuan` | `izin_persetujuan` | Riwayat persetujuan per tahap |
@@ -223,6 +227,7 @@ backend-absensi/
 | `RekapBulanan` | `rekap_bulanan` | Rekap kehadiran bulanan |
 | `Pengaturan` | `pengaturan` | Key-value pengaturan sistem |
 | `ApiToken` | `api_tokens` | Token autentikasi mobile |
+| `Notifikasi` | `notifikasis` | Notifikasi in-app per pengguna (`tipe` = warna, `kategori` = pengelompokan) |
 
 ---
 
@@ -421,6 +426,10 @@ google.accounts.id.renderButton(document.getElementById('tombol-google'), { type
 | GET | `/api/mobile/izin/detail` | Token | Detail izin pending |
 | POST | `/api/mobile/izin/proses` | Token | Proses persetujuan |
 | GET | `/api/mobile/izin/riwayat-persetujuan` | Token | Riwayat persetujuan |
+| GET | `/api/mobile/notifikasi` | Token | Notifikasi milik user (filter `kategori`, `belum_dibaca`, `per_page`) |
+| GET | `/api/mobile/notifikasi/total` | Token | Jumlah notifikasi belum dibaca (badge) |
+| POST | `/api/mobile/notifikasi/{id}/baca` | Token | Tandai satu notifikasi dibaca |
+| POST | `/api/mobile/notifikasi/baca-semua` | Token | Tandai semua notifikasi dibaca |
 
 ### SIMRS Integration API (`routes/api.php`)
 

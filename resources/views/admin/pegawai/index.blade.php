@@ -49,6 +49,42 @@
         </option>
       @endforeach
     </select>
+    <select id="select-password" class="w-full">
+      @foreach($opsiPassword as $nilai => $label)
+        <option value="{{ $nilai }}" {{ $fPassword === $nilai ? 'selected' : '' }}>{{ $label }}</option>
+      @endforeach
+    </select>
+  </div>
+
+  <div class="grid gap-2 mt-2" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
+    <div class="kartu-kecil">
+      <span class="teks-kecil teks-redup">Belum pernah ganti</span>
+      <strong class="block text-lg text-red-600" id="ringkasan-belum">{{ $ringkasanPassword['belum'] }}</strong>
+    </div>
+    <div class="kartu-kecil">
+      <span class="teks-kecil teks-redup">Perlu diperbarui</span>
+      <strong class="block text-lg text-amber-600" id="ringkasan-perlu">{{ $ringkasanPassword['perlu'] }}</strong>
+    </div>
+    <div class="kartu-kecil">
+      <span class="teks-kecil teks-redup">Terlalu lama</span>
+      <strong class="block text-lg text-red-700" id="ringkasan-lama">{{ $ringkasanPassword['lama'] }}</strong>
+    </div>
+    <div class="kartu-kecil">
+      <span class="teks-kecil teks-redup">Password aman</span>
+      <strong class="block text-lg text-emerald-600" id="ringkasan-aman">{{ $ringkasanPassword['aman'] }}</strong>
+    </div>
+    <div class="kartu-kecil flex flex-col justify-between">
+      <form method="post" action="{{ route('admin.pegawai.ingatkan_password') }}"
+            onsubmit="return confirm('Kirim pengingat ganti password ke seluruh pegawai yang perlu?');">
+        @csrf
+        <button type="submit" class="btn btn-garis btn-kecil w-full">
+          {!! ikon('peringatan', 15) !!} Ingatkan Ganti Password
+        </button>
+      </form>
+      <span class="teks-kecil teks-redup mt-1">
+        Dikirim ke {{ $ringkasanPassword['perluPerhatian'] }} pegawai yang perlu, maksimal sekali dalam {{ \App\Services\PasswordService::COOLDOWN_HARI }} hari.
+      </span>
+    </div>
   </div>
   <div class="mt-2 teks-kecil teks-redup" id="status-cari"></div>
 
@@ -56,7 +92,7 @@
     <table class="tabel">
       <thead>
         <tr><th>Nama</th><th>Email</th><th>Unit / Sub Unit</th>
-            <th>Status</th><th>Aksi</th></tr>
+            <th>Status</th><th>Password</th><th>Aksi</th></tr>
       </thead>
       <tbody id="tbody-pegawai">
         @include('admin.pegawai.rows', ['pegawai' => $pegawai])
@@ -110,6 +146,7 @@
   const selectU  = document.getElementById('select-unit');
   const selectS  = document.getElementById('select-sub');
   const selectJ  = document.getElementById('select-jabatan');
+  const selectP  = document.getElementById('select-password');
   const tbody    = document.getElementById('tbody-pegawai');
   const paginasi = document.getElementById('paginasi-pegawai');
   const badge    = document.getElementById('total-pegawai');
@@ -149,7 +186,8 @@
       q: inputQ.value,
       unit: selectU.value,
       sub: (selectU.value && selectS.value) ? selectS.value : '',
-      jabatan: selectJ.value
+      jabatan: selectJ.value,
+      password: selectP.value
     });
   }
 
@@ -206,6 +244,7 @@
   selectU.addEventListener('change', function () { isiSubBidang(); muat(true); });
   selectS.addEventListener('change', function () { muat(true); });
   selectJ.addEventListener('change', function () { muat(true); });
+  selectP.addEventListener('change', function () { muat(true); });
 
   const modalGanti   = document.getElementById('modal-ganti-password');
   const inputGantiId = document.getElementById('input-ganti-id');

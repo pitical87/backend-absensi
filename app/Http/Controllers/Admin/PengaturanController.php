@@ -121,7 +121,7 @@ class PengaturanController extends Controller
         ]);
     }
 
-    public function ubahPasswordSaya(Request $request)
+    public function ubahPasswordSaya(Request $request, \App\Services\PasswordService $password)
     {
         $passLama = (string) $request->input('password_lama');
         $passBaru = (string) $request->input('password_baru');
@@ -147,6 +147,8 @@ class PengaturanController extends Controller
         $user->update([
             'password_hash' => bcrypt($passBaru),
         ]);
+
+        $password->tandaiDiubah($user, 'oleh administrator sendiri');
 
         catat_aktivitas('Ubah Password', $user->nama_lengkap . ' mengubah password akunnya');
 

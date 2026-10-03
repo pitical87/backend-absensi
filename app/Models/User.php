@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\PasswordService;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -24,6 +25,7 @@ class User extends Authenticatable
         return [
             'tanggal_lahir' => 'date',
             'email_verified_at' => 'datetime',
+            'password_changed_at' => 'datetime',
         ];
     }
 
@@ -139,6 +141,24 @@ class User extends Authenticatable
     public function isActive(): bool
     {
         return $this->status === 'aktif';
+    }
+
+    /** Sudah pernah mengganti password sejak akun dibuat? */
+    public function pernahGantiPassword(): bool
+    {
+        return $this->password_changed_at !== null;
+    }
+
+    /**
+     * Status password lengkap untuk panel admin dan aplikasi mobile.
+     *
+     * @return array{pernah: bool, terakhir: ?string, umur_hari: ?int, level: string, label: string, perlu_ganti: bool}
+     *
+     * @see \App\Services\PasswordService::status()
+     */
+    public function statusPassword(): array
+    {
+        return app(PasswordService::class)->status($this);
     }
 
     protected function jabatanUnit(): Attribute

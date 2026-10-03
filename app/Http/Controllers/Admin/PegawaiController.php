@@ -14,6 +14,7 @@ use App\Models\SubUnit;
 use App\Models\UnitKerja;
 use App\Models\User;
 use App\Services\AtasanLangsungService;
+use App\Services\PasswordService;
 use App\Services\PegawaiImportService;
 use App\Services\StrukturService;
 use Illuminate\Http\Request;
@@ -34,20 +35,34 @@ class PegawaiController extends Controller
 
     public function index(Request $request)
     {
-        $pegawai = $this->kueriPegawai($request)->paginate(self::PER_HALAMAN);
+        $password = app(PasswordService::class);
 
-        return view('admin.pegawai.index', [
+        return view('admin.pegawai.index', $this->dataTabel($request) + [
             'judulHalaman' => 'Data Pegawai',
             'menuAktif' => 'pegawai',
-            'pegawai' => $pegawai,
             'unitList' => UnitKerja::orderBy('id')->get()->all(),
             'subPerUnit' => $this->subPerUnit(),
             'jabatanList' => Jabatan::orderBy('kategori')->orderBy('nama')->get()->all(),
+            'opsiPassword' => $password->opsiFilter(),
+            'ringkasanPassword' => $password->ringkasan(),
+        ]);
+    }
+
+    /**
+     * Data bersama untuk halaman utama dan endpoint asinkron, sehingga fragment
+     * HTML yang dikirim lewat AJAX punya konteks view yang sama dengan render penuh.
+     */
+    private function dataTabel(Request $request): array
+    {
+        return [
+            'pegawai' => $this->kueriPegawai($request)->paginate(self::PER_HALAMAN),
             'q' => $this->q($request),
             'fUnit' => (int) $request->get('unit'),
             'fSub' => (int) $request->get('sub'),
             'fJab' => (int) $request->get('jabatan'),
-        ]);
+            'fPassword' => $this->fPassword($request),
+            'opsiPassword' => app(PasswordService::class)->opsiFilter(),
+        ];
     }
 
     /**
@@ -56,7 +71,8 @@ class PegawaiController extends Controller
      */
     public function data(Request $request)
     {
-        $pegawai = $this->kueriPegawai($request)->paginate(self::PER_HALAMAN);
+        $data = $this->dataTabel($request);
+        $pegawai = $data['pegawai'];
 
         return response()->json([
             'sukses'    => true,
@@ -65,14 +81,22 @@ class PegawaiController extends Controller
             'sampai'    => $pegawai->lastItem(),
             'halaman'   => $pegawai->currentPage(),
             'totalHal'  => $pegawai->lastPage(),
-            'tbody'     => view('admin.pegawai.rows', ['pegawai' => $pegawai])->render(),
-            'paginasi'  => view('admin.pegawai.paginasi', ['pegawai' => $pegawai])->render(),
+            'tbody'     => view('admin.pegawai.rows', $data)->render(),
+            'paginasi'  => view('admin.pegawai.paginasi', $data)->render(),
         ]);
     }
 
     private function q(Request $request): string
     {
         return trim((string) $request->get('q'));
+    }
+
+    /** Filter status password; hanya nilai dari opsiFilter() yang diterima. */
+    private function fPassword(Request $request): string
+    {
+        $nilai = trim((string) $request->get('password'));
+
+        return array_key_exists($nilai, app(PasswordService::class)->opsiFilter()) ? $nilai : '';
     }
 
     private function subPerUnit(): array
@@ -120,6 +144,8 @@ class PegawaiController extends Controller
             $b->where('users.jabatan_id', $fJab);
         }
 
+        $b = app(PasswordService::class)->terapkanFilter($b, $this->fPassword($request));
+
         return $b->orderBy('users.nama_lengkap');
     }
 
@@ -150,6 +176,12 @@ class PegawaiController extends Controller
         }
         if ($q !== '') {
             $bagian[] = 'Cari "'.$q.'"';
+        }
+
+        $opsiPassword = app(PasswordService::class)->opsiFilter();
+        $fPassword = $this->fPassword($request);
+        if ($fPassword !== '') {
+            $bagian[] = 'Password '.$opsiPassword[$fPassword];
         }
 
         return $bagian ? implode(' · ', $bagian) : 'Seluruh Pegawai';
@@ -335,6 +367,7 @@ class PegawaiController extends Controller
                 $user->fill($data);
                 if ($password !== '') {
                     $user->password_hash = Hash::make($password);
+                    $user->password_changed_at = now();
                 }
                 $user->save();
 
@@ -523,7 +556,7 @@ class PegawaiController extends Controller
         return redirect('admin/pegawai')->with('success', 'Status pegawai diperbarui.');
     }
 
-    public function gantiPassword(Request $request)
+    public function gantiPassword(Request $request, PasswordService $password)
     {
         $id = (int) $request->input('id');
         $pass = (string) $request->input('password');
@@ -542,10 +575,22 @@ class PegawaiController extends Controller
 
         $u->update(['password_hash' => Hash::make($pass)]);
         LoginAttempt::where('email', $u->email)->where('sukses', 0)->delete();
+        $password->tandaiDiubah($u, 'oleh administrator');
 
         catat_aktivitas('Ganti Password Pegawai', 'Password '.$u->nama_lengkap.' ('.$u->email.') diganti oleh admin');
 
         return back()->with('success', 'Password '.$u->nama_lengkap.' berhasil diganti.');
+    }
+
+    /**
+     * Kirim notifikasi pengingat ganti password ke pegawai yang passwordnya
+     * belum pernah diganti atau sudah lama (lihat PasswordService::ingatkan).
+     */
+    public function ingatkanGantiPassword(PasswordService $password)
+    {
+        $hasil = $password->ingatkan();
+
+        return back()->with($hasil['sukses'] ? 'success' : 'error', $hasil['pesan']);
     }
 
     public function hapus(Request $request)

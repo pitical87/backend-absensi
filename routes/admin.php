@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\LiburController;
 use App\Http\Controllers\Admin\LemburController;
 use App\Http\Controllers\Admin\LoginGagalController;
 use App\Http\Controllers\Admin\MappingSIMRSController;
+use App\Http\Controllers\Admin\NotifikasiController;
 use App\Http\Controllers\Admin\PegawaiController;
 use App\Http\Controllers\Admin\PegawaiTeladanController;
 use App\Http\Controllers\Admin\PengajuanJadwalController;
@@ -59,6 +60,7 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::get('pegawai/template', [PegawaiController::class, 'template'])->name('admin.pegawai.template');
     Route::post('pegawai/status', [PegawaiController::class, 'ubahStatus'])->name('admin.pegawai.status');
     Route::post('pegawai/ganti-password', [PegawaiController::class, 'gantiPassword'])->name('admin.pegawai.ganti_password');
+    Route::post('pegawai/ingatkan-password', [PegawaiController::class, 'ingatkanGantiPassword'])->name('admin.pegawai.ingatkan_password');
     Route::post('pegawai/hapus', [PegawaiController::class, 'hapus'])->name('admin.pegawai.hapus');
 
     Route::get('unit', [UnitController::class, 'index'])->name('admin.unit.index');
@@ -125,6 +127,10 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::post('ubah-password', [PengaturanController::class, 'ubahPasswordSaya'])->name('admin.ubah-password');
 
     Route::get('aktivitas', [AktivitasController::class, 'index'])->name('admin.aktivitas.index');
+
+    // Notifikasi lonceng navbar
+    Route::post('notifikasi/{id}/baca', [NotifikasiController::class, 'tandaiDibaca'])->name('admin.notifikasi.baca');
+    Route::post('notifikasi/baca-semua', [NotifikasiController::class, 'tandaiSemuaDibaca'])->name('admin.notifikasi.baca_semua');
 
     Route::get('login-gagal', [LoginGagalController::class, 'index'])->name('admin.login_gagal.index');
     Route::get('login-gagal/data', [LoginGagalController::class, 'data'])->name('admin.login_gagal.data');
