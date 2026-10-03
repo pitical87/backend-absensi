@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Concerns;
 
 use App\Models\LoginAttempt;
+use App\Services\PeringatanLoginService;
 
 /**
  * Pembatasan percobaan login berbasis tabel login_attempts.
@@ -45,6 +46,10 @@ trait BatasiPercobaanLogin
     /**
      * Catat satu percobaan login beserta asal jalurnya (web/api/google) dan
      * user agent, dipakai tracker ancaman di panel admin.
+     *
+     * Setiap kegagalan pada akun yang emailnya diketahui juga diperiksa untuk
+     * peringatan email; akun tanpa email (login Google) dilewati karena tidak
+     * ada pemilik yang bisa diberi tahu.
      */
     protected function catatPercobaan(?string $email, string $ip, bool $sukses, string $sumber = 'api'): void
     {
@@ -57,6 +62,10 @@ trait BatasiPercobaanLogin
             'waktu' => now(),
         ]);
         LoginAttempt::where('waktu', '<', now()->subDays(self::RETENSI_HARI))->delete();
+
+        if (! $sukses && $email !== null && $email !== '') {
+            app(PeringatanLoginService::class)->periksa($email);
+        }
     }
 
     protected function jumlahGagal(?string $email, string $ip): int
@@ -70,6 +79,7 @@ trait BatasiPercobaanLogin
     protected function hapusPercobaanGagal(string $email): void
     {
         LoginAttempt::where('email', $email)->where('sukses', 0)->delete();
+        app(PeringatanLoginService::class)->bersihkanCooldown($email);
     }
 
     private function queryGagal(?string $email, string $ip)

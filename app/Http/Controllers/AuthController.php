@@ -6,6 +6,7 @@ use App\Models\Pengaturan;
 use App\Models\SubUnit;
 use App\Models\UnitKerja;
 use App\Models\User;
+use App\Services\PeringatanLoginService;
 use App\Services\StrukturService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -151,6 +152,7 @@ class AuthController extends Controller
 
         $this->catatPercobaan($email, $ip, true);
         \App\Models\LoginAttempt::where('email', $email)->where('sukses', 0)->delete();
+        app(PeringatanLoginService::class)->bersihkanCooldown($email);
 
         session()->regenerate(true);
         session()->put([
@@ -215,6 +217,12 @@ class AuthController extends Controller
             'waktu'      => now(),
         ]);
         \App\Models\LoginAttempt::where('waktu', '<', now()->subDays(30))->delete();
+
+        if (! $sukses) {
+            // Peringatan email "aktivitas mencurigakan" bila ambang 5× gagal
+            // terlampaui; tidak pernah menggagalkan respons login.
+            app(PeringatanLoginService::class)->periksa($email);
+        }
     }
 
     private function jumlahGagal(string $email, string $ip): int

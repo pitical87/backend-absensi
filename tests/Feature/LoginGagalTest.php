@@ -155,6 +155,37 @@ class LoginGagalTest extends TestCase
         $this->assertSame(2, $grup->firstWhere('email', 'c@x.test')['gagal']);
     }
 
+    public function test_grup_email_memuat_ip_dan_perangkat_terakhir(): void
+    {
+        $this->gagal('f@x.test', '10.0.0.1', 'Mozilla/5.0 (Windows NT 10.0)', jamLalu: 3);
+        $this->gagal('f@x.test', '10.0.0.7', 'okhttp/4.9.2 (Android 14)', jamLalu: 1);
+
+        $grup = $this->svc->grup();
+        $ini = $grup->firstWhere('email', 'f@x.test');
+
+        $this->assertSame('10.0.0.7', $ini['ip']);
+        $this->assertSame('Android', $ini['perangkat']);
+        $this->assertCount(2, $ini['daftar_ip']);
+    }
+
+    public function test_grup_ip_tanpa_email_memuat_perangkat_terakhir(): void
+    {
+        LoginAttempt::create([
+            'email' => '',
+            'ip' => '10.0.0.9',
+            'sumber' => 'google',
+            'user_agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X)',
+            'sukses' => 0,
+            'waktu' => now(),
+        ]);
+
+        $grup = $this->svc->grup();
+        $ini = $grup->firstWhere('kunci', 'ip');
+
+        $this->assertSame('10.0.0.9', $ini['ip']);
+        $this->assertSame('macOS', $ini['perangkat']);
+    }
+
     public function test_kegagalan_di_luar_jendela_tidak_dihitung(): void
     {
         $this->gagal('e@x.test', '10.0.0.1', jamLalu: 30);
@@ -494,6 +525,8 @@ class LoginGagalTest extends TestCase
         $res->assertStatus(200);
         $res->assertJsonPath('sukses', true);
         $res->assertJsonStructure(['sukses', 'total', 'tbody', 'paginasi', 'ringkasan']);
+        // Kolom IP Terakhir harus terisi, bukan tanda pisah.
+        $this->assertStringContainsString('10.0.0.1', $res->json('tbody'));
     }
 
     public function test_endpoint_status_menolak_blokir_akun_sendiri(): void

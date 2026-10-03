@@ -41,7 +41,13 @@
 
     <td class="tengah angka" title="Jumlah perangkat / user agent berbeda">{{ $g['jml_perangkat'] }}</td>
 
-    <td class="teks-kecil angka">{{ $g['ip'] ?? '—' }}</td>
+    <td class="teks-kecil angka">
+      <strong class="block text-slate-700">{{ $g['ip'] ?? '—' }}</strong>
+      <span class="teks-kecil teks-redup">{{ $g['perangkat'] ?? '—' }}</span>
+      @if($g['jml_ip'] > 1)
+        <span class="block teks-kecil teks-redup" title="{{ implode(', ', $g['daftar_ip']) }}">{{ $g['jml_ip'] }} IP berbeda</span>
+      @endif
+    </td>
 
     <td class="log-waktu angka">{{ tgl_id($g['terakhir'], false) }} · {{ jam_id($g['terakhir']) }}</td>
 

@@ -95,6 +95,11 @@ class AncamanLoginService
     {
         $sejak = now()->subHours($jam);
 
+        // Percobaan terakhir tiap kelompok, untuk mengisi kolom IP Terakhir dan
+        // Perangkat pada tabel tracker.
+        $terakhirEmail = $this->terakhirPerKelompok('email', $jam, $sumber);
+        $terakhirIp = $this->terakhirPerKelompok('ip', $jam, $sumber);
+
         $grup = collect();
 
         // Grup per email: satu akun yang diserang dari beberapa arah.
@@ -106,14 +111,18 @@ class AncamanLoginService
             ->get();
 
         foreach ($perEmail as $row) {
+            $email = (string) $row->email;
+            $akhir = $terakhirEmail->get($email);
+
             $grup->push($this->bentukGrup([
                 'kunci' => 'email',
-                'email' => (string) $row->email,
-                'ip' => null,
+                'email' => $email,
+                'ip' => $akhir?->ip,
                 'gagal' => (int) $row->gagal,
                 'jml_ip' => (int) $row->jml_ip,
                 'jml_email' => 1,
                 'jml_perangkat' => (int) $row->jml_perangkat,
+                'perangkat' => ApiToken::namaPerangkatDariUserAgent($akhir?->user_agent),
                 'terakhir' => (string) $row->terakhir,
                 'daftar_ip' => $row->daftar_ip ? explode(',', (string) $row->daftar_ip) : [],
             ]));
@@ -129,16 +138,20 @@ class AncamanLoginService
             ->get();
 
         foreach ($perIp as $row) {
+            $ip = (string) $row->ip;
+            $akhir = $terakhirIp->get($ip);
+
             $grup->push($this->bentukGrup([
                 'kunci' => 'ip',
                 'email' => null,
-                'ip' => (string) $row->ip,
+                'ip' => $ip,
                 'gagal' => (int) $row->gagal,
                 'jml_ip' => 1,
                 'jml_email' => (int) $row->jml_email,
                 'jml_perangkat' => (int) $row->jml_perangkat,
+                'perangkat' => ApiToken::namaPerangkatDariUserAgent($akhir?->user_agent),
                 'terakhir' => (string) $row->terakhir,
-                'daftar_ip' => [(string) $row->ip],
+                'daftar_ip' => [$ip],
             ]));
         }
 
@@ -146,6 +159,40 @@ class AncamanLoginService
             // Kunci tunggal: level lebih didahulukan, lalu jumlah kegagalan.
             return self::LEVEL[$g['level']] * 1000000 + $g['gagal'];
         })->values());
+    }
+
+    /**
+     * Percobaan gagal paling baru untuk tiap nilai $kolom ('email' atau 'ip'),
+     * lengkap dengan IP dan user agent-nya.
+     *
+     * Bentuknya join ke MAX(waktu) per kelompok supaya tetap satu query dan tidak
+     * bergantung fungsi khusus MySQL seperti GROUP_CONCAT yang diurutkan. Bila
+     * dua percobaan tercatat pada detik yang sama, yang dipakai tetap satu per
+     * kelompok.
+     *
+     * @return Collection<string, object>
+     */
+    private function terakhirPerKelompok(string $kolom, int $jam, ?string $sumber): Collection
+    {
+        $sejak = now()->subHours($jam);
+
+        $maks = DB::table('login_attempts')
+            ->select($kolom, DB::raw('MAX(waktu) as waktu'))
+            ->where('sukses', 0)->where('waktu', '>=', $sejak)
+            ->when($kolom === 'email',
+                fn ($q) => $q->whereNotNull('email')->where('email', '<>', ''),
+                fn ($q) => $q->where(fn ($q) => $q->whereNull('email')->orWhere('email', '=', '')))
+            ->when($sumber !== null && $sumber !== '', fn ($q) => $q->where('sumber', $sumber))
+            ->groupBy($kolom);
+
+        return DB::table('login_attempts as t')
+            ->joinSub($maks, 'm', fn ($j) => $j
+                ->on('t.'.$kolom, '=', 'm.'.$kolom)
+                ->on('t.waktu', '=', 'm.waktu'))
+            ->where('t.sukses', 0)
+            ->orderBy('t.waktu', 'desc')
+            ->get(['t.'.$kolom.' as kunci', 't.ip', 't.user_agent'])
+            ->keyBy('kunci');
     }
 
     /**

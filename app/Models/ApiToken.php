@@ -39,7 +39,20 @@ class ApiToken extends Model
         if ($this->perangkat) {
             return $this->perangkat;
         }
-        $ua = strtolower((string) $this->user_agent);
+
+        return self::namaPerangkatDariUserAgent($this->user_agent);
+    }
+
+    /**
+     * Simpul user agent menjadi label perangkat, dipakai juga oleh tracker
+     * login gagal dan email peringatan yang tidak punya kolom perangkat.
+     */
+    public static function namaPerangkatDariUserAgent(?string $userAgent): string
+    {
+        $ua = strtolower((string) $userAgent);
+        if ($ua === '') {
+            return '-';
+        }
         if (str_contains($ua, 'okhttp') || str_contains($ua, 'android')) {
             return 'Android';
         }
@@ -52,7 +65,8 @@ class ApiToken extends Model
         if (str_contains($ua, 'macintosh')) {
             return 'macOS';
         }
-        return $this->user_agent ? 'Perangkat' : '-';
+
+        return 'Perangkat lain';
     }
 
 

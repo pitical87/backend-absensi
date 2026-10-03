@@ -80,7 +80,7 @@
           <th class="tengah">Gagal</th>
           <th class="tengah" title="Jumlah IP atau email target berbeda">Sasaran</th>
           <th class="tengah" title="Jumlah perangkat berbeda">Perangkat</th>
-          <th>IP Terakhir</th>
+          <th>IP Terakhir &amp; Perangkat</th>
           <th>Waktu Terakhir</th>
           <th class="tengah">Aksi</th>
         </tr>
