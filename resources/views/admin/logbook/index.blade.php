@@ -3,12 +3,26 @@
 @section('content')
 
 <section class="kartu">
-  <div class="kartu-kepala flex justify-between items-center ">
-    <h2>Logbook</h2>
+  <div class="kartu-kepala flex justify-between items-center gap-3 flex-wrap ">
+    <h2>Buat Logbook</h2>
     <div class="flex gap-1 rounded-xl bg-slate-100 p-1 mt-3">
       <button type="button" id="tab-data" class="rounded-lg px-3.5 py-1.5 text-xs font-semibold bg-white text-slate-900 shadow-sm transition-colors cursor-pointer">Data</button>
       <button type="button" id="tab-input" class="rounded-lg px-3.5 py-1.5 text-xs font-semibold text-slate-500 transition-colors cursor-pointer">Input</button>
     </div>
+  </div>
+
+  <div class="px-2 pb-2">
+    <label class="teks-redup teks-kecil">Pegawai
+      <select id="logbook-user" name="user_id" form="form-logbook" required>
+        <option value="">— Pilih pegawai —</option>
+        @forelse($daftarPegawai as $p)
+          <option value="{{ (int) $p->id }}">{{ $p->nama_lengkap }}@if($p->nip) — {{ $p->nip }}@endif</option>
+        @empty
+          <option value="" disabled>Belum ada pegawai aktif</option>
+        @endforelse
+      </select>
+    </label>
+    <div class="petunjuk">Semua entri yang diinput dan ditampilkan pada tab <em>Data</em> milik pegawai yang dipilih di sini. Entri yang dibuat oleh admin <strong>otomatis terverifikasi</strong>.</div>
   </div>
 
   {{-- PANEL: DATA --}}
@@ -256,10 +270,16 @@
   const fBulan = document.getElementById('filter-bulan');
   const fTahun = document.getElementById('filter-tahun');
   const pagD = document.getElementById('paginasi-data');
+  const pilihUser = document.getElementById('logbook-user');
 
   let dHal = 1;
   let dTotalHal = 1;
   let barisData = {};
+
+  pilihUser.addEventListener('change', function () {
+    dHal = 1;
+    if (panelInput.classList.contains('hidden')) muatData();
+  });
 
   (function isiTahun() {
     const kini = new Date().getFullYear();
@@ -305,7 +325,13 @@
     pilihSemua.checked = false;
     perbaruiHapusTerpilih();
 
+    if (! pilihUser.value) {
+      infoD.innerHTML = '<span class="text-amber-600">Pilih pegawai terlebih dahulu untuk melihat data logbooknya.</span>';
+      return;
+    }
+
     const params = new URLSearchParams();
+    params.set('user_id', pilihUser.value);
     if (cariData.value.trim()) params.set('q', cariData.value.trim());
     if (fBulan.value) params.set('bulan', fBulan.value);
     if (fTahun.value) params.set('tahun', fTahun.value);
@@ -322,7 +348,7 @@
         infoD.innerHTML = '<strong>' + h.total + '</strong> entri logbook'
                         + ' · hal. ' + h.halaman + ' / ' + dTotalHal;
         if (! h.total) {
-          tbodyD.innerHTML = '<tr><td colspan="4" class="px-2 py-6 text-center teks-redup">Belum ada data logbook.</td></tr>';
+          tbodyD.innerHTML = '<tr><td colspan="6" class="px-2 py-6 text-center teks-redup">Belum ada data logbook.</td></tr>';
           return;
         }
         h.data.forEach(function (r) {
@@ -409,6 +435,7 @@
     if (! confirm('Hapus ' + ids.length + ' entri logbook yang dipilih?')) return;
 
     const isi = new URLSearchParams();
+    isi.set('user_id', pilihUser.value);
     ids.forEach(function (id) { isi.append('ids[]', id); });
 
     hapusTerpilihB.disabled = true;
@@ -499,6 +526,7 @@
         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf"]').content,
       },
       body: new URLSearchParams({
+        user_id: pilihUser.value,
         id: String(editId),
         tanggal: eTanggal.value,
         jam: eJam.value,
@@ -533,6 +561,12 @@
 
   formLb.addEventListener('submit', function (e) {
     e.preventDefault();
+
+    if (! pilihUser.value) {
+      pesanF.textContent = 'Pilih pegawai pada kolom Pegawai terlebih dahulu.';
+      pesanF.classList.add('text-red-600');
+      return;
+    }
 
     const adaKosong = Array.from(wadah.querySelectorAll('input[name="tanggal[]"], input[name="jam[]"], textarea[name="isi[]"]'))
       .some(function (el) { return el.required && el.value.trim() === ''; });

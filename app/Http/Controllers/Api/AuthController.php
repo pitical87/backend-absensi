@@ -244,6 +244,7 @@ class AuthController extends Controller
                 'lng' => (float) pengaturan('lokasi_lng', 140.4049840),
                 'radius' => (float) pengaturan('radius_meter', 100),
             ],
+            ...$this->hakAksesAtasan($user),
         ]);
     }
 

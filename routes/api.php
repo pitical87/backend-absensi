@@ -106,6 +106,10 @@ Route::prefix('mobile')->group(function (){
         Route::delete('logbook/template/{id}',[LogbookController::class,"templateHapus"]);
         Route::post('logbook/template',[LogbookController::class,"templateSimpan"]);
         Route::post('logbook/template/ubah',[LogbookController::class,"templateUbah"]);
+        // Verifikasi logbook oleh atasan langsung (relasi atasan_langsung)
+        Route::get('logbook/bawahan',[LogbookController::class,"bawahan"]);
+        Route::get('logbook/bawahan/{user_id}',[LogbookController::class,"bawahanDetail"]);
+        Route::post('logbook/verifikasi',[LogbookController::class,"verifikasi"]);
         Route::delete('logbook/{id}',[LogbookController::class,"logbookHapus"]);
     });
 });

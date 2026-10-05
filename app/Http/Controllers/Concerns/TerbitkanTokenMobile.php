@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Concerns;
 
 use App\Models\ApiToken;
 use App\Models\User;
+use App\Services\AtasanLangsungService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -37,6 +38,7 @@ trait TerbitkanTokenMobile
         ]);
 
         $user->load(['unitKerja', 'subUnit', 'profesi', 'jabatan']);
+        $user->append('shift');
         catat_aktivitas('Login Mobile', $detail);
 
         $menit = self::MASA_TOKEN_HARI * 24 * 60;
@@ -50,6 +52,25 @@ trait TerbitkanTokenMobile
                 'lng' => (float) pengaturan('lokasi_lng', 140.4049840),
                 'radius' => (float) pengaturan('radius_meter', 100),
             ],
+            ...$this->hakAksesAtasan($user),
         ])->withCookie($cookie);
+    }
+
+    /**
+     * Hak akses berbasis relasi atasan langsung beserta daftar bawahan.
+     *
+     * Dipakai bersama oleh login email-password, login Google, dan /me agar
+     * bentuk responsnya tidak berbeda antar endpoint.
+     *
+     * @return array{hak_akses: array<string, bool>, bawahan: array<int, array{id: int, nama: string, email: string}>}
+     */
+    private function hakAksesAtasan(User $user): array
+    {
+        $servis = app(AtasanLangsungService::class);
+
+        return [
+            'hak_akses' => $servis->hakAkses($user),
+            'bawahan' => $servis->daftarBawahan($user),
+        ];
     }
 }

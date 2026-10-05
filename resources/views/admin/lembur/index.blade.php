@@ -2,85 +2,43 @@
 
 @section('content')
 
-<section class="kartu">
+<section class="kartu" data-ajax-tabel
+         data-url-data="{{ route('admin.lembur.data') }}"
+         data-url-aksi="{{ route('admin.lembur.proses') }}"
+         data-status-aktif="{{ $status }}">
   <div class="kartu-kepala">
     <h2>{!! ikon('jam') !!} Pengajuan Lembur</h2>
-    <span class="badge badge-amber">{{ $menunggu }} menunggu</span>
+    <span class="badge badge-amber"><span data-hitung="Menunggu">{{ $jumlah['Menunggu'] }}</span> menunggu</span>
   </div>
 
-  @if(! $lemburAktif)
-    <div class=" flash-info mb-4 teks-redup rounded-md p-4">
+  @unless($lemburAktif)
+    <div class="flash-info mb-4 teks-redup rounded-md p-4">
       Modul lembur sedang <strong>tidak aktif</strong>. Nyalakan pengaturan
       <em>“Aktifkan modul lembur”</em> di halaman Pengaturan untuk menerima pengajuan baru.
       Data di bawah tetap tampil untuk keperluan monitoring, namun aksi memproses dinonaktifkan.
     </div>
-  @endif
+  @endunless
+
+  <div class="w-full flex flex-wrap items-center gap-2 mb-3">
+    <input type="text" data-cari value="{{ $q }}" autocomplete="off"
+           placeholder="Cari nama / NIP / keterangan…" class="min-w-[200px]">
+    
+  </div>
 
   <div class="chips">
     @foreach(['Menunggu', 'Disetujui', 'Ditolak', 'Semua'] as $st)
-      <a class="chip {{ $status === $st ? 'aktif' : '' }}"
-         href="{{ url('admin/lembur?status=' . $st) }}">{{ $st }}</a>
+      <a class="chip {{ $status === $st ? 'aktif' : '' }}" data-status="{{ $st }}"
+         href="{{ route('admin.lembur.index', array_filter(['status' => $st, 'q' => $q])) }}">{{ $st }}</a>
     @endforeach
   </div>
 
-  <div class="tabel-bungkus">
-    <table class="tabel">
-      <thead>
-        <tr><th>Pegawai</th><th>Tanggal</th><th>Rentang Waktu</th><th>Durasi</th><th>Keterangan</th>
-            <th>Status</th><th class="min-w-[260px]">Tindakan / Catatan</th></tr>
-      </thead>
-      <tbody>
-        @foreach($daftar as $r)
-        <tr>
-          <td>
-            <strong>{{ $r->user->nama_lengkap }}</strong>
-            @if($r->user->nip)<br><span class="teks-kecil teks-redup">NIP {{ $r->user->nip }}</span>@endif
-            <br><span class="teks-kecil teks-redup">{{ $r->user->unitKerja->nama ?? '—' }}@if(
-              $r->user->subUnit?->nama) — {{ $r->user->subUnit->nama }}@endif</span>
-          </td>
-          <td class="angka">
-            {{ tgl_id($r->tanggal->format('Y-m-d'), false) }}
-            <br><span class="teks-kecil teks-redup">diajukan {{ tgl_id($r->created_at, false) }} · {{ jam_id($r->created_at) }}</span>
-          </td>
-          <td class="angka">{{ jam_id($r->jam_mulai) }} — {{ jam_id($r->jam_selesai) }}</td>
-          <td class="angka">{{ (float) $r->durasi_jam }} jam</td>
-          <td class="teks-kecil">{{ $r->keterangan }}</td>
-          <td>{!! badge_tahap($r->status) !!}</td>
-          <td>
-            @if($r->status === 'Menunggu')
-              @if($lemburAktif)
-                <form method="post" action="{{ url('admin/lembur/proses') }}" class="bilah-alat m-0">
-                  @csrf
-                  <input type="hidden" name="id" value="{{ (int) $r->id }}">
-                  <input type="text" name="catatan" placeholder="Catatan (opsional)…" class="min-w-[120px]">
-                  <button type="submit" name="putusan" value="setuju" class="btn btn-primer btn-kecil"
-                          onclick="return confirm('Setujui pengajuan lembur ini?');">Setujui</button>
-                  <button type="submit" name="putusan" value="tolak" class="btn btn-bahaya btn-kecil"
-                          onclick="return confirm('Tolak pengajuan lembur ini?');">Tolak</button>
-                </form>
-              @else
-                <span class="teks-kecil teks-redup">Menunggu — modul lembur tidak aktif.</span>
-              @endif
-            @else
-              <span class="teks-kecil">
-                {{ $r->catatan_keputusan ?? '—' }}
-                @if($r->diprosesOlehUser)
-                  <br><span class="teks-redup">oleh {{ $r->diprosesOlehUser->nama_lengkap }} ·
-                    {{ tgl_id($r->diproses_pada, false) }}</span>
-                @endif
-              </span>
-            @endif
-          </td>
-        </tr>
-        @endforeach
-        @if(! $daftar)
-        <tr><td colspan="7" class="tengah teks-redup">Tidak ada pengajuan lembur berstatus {{ $status }}.</td></tr>
-        @endif
-      </tbody>
-    </table>
+  <div id="pesan-lembur" data-pesan class="hidden rounded-md px-3 py-2 teks-kecil mb-3"></div>
+
+  <div data-tabel>
+    @include('admin.lembur.tabel')
   </div>
-  <p class="petunjuk">Pengajuan lembur diputus atasan langsung pegawai di halaman Persetujuan mereka.
-    Halaman ini untuk monitoring dan penanganan cadangan bila atasan langsung tidak tersedia.</p>
+
+ 
 </section>
 
 @endsection

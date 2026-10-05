@@ -30,9 +30,9 @@
 <td>
     @if(! $statusPassword['pernah'])
         <span class="badge badge-merah">Belum pernah ganti</span>
-        <br><span class="teks-kecil teks-redup">Sejak akun dibuat {{ tgl_id($p->created_at?->format('Y-m-d')) }}</span>
+        <br><span class="teks-kecil teks-redup">Sejak {{ tgl_id($p->created_at?->format('Y-m-d')) }}</span>
     @else
-        <span class="badge {{ match ($statusPassword['level']) {
+        <span class="badge text-center {{ match ($statusPassword['level']) {
             'baru' => 'badge-hijau',
             'perlu' => 'badge-amber',
             default => 'badge-merah',

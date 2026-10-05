@@ -53,6 +53,13 @@
         <div class="petunjuk">Datang dalam rentang ini setelah jam masuk masih dihitung Tepat Waktu.</div>
       </div>
       <div class="form-grup">
+        <label class="wajib">Batas Datang Lebih Awal (menit)</label>
+        <input type="number" name="batas_awal_absen_menit" min="0" max="240" required value="{{ $batasAwal }}">
+        <div class="petunjuk">Absen datang hanya boleh dilakukan maksimal berapa menit sebelum jam masuk shift.
+          Bila datang lebih awal dari batas ini, absensi ditolak dengan pesan belum sesuai jadwal.
+          Isi <strong>0</strong> bila pegawai tidak boleh absen sebelum jam masuk. Bawaan: 60 menit (1 jam).</div>
+      </div>
+      <div class="form-grup">
         <label class="wajib">Batas Ajukan Ubah Jadwal (jam)</label>
         <input type="number" name="batas_ubah_jadwal_jam" min="0" max="24" required value="{{ $batasJadwal }}">
         <div class="petunjuk">Pengajuan perubahan jadwal shift hanya bisa masuk paling lambat berapa jam sebelum shift lama dimulai. Bawaan: 1 jam.</div>
@@ -101,7 +108,7 @@
   </form>
 </section>
 
-<section class="kartu">
+{{-- <section class="kartu">
   <div class="kartu-kepala"><h2>{!! ikon('perisai') !!} Backup Database</h2></div>
   <p class="teks-kecil teks-redup mb-3">
     Mengunduh seluruh isi database sebagai berkas <code>.sql</code> yang dapat dipulihkan lewat
@@ -110,9 +117,9 @@
   </p>
   <a class="btn btn-navy" href="{{ url('admin/pengaturan/backup') }}">
     {!! ikon('unduh', 16) !!} Unduh Backup Database Sekarang</a>
-</section>
+</section> --}}
 
-<section class="kartu">
+{{-- <section class="kartu">
   <div class="kartu-kepala"><h2>{!! ikon('kunci') !!} Integrasi SIMRS — Kunci API</h2></div>
   <p class="teks-kecil teks-redup mb-3">
     SIMRS dapat menarik data pegawai, absensi, rekap, dan izin melalui API dengan menyertakan
@@ -131,7 +138,7 @@
     <span class="teks-kecil teks-redup">Contoh uji:
       <code>curl -H "X-API-KEY: …" {{ url('api/v1/ping') }}</code></span>
   </div>
-</section>
+</section> --}}
 
 @endsection
 

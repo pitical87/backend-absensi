@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Logbook;
 use App\Models\MappingSIMRSAccount;
 use App\Models\TemplateLogbook;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class LogbookController extends Controller
@@ -13,8 +14,9 @@ class LogbookController extends Controller
     public function index()
     {
         return view('admin.logbook.index', [
-            'judulHalaman' => 'Logbook',
+            'judulHalaman' => 'Buat Logbook',
             'menuAktif' => 'logbook',
+            'daftarPegawai' => $this->daftarPegawai(),
             'pegawai' => $this->pegawaiTerMapping(),
             'templates' => $this->daftarTemplate(),
         ]);
@@ -28,6 +30,7 @@ class LogbookController extends Controller
         }
 
         $data = $request->validate([
+            'user_id' => ['required', 'integer', 'exists:users,id'],
             'tanggal' => ['required', 'array', 'min:1'],
             'tanggal.*' => ['required', 'date'],
             'jam' => ['required', 'array'],
@@ -35,6 +38,9 @@ class LogbookController extends Controller
             'isi' => ['required', 'array'],
             'isi.*' => ['required', 'string', 'max:1000'],
         ], [
+            'user_id.required' => 'Pilih pegawai lebih dulu pada kolom Pegawai.',
+            'user_id.integer' => 'Pegawai tidak valid.',
+            'user_id.exists' => 'Pegawai tidak ditemukan.',
             'tanggal.required' => 'Minimal satu baris logbook wajib diisi.',
             'tanggal.*.required' => 'Tanggal wajib diisi.',
             'jam.*.required' => 'Jam wajib diisi.',
@@ -43,39 +49,50 @@ class LogbookController extends Controller
             'isi.*.max' => 'Isi aktivitas maksimal 1000 karakter.',
         ]);
 
+        $targetId = (int) $data['user_id'];
+
         $sekarang = now();
         $baris = [];
         foreach ($data['tanggal'] as $i => $tgl) {
             $baris[] = [
-                'user_id' => $uid,
+                'user_id' => $targetId,
                 'tanggal' => $tgl,
                 'jam' => $data['jam'][$i],
                 'isi' => trim($data['isi'][$i]),
+                // entri yang dibuat admin dianggap sudah disetujui, sehingga
+                // tidak perlu menunggu verifikasi atasan langsung
+                'is_verified' => true,
+                'verified_at' => $sekarang,
+                'verified_by' => $uid,
                 'created_at' => $sekarang,
                 'updated_at' => $sekarang,
             ];
         }
 
         Logbook::insert($baris);
-        catat_aktivitas('Logbook', count($baris).' entri logbook disimpan');
+
+        $nama = User::where('id', $targetId)->value('nama_lengkap');
+        catat_aktivitas('Logbook', count($baris).' entri logbook terverifikasi otomatis untuk '.$nama.' oleh admin');
 
         return response()->json([
             'sukses' => true,
-            'pesan' => count($baris).' entri logbook tersimpan.',
+            'pesan' => count($baris).' entri logbook '.$nama.' tersimpan dan otomatis terverifikasi.',
             'total' => count($baris),
+            'terverifikasi' => true,
         ]);
     }
 
     public function data(Request $request)
     {
-        $uid = (int) session('uid');
-
         $f = $request->validate([
+            'user_id' => ['nullable', 'integer'],
             'q' => ['nullable', 'string', 'max:100'],
             'bulan' => ['nullable', 'integer', 'between:1,12'],
             'tahun' => ['nullable', 'integer', 'between:2000,2100'],
             'hal' => ['nullable', 'integer', 'min:1'],
         ]);
+
+        $uid = (int) ($f['user_id'] ?? 0) ?: (int) session('uid');
 
         $per = 20;
         $hal = max(1, (int) ($f['hal'] ?? 1));
@@ -159,14 +176,15 @@ class LogbookController extends Controller
 
     public function hapus(Request $request)
     {
-        $uid = (int) session('uid');
-
         $data = $request->validate([
+            'user_id' => ['nullable', 'integer'],
             'ids' => ['required', 'array', 'min:1'],
             'ids.*' => ['integer'],
         ]);
 
-        // hanya milik sendiri dan belum diverifikasi
+        $uid = (int) ($data['user_id'] ?? 0) ?: (int) session('uid');
+
+        // hanya entri pegawai terpilih dan belum diverifikasi
         $terhapus = Logbook::query()
             ->whereIn('id', array_map('intval', $data['ids']))
             ->where('user_id', $uid)
@@ -176,11 +194,11 @@ class LogbookController extends Controller
         if (! $terhapus) {
             return response()->json([
                 'sukses' => false,
-                'pesan' => 'Tidak ada data yang bisa dihapus (bukan milik Anda atau sudah diverifikasi).',
+                'pesan' => 'Tidak ada data yang bisa dihapus (bukan milik pegawai terpilih atau sudah diverifikasi).',
             ], 404);
         }
 
-        catat_aktivitas('Logbook', $terhapus.' entri logbook dihapus');
+        catat_aktivitas('Logbook', $terhapus.' entri logbook dihapus oleh admin');
 
         return response()->json([
             'sukses' => true,
@@ -190,9 +208,8 @@ class LogbookController extends Controller
 
     public function ubah(Request $request)
     {
-        $uid = (int) session('uid');
-
         $data = $request->validate([
+            'user_id' => ['nullable', 'integer'],
             'id' => ['required', 'integer'],
             'tanggal' => ['required', 'date'],
             'jam' => ['required', 'date_format:H:i'],
@@ -204,7 +221,9 @@ class LogbookController extends Controller
             'isi.max' => 'Isi aktivitas maksimal 1000 karakter.',
         ]);
 
-        // hanya milik sendiri dan belum diverifikasi
+        $uid = (int) ($data['user_id'] ?? 0) ?: (int) session('uid');
+
+        // hanya entri pegawai terpilih dan belum diverifikasi
         $terubah = Logbook::query()
             ->where('id', (int) $data['id'])
             ->where('user_id', $uid)
@@ -222,9 +241,19 @@ class LogbookController extends Controller
             ], 404);
         }
 
-        catat_aktivitas('Logbook', 'Entri logbook diubah');
+        catat_aktivitas('Logbook', 'Entri logbook diubah oleh admin');
 
         return response()->json(['sukses' => true, 'pesan' => 'Entri logbook diperbarui.']);
+    }
+
+    /** Daftar pegawai aktif yang dapat dipilih sebagai pemilik logbook. */
+    private function daftarPegawai()
+    {
+        return User::query()
+            ->where('role', '!=', 'admin')
+            ->where('status', 'aktif')
+            ->orderBy('nama_lengkap')
+            ->get(['id', 'nama_lengkap', 'nip']);
     }
 
     private function daftarTemplate(): array

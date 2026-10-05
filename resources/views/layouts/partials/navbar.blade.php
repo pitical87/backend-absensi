@@ -5,7 +5,7 @@
   $notifikasiBelumDibaca = $notifikasiBelumDibaca ?? 0;
   $totalNotifikasi = $badgeIzin + $jumlahAncaman + $notifikasiBelumDibaca;
 @endphp
-<header class="bg-white/95 backdrop-blur-md border-b border-slate-200/80 py-3 px-4 sm:px-6 flex items-center justify-between gap-3 sticky top-0 z-30 shadow-sm dark:bg-[#0D1830]/95 dark:border-slate-800 dark:shadow-none">
+<header class="bg-white/95 backdrop-blur-md border-b border-slate-200/80 py-3 px-4 sm:px-6 flex items-center justify-between gap-3 sticky top-0 z-30  dark:bg-[#0D1830]/95 ">
   <div class="flex items-center gap-3">
     <button type="button" class="lg:hidden inline-flex p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer border-0 transition-colors" id="tombol-menu" aria-label="Buka menu">
       {!! ikon('menu', 20) !!}
@@ -15,7 +15,7 @@
   
   <div class="flex items-center gap-2.5 sm:gap-3.5">
     {{-- DATE BADGE --}}
-    <span class="hidden sm:inline-flex items-center gap-1.5 py-1.5 px-3 bg-slate-100/90 text-slate-600 rounded-xl text-xs font-medium border border-slate-200/60 dark:bg-slate-800/70 dark:text-slate-300 dark:border-slate-700">
+    <span class="hidden sm:inline-flex items-center gap-1.5 py-1.5 px-3 bg-slate-100/90 text-slate-600 rounded-xl text-xs font-medium border border-slate-200/60">
       <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
       </svg>
@@ -23,7 +23,7 @@
     </span>
 
     {{-- TOMBOL MODE TERANG / GELAP --}}
-    <button type="button" id="tombol-mode" class="p-2 rounded-xl text-slate-600 hover:text-navy hover:bg-slate-100 transition-colors focus:outline-none cursor-pointer dark:text-slate-300 dark:hover:bg-slate-800" aria-label="Ganti mode terang/gelap" title="Mode terang / gelap">
+    <button type="button" id="tombol-mode" class="p-2 rounded-xl text-slate-600 hover:text-navy hover:bg-slate-100 transition-colors focus:outline-none cursor-pointer " aria-label="Ganti mode terang/gelap" title="Mode terang / gelap">
       <svg class="w-5 h-5 block dark:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
       </svg>

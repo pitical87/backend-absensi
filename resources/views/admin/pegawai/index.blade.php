@@ -15,7 +15,7 @@
   </div>
 
   <form method="post" action="{{ route('admin.pegawai.import') }}" enctype="multipart/form-data"
-        class="bilah-alat" style="border-top:1px dashed var(--warna-garis);padding-top:12px;margin-top:4px">
+        class="bilah-alat" >
     @csrf
     <input type="file" name="file" accept=".xlsx,.xls,.csv" required>
     <button type="submit" class="btn btn-navy btn-kecil">{!! ikon('unduh', 15) !!} Import Excel</button>
@@ -82,7 +82,7 @@
         </button>
       </form>
       <span class="teks-kecil teks-redup mt-1">
-        Dikirim ke {{ $ringkasanPassword['perluPerhatian'] }} pegawai yang perlu, maksimal sekali dalam {{ \App\Services\PasswordService::COOLDOWN_HARI }} hari.
+        Dikirim ke {{ $ringkasanPassword['perluPerhatian'] }} pegawai  {{ \App\Services\PasswordService::COOLDOWN_HARI }} hari.
       </span>
     </div>
   </div>

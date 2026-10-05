@@ -11,6 +11,37 @@ use Illuminate\Http\Request;
 
 class ShiftController extends Controller
 {
+    private function wantsJson(Request $request): bool
+    {
+        return $request->wantsJson() || $request->ajax() || $request->expectsJson();
+    }
+
+    private function daftarShift(Request $request): array
+    {
+        $q = trim((string) $request->get('q'));
+
+        $b = Shift::query()
+            ->when($q !== '', function ($b) use ($q) {
+                $b->where(function ($x) use ($q) {
+                    $x->where('kategori', 'like', "%{$q}%")
+                        ->orWhereRaw('strftime("%H:%M", jam_masuk) LIKE ?', ["%{$q}%"])
+                        ->orWhereRaw('strftime("%H:%M", jam_pulang) LIKE ?', ["%{$q}%"]);
+                });
+            })
+            ->orderBy('jam_masuk');
+
+        $total = (clone $b)->count();
+        $rows = $b->get();
+
+        $html = view('admin.shift.rows', ['shiftList' => $rows])->render();
+
+        return [
+            'sukses' => true,
+            'total' => $total,
+            'html' => $html,
+        ];
+    }
+
     public function index(Request $request)
     {
         $shiftList = Shift::orderBy('jam_masuk')->get()->all();
@@ -54,12 +85,88 @@ class ShiftController extends Controller
         ]);
     }
 
+    public function data(Request $request)
+    {
+        return response()->json($this->daftarShift($request));
+    }
+
     public function aksi(Request $request)
     {
         $aksi = (string) $request->input('aksi');
         $id = (int) $request->input('id');
         $qs = (string) $request->input('qs');
         $ke = 'admin/shift'.($qs ? '?'.$qs : '');
+
+        if ($this->wantsJson($request)) {
+            try {
+                switch ($aksi) {
+                    case 'tambah_shift':
+                        $kategori = (string) $request->input('kategori');
+                        $masuk = (string) $request->input('jam_masuk');
+                        $pulang = (string) $request->input('jam_pulang');
+                        if (! in_array($kategori, ['Pagi', 'Sore', 'Malam'], true) || ! $masuk || ! $pulang) {
+                            return response()->json(['sukses' => false, 'pesan' => 'Kategori dan jam shift wajib diisi.'], 422);
+                        }
+                        $s = Shift::create([
+                            'kategori' => $kategori,
+                            'jam_masuk' => $masuk,
+                            'jam_pulang' => $pulang,
+                            'lintas_hari' => ($pulang <= $masuk) ? 1 : 0,
+                            'aktif' => 1,
+                        ]);
+                        catat_aktivitas('Tambah Shift', "$kategori $masuk-$pulang");
+
+                        return response()->json(array_merge(['sukses' => true, 'pesan' => 'Shift baru ditambahkan.'], $this->daftarShift($request)));
+
+                    case 'ubah_shift':
+                        $s = Shift::find($id);
+                        if (! $s) {
+                            return response()->json(['sukses' => false, 'pesan' => 'Shift tidak ditemukan.'], 404);
+                        }
+                        $kategori = (string) $request->input('kategori');
+                        $masuk = (string) $request->input('jam_masuk');
+                        $pulang = (string) $request->input('jam_pulang');
+                        if (! in_array($kategori, ['Pagi', 'Sore', 'Malam'], true) || ! $masuk || ! $pulang) {
+                            return response()->json(['sukses' => false, 'pesan' => 'Kategori dan jam shift wajib diisi.'], 422);
+                        }
+                        $s->update([
+                            'kategori' => $kategori,
+                            'jam_masuk' => $masuk,
+                            'jam_pulang' => $pulang,
+                            'lintas_hari' => ($pulang <= $masuk) ? 1 : 0,
+                        ]);
+                        catat_aktivitas('Ubah Shift', "#{$s->id} $kategori $masuk-$pulang");
+
+                        return response()->json(array_merge(['sukses' => true, 'pesan' => 'Shift diperbarui.'], $this->daftarShift($request)));
+
+                    case 'toggle_shift':
+                        $s = Shift::find($id);
+                        if (! $s) {
+                            return response()->json(['sukses' => false, 'pesan' => 'Shift tidak ditemukan.'], 404);
+                        }
+                        $s->update(['aktif' => (int) ! $s->aktif]);
+
+                        return response()->json(array_merge(['sukses' => true, 'pesan' => 'Status shift diperbarui.'], $this->daftarShift($request)));
+
+                    case 'hapus_shift':
+                        $dipakai = JadwalShift::where('shift_id', $id)->count();
+                        if ($dipakai > 0) {
+                            return response()->json(['sukses' => false, 'pesan' => 'Shift tidak dapat dihapus karena masih dipakai pegawai.'], 422);
+                        }
+                        $s = Shift::find($id);
+                        if ($s) {
+                            $s->delete();
+                            catat_aktivitas('Hapus Shift', '#'.$id);
+                        }
+
+                        return response()->json(array_merge(['sukses' => true, 'pesan' => 'Shift dihapus.'], $this->daftarShift($request)));
+                }
+            } catch (\Throwable $e) {
+                return response()->json(['sukses' => false, 'pesan' => 'Terjadi kesalahan.'], 500);
+            }
+
+            return response()->json(['sukses' => false, 'pesan' => 'Aksi tidak dikenal.'], 400);
+        }
 
         switch ($aksi) {
             case 'tambah_shift':
@@ -80,8 +187,32 @@ class ShiftController extends Controller
 
                 return redirect($ke)->with('success', 'Shift baru ditambahkan.');
 
+            case 'ubah_shift':
+                $s = Shift::find($id);
+                if (! $s) {
+                    return redirect($ke)->with('error', 'Shift tidak ditemukan.');
+                }
+                $kategori = (string) $request->input('kategori');
+                $masuk = (string) $request->input('jam_masuk');
+                $pulang = (string) $request->input('jam_pulang');
+                if (! in_array($kategori, ['Pagi', 'Sore', 'Malam'], true) || ! $masuk || ! $pulang) {
+                    return redirect($ke)->with('error', 'Kategori dan jam shift wajib diisi.');
+                }
+                $s->update([
+                    'kategori' => $kategori,
+                    'jam_masuk' => $masuk,
+                    'jam_pulang' => $pulang,
+                    'lintas_hari' => ($pulang <= $masuk) ? 1 : 0,
+                ]);
+                catat_aktivitas('Ubah Shift', "#{$s->id} $kategori $masuk-$pulang");
+
+                return redirect($ke)->with('success', 'Shift diperbarui.');
+
             case 'toggle_shift':
-                \DB::update('UPDATE shift SET aktif = 1 - aktif WHERE id = ?', [$id]);
+                $s = Shift::find($id);
+                if ($s) {
+                    $s->update(['aktif' => (int) ! $s->aktif]);
+                }
 
                 return redirect($ke)->with('success', 'Status shift diperbarui.');
 

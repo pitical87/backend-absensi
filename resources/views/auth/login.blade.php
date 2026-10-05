@@ -14,9 +14,9 @@
     {{-- TOP ROW / HEADER --}}
     <div class="w-full flex items-center justify-between mb-4 lg:mb-6">
       <a href="{{ url('/') }}" class="flex items-center gap-3 no-underline hover:opacity-90 transition">
-        <img src="{{ asset('assets/img/logo.svg') }}" alt="{{ config('app.name') }}" class="w-10 h-10 sm:w-12 sm:h-12 object-contain drop-shadow-sm">
+        <img src="{{ asset('assets/img/logo.svg') }}" alt="{{ App\Models\Pengaturan::where('kunci', 'nama_instansi')->value('nilai') ?? env('APP_NAME') }}" class="w-10 h-10 sm:w-12 sm:h-12 object-contain drop-shadow-sm">
         <span class="text-white font-bold text-lg sm:text-xl tracking-tight">
-          {{ config('app.name') }}
+          {{ App\Models\Pengaturan::where('kunci', 'nama_instansi')->value('nilai') ?? env('APP_NAME') }}
         </span>
       </a>
     </div>
@@ -32,12 +32,12 @@
           
           {{-- Hero Heading & Subtitle --}}
           <div class="relative z-10 max-w-md sm:max-w-lg pr-4">
-            <h1 class="text-3xl sm:text-4xl lg:text-[46px] font-bold text-white leading-[1.18] tracking-tight mb-4">
-              Sign in to<br>
-              <span class="font-normal text-white/95">Sistem Absensi RSUD Merauke</span>
+            <h1 class="text-4xl sm:text-4xl lg:text-[60px] font-bold text-white leading-[1.18] tracking-tight mb-4" style="color: white !important;">
+              <span style="font-size: 3rem;">Sign in to</span><br>
+              <span class="font-normal text-white/95">Sistem Pegawai {{ App\Models\Pengaturan::where('kunci', 'nama_instansi')->value('nilai') ?? env('APP_NAME') }}</span>
             </h1>
             <p class="text-blue-100 text-xs sm:text-sm leading-relaxed max-w-sm sm:max-w-md font-normal opacity-90">
-              Sistem presensi dan absensi digital terintegrasi untuk seluruh pegawai dan tenaga medis RSUD Merauke — Kabupaten Merauke, Papua Selatan.
+              Sistem Pegawai dan absensi digital terintegrasi untuk seluruh pegawai dan tenaga medis{{ App\Models\Pengaturan::where('kunci', 'nama_instansi')->value('nilai') ?? env('APP_NAME') }} 
             </p>
           </div>
 
@@ -74,7 +74,7 @@
           <div class="flex items-start justify-between gap-4 mb-2">
             <div>
               <p class="text-xs sm:text-sm text-slate-700 font-medium tracking-tight">
-                Welcome to <span class="font-bold text-[#007afc] tracking-wider">{{config('app.name')}}</span>
+                Welcome to <span class="font-bold text-[#007afc] tracking-wider">{{ App\Models\Pengaturan::where('kunci', 'nama_instansi')->value('nilai') ?? env('APP_NAME') }}</span>
               </p>
             </div>
             

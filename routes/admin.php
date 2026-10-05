@@ -3,25 +3,26 @@
 use App\Http\Controllers\Admin\AktivitasController;
 use App\Http\Controllers\Admin\AtasanLangsungController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\DataLogbookController;
 use App\Http\Controllers\Admin\DokumentasiController;
+use App\Http\Controllers\Admin\EksekutifController;
 use App\Http\Controllers\Admin\FingerController;
 use App\Http\Controllers\Admin\IzinController;
-use App\Http\Controllers\Admin\LogbookController;
 use App\Http\Controllers\Admin\JadwalController;
 use App\Http\Controllers\Admin\KehadiranController;
-use App\Http\Controllers\Admin\LiburController;
 use App\Http\Controllers\Admin\LemburController;
+use App\Http\Controllers\Admin\LiburController;
+use App\Http\Controllers\Admin\LogbookController;
 use App\Http\Controllers\Admin\LoginGagalController;
 use App\Http\Controllers\Admin\MappingSIMRSController;
 use App\Http\Controllers\Admin\NotifikasiController;
 use App\Http\Controllers\Admin\PegawaiController;
 use App\Http\Controllers\Admin\PegawaiTeladanController;
 use App\Http\Controllers\Admin\PengajuanJadwalController;
-use App\Http\Controllers\Admin\RekapKeterlambatanController;
 use App\Http\Controllers\Admin\PengaturanController;
 use App\Http\Controllers\Admin\RekapController;
+use App\Http\Controllers\Admin\RekapKeterlambatanController;
 use App\Http\Controllers\Admin\RekapLemburController;
-use App\Http\Controllers\Admin\EksekutifController;
 use App\Http\Controllers\Admin\RekapLogbookController;
 use App\Http\Controllers\Admin\ShiftController;
 use App\Http\Controllers\Admin\SimrsController;
@@ -49,6 +50,12 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::post('logbook/template', [LogbookController::class, 'simpanTemplate'])->name('admin.logbook.template.simpan');
     Route::post('logbook/template/hapus', [LogbookController::class, 'hapusTemplate'])->name('admin.logbook.template.hapus');
 
+    Route::get('logbook-data', [DataLogbookController::class, 'index'])->name('admin.logbook_data.index');
+    Route::get('logbook-data/detail', [DataLogbookController::class, 'detail'])->name('admin.logbook_data.detail');
+    Route::post('logbook-data/verifikasi', [DataLogbookController::class, 'verifikasi'])->name('admin.logbook_data.verifikasi');
+    Route::post('logbook-data/ubah', [DataLogbookController::class, 'ubah'])->name('admin.logbook_data.ubah');
+    Route::post('logbook-data/hapus', [DataLogbookController::class, 'hapus'])->name('admin.logbook_data.hapus');
+
     Route::get('pegawai', [PegawaiController::class, 'index'])->name('admin.pegawai');
     Route::get('pegawai/data', [PegawaiController::class, 'data'])->name('admin.pegawai.data');
     Route::get('pegawai/cetak', [PegawaiController::class, 'cetak'])->name('admin.pegawai.cetak');
@@ -64,9 +71,12 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::post('pegawai/hapus', [PegawaiController::class, 'hapus'])->name('admin.pegawai.hapus');
 
     Route::get('unit', [UnitController::class, 'index'])->name('admin.unit.index');
+    Route::get('unit/data', [UnitController::class, 'data'])->name('admin.unit.data');
     Route::post('unit/aksi', [UnitController::class, 'aksi'])->name('admin.unit.aksi');
 
     Route::get('atasan_langsung', [AtasanLangsungController::class, 'index'])->name('admin.atasan_langsung.index');
+    Route::get('atasan_langsung/data', [AtasanLangsungController::class, 'data'])->name('admin.atasan_langsung.data');
+    Route::get('atasan_langsung/pilihan', [AtasanLangsungController::class, 'pilihan'])->name('admin.atasan_langsung.pilihan');
     Route::post('atasan_langsung/aksi', [AtasanLangsungController::class, 'aksi'])->name('admin.atasan_langsung.aksi');
 
     Route::get('struktur', [StrukturController::class, 'index'])->name('admin.struktur.index');
@@ -82,6 +92,8 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::post('jadwal/import', [JadwalController::class, 'impor'])->name('admin.jadwal.import');
 
     Route::get('kehadiran', [KehadiranController::class, 'index'])->name('admin.kehadiran.index');
+    Route::get('kehadiran/data', [KehadiranController::class, 'data'])->name('admin.kehadiran.data');
+    Route::get('kehadiran/percobaan', [KehadiranController::class, 'percobaan'])->name('admin.kehadiran.percobaan');
     Route::post('kehadiran/simpan', [KehadiranController::class, 'simpan'])->name('admin.kehadiran.simpan');
     Route::post('kehadiran/hapus', [KehadiranController::class, 'hapus'])->name('admin.kehadiran.hapus');
 
@@ -93,16 +105,20 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::post('finger/setting', [FingerController::class, 'simpanSetting'])->name('admin.finger.setting');
 
     Route::get('izin', [IzinController::class, 'index'])->name('admin.izin.index');
+    Route::get('izin/data', [IzinController::class, 'data'])->name('admin.izin.data');
     Route::post('izin/proses', [IzinController::class, 'proses'])->name('admin.izin.proses');
     Route::post('izin/ambil-alih', [IzinController::class, 'ambilAlih'])->name('admin.izin.ambilalih');
 
     Route::get('jadwal_pengajuan', [PengajuanJadwalController::class, 'index'])->name('admin.jadwal.pengajuan');
+    Route::get('jadwal_pengajuan/data', [PengajuanJadwalController::class, 'data'])->name('admin.jadwal.pengajuan.data');
     Route::post('jadwal_pengajuan/proses', [PengajuanJadwalController::class, 'proses'])->name('admin.jadwal_pengajuan.proses');
 
     Route::get('lembur', [LemburController::class, 'index'])->name('admin.lembur.index');
+    Route::get('lembur/data', [LemburController::class, 'data'])->name('admin.lembur.data');
     Route::post('lembur/proses', [LemburController::class, 'proses'])->name('admin.lembur.proses');
 
     Route::get('libur', [LiburController::class, 'index'])->name('admin.libur.index');
+    Route::get('libur/data', [LiburController::class, 'data'])->name('admin.libur.data');
     Route::post('libur/aksi', [LiburController::class, 'aksi'])->name('admin.libur.aksi');
 
     Route::get('rekap', [RekapController::class, 'index'])->name('admin.rekap.index');
@@ -143,4 +159,6 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::post('user-login/logout-semua', [UserLoginController::class, 'logoutSemua'])->name('admin.user_login.logout_semua');
 
     Route::get('documentation', [DokumentasiController::class, 'index'])->name('admin.documentation.index');
+    Route::get('shift/data', [ShiftController::class, 'data'])->name('admin.shift.data');
 });
+

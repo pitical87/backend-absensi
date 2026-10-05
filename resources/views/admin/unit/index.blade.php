@@ -2,203 +2,414 @@
 
 @section('content')
 
-{{-- ===== HEADER & TOMBOL TAMBAH ===== --}}
-<section class="kartu">
-  <div class="kartu-kepala">
-    <h2>{!! ikon('gedung') !!} Tambah Unit Kerja</h2>
-  </div>
-  <form method="post" action="{{ url('admin/unit/aksi') }}" class="bilah-alat">
-    @csrf
-    <input type="hidden" name="aksi" value="tambah_unit">
-    <input type="text" name="nama" placeholder="Nama unit kerja baru…" required>
-    <label class="teks-kecil flex items-center gap-1.5 whitespace-nowrap">
-      <input type="checkbox" name="punya_sub" value="1" class="w-auto"> Memiliki sub unit
-    </label>
-    <button type="submit" class="btn btn-primer btn-kecil">+ Tambah Unit</button>
-  </form>
-</section>
 
-{{-- ===== TAB NAVIGASI ===== --}}
-@php
-$tabs = [
-  'semua'         => ['label' => 'Semua Unit Kerja', 'kata' => []],
-  'rawat_inap'    => ['label' => 'Rawat Inap',       'kata' => ['rawat inap', 'inap', 'ranap']],
-  'rawat_jalan'   => ['label' => 'Rawat Jalan',      'kata' => ['rawat jalan', 'jalan', 'rajal', 'poli', 'poliklinik', 'klinik']],
-  'farmasi'       => ['label' => 'Farmasi',           'kata' => ['farmasi', 'apotek', 'obat', 'depo']],
-  'administrasi'  => ['label' => 'Administrasi',      'kata' => ['administrasi', 'admin', 'tata usaha', 'keuangan', 'sdm', 'kepegawaian', 'humas', 'rekam medik', 'it', 'umum']],
-];
+{{-- ===== TAB ===== --}}
+<div class="flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1 mb-4" id="tab-bar">
+  {!! $tabs !!}
+</div>
 
-// Kelompokkan unitList per tab
-$unitPerTab = [];
-foreach ($tabs as $kunci => $tab) {
-  $unitPerTab[$kunci] = [];
-}
-foreach ($unitList as $uk) {
-  $namaBawah = strtolower($uk->nama);
-  $cocok = false;
-  foreach ($tabs as $kunci => $tab) {
-    if ($kunci === 'semua') continue;
-    foreach ($tab['kata'] as $kata) {
-      if (str_contains($namaBawah, $kata)) {
-        $unitPerTab[$kunci][] = $uk;
-        $cocok = true;
-        break;
-      }
-    }
-    if ($cocok) break;
-  }
-  // Jika tidak cocok ke tab manapun, masukkan ke "semua" saja
-  if (!$cocok) {
-    $unitPerTab['semua'][] = $uk;
-  }
-  // Selalu masukkan ke tab "semua"
-}
-// Tab "semua" berisi semua unit
-$unitPerTab['semua'] = $unitList;
+{{-- ===== PESAN ===== --}}
+<div id="pesan-unit" class="hidden mb-4 px-4 py-3 rounded-xl text-sm"></div>
 
-$activeTab = request()->query('tab', 'semua');
-if (!array_key_exists($activeTab, $tabs)) $activeTab = 'semua';
-@endphp
+{{-- ===== ISI TAB ===== --}}
+<div id="isi-tab">
+  {!! $isi !!}
+</div>
 
-{{-- TAB NAVIGATION --}}
-<div class="mb-5">
-  <div class="flex flex-wrap gap-2 p-1 bg-slate-100/80 rounded-2xl border border-slate-200/70 w-fit">
-    @foreach($tabs as $kunci => $tab)
-      @php
-        $jml = $kunci === 'semua' ? count($unitList) : count($unitPerTab[$kunci]);
-        $isActive = $activeTab === $kunci;
-      @endphp
-      <a href="{{ url('admin/unit') }}?tab={{ $kunci }}"
-         class="inline-flex items-center gap-2 py-2 px-4 rounded-xl text-sm font-medium transition-all duration-150 no-underline
-                {{ $isActive
-                  ? 'bg-white text-[#007afc] shadow-md shadow-blue-500/10 border border-slate-200/80 font-semibold'
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-white/60' }}">
-        {{ $tab['label'] }}
-        <span class="px-2 py-0.5 rounded-full text-[0.68rem] font-bold
-                     {{ $isActive ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-500' }}">
-          {{ $jml }}
-        </span>
-      </a>
-    @endforeach
+{{-- ===== MODAL TAMBAH UNIT ===== --}}
+<div id="modal-tambah" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4"
+     onclick="if(event.target===this) window.unitTutup('modal-tambah')">
+  <div class="kartu w-full max-w-md">
+    <div class="flex items-start justify-between gap-3 mb-3">
+      <h3 class="text-base font-bold text-navy">Tambah Unit Kerja</h3>
+      <button type="button" class="btn btn-garis btn-kecil" data-tutup-modal="modal-tambah">×</button>
+    </div>
+
+    <form method="post" action="{{ url('admin/unit/aksi') }}" data-ajax="tambah_unit">
+      @csrf
+      <input type="hidden" name="aksi" value="tambah_unit">
+      <label class="teks-kecil mb-1 block">Nama unit kerja</label>
+      <input type="text" name="nama" placeholder="Contoh: Rawat Inap" required>
+      <label class="teks-kecil flex items-center gap-1.5 whitespace-nowrap mt-3">
+        <input type="checkbox" name="punya_sub" value="1" class="w-auto"> Memiliki sub unit
+      </label>
+      <div class="flex justify-end gap-2 mt-5">
+        <button type="button" class="btn btn-garis" data-tutup-modal="modal-tambah">Batal</button>
+        <button type="submit" class="btn btn-primer">Simpan Unit</button>
+      </div>
+    </form>
   </div>
 </div>
 
-{{-- ===== KONTEN TAB AKTIF ===== --}}
-@php $tampilUnit = $unitPerTab[$activeTab]; @endphp
-
-@if(count($tampilUnit) === 0)
-<section class="kartu">
-  <div class="text-center py-12 text-slate-400">
-    <svg class="w-12 h-12 mx-auto mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-    </svg>
-    <p class="text-sm font-medium text-slate-500">Belum ada unit kerja pada kategori <strong>{{ $tabs[$activeTab]['label'] }}</strong>.</p>
-    <p class="text-xs text-slate-400 mt-1">Tambahkan unit baru atau sesuaikan nama unit agar cocok dengan kategori ini.</p>
-  </div>
-</section>
-@endif
-
-@foreach($tampilUnit as $uk)
-<section class="kartu">
-  <div class="kartu-kepala">
-    <h2>
-      <span class="w-7 h-7 rounded-lg bg-blue-100 text-[#007afc] flex items-center justify-center shrink-0">
-        {!! ikon('gedung', 14) !!}
-      </span>
-      {{ $uk->nama }}
-      <span class="badge badge-biru ml-1">{{ (int) $uk->jml_pegawai }} pegawai</span>
-    </h2>
-    <form method="post" action="{{ url('admin/unit/aksi') }}"
-          onsubmit="return confirm('Hapus unit {{ $uk->nama }} beserta seluruh sub unitnya?');">
-      @csrf
-      <input type="hidden" name="aksi" value="hapus_unit">
-      <input type="hidden" name="id" value="{{ (int) $uk->id }}">
-      <button type="submit" class="btn btn-bahaya btn-kecil">Hapus Unit</button>
-    </form>
-  </div>
-
-  <form method="post" action="{{ url('admin/unit/aksi') }}" class="bilah-alat">
-    @csrf
-    <input type="hidden" name="aksi" value="ubah_unit">
-    <input type="hidden" name="id" value="{{ (int) $uk->id }}">
-    <input type="text" name="nama" value="{{ $uk->nama }}" required>
-    <label class="teks-kecil flex items-center gap-1.5 whitespace-nowrap">
-      <input type="checkbox" name="punya_sub" value="1" class="w-auto" {{ $uk->punya_sub ? 'checked' : '' }}>
-      Memiliki sub unit
-    </label>
-    <select name="atasan_id" class="w-auto min-w-[170px] text-sm" title="Atasan default pegawai unit ini">
-      <option value="">— Atasan unit —</option>
-      @foreach($pegawaiPilihan as $opt)
-        <option value="{{ (int) $opt->id }}" {{ (int) $uk->atasan_id === (int) $opt->id ? 'selected' : '' }}>{{ $opt->nama_lengkap }}</option>
-      @endforeach
-    </select>
-    <button type="submit" class="btn btn-navy btn-kecil">Simpan</button>
-  </form>
-
-  @if($uk->punya_sub)
-    <h3 class="mt-4 mb-2 text-sm font-bold text-navy">Sub Unit</h3>
-    <div class="tabel-bungkus">
-      <table class="tabel">
-        <thead>
-          <tr>
-            <th>Nama Sub Unit</th>
-            <th>Atasan Sub Unit</th>
-            <th>Jumlah Pegawai</th>
-            <th class="w-[110px]">Aksi</th>
-          </tr>
-        </thead>
-        <tbody>
-          @foreach($subPerUnit[(int) $uk->id] ?? [] as $su)
-          <tr>
-            <td>{{ $su->nama }}</td>
-            <td>
-              <form method="post" action="{{ url('admin/unit/aksi') }}" class="flex items-center gap-1.5">
-                @csrf
-                <input type="hidden" name="aksi" value="ubah_sub">
-                <input type="hidden" name="id" value="{{ (int) $su->id }}">
-                <select name="atasan_id" class="w-auto min-w-[160px] text-sm" title="Atasan default pegawai sub unit ini">
-                  <option value="">— Atasan sub unit —</option>
-                  @foreach($pegawaiPilihan as $opt)
-                    <option value="{{ (int) $opt->id }}" {{ (int) $su->atasan_id === (int) $opt->id ? 'selected' : '' }}>{{ $opt->nama_lengkap }}</option>
-                  @endforeach
-                </select>
-                <button type="submit" class="btn btn-navy btn-kecil">Simpan</button>
-              </form>
-            </td>
-            <td class="angka">{{ (int) $su->jml_pegawai }}</td>
-            <td>
-              <form method="post" action="{{ url('admin/unit/aksi') }}"
-                    onsubmit="return confirm('Hapus sub unit {{ $su->nama }}?');">
-                @csrf
-                <input type="hidden" name="aksi" value="hapus_sub">
-                <input type="hidden" name="id" value="{{ (int) $su->id }}">
-                <button type="submit" class="btn btn-bahaya btn-kecil">Hapus</button>
-              </form>
-            </td>
-          </tr>
-          @endforeach
-          @if(empty($subPerUnit[(int) $uk->id]))
-          <tr><td colspan="4" class="tengah teks-redup py-4">Belum ada sub unit.</td></tr>
-          @endif
-        </tbody>
-      </table>
+{{-- ===== MODAL UBAH UNIT (isi diambil dari data tombol) ===== --}}
+<div id="modal-ubah" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4"
+     onclick="if(event.target===this) window.unitTutup('modal-ubah')">
+  <div class="kartu w-full max-w-md">
+    <div class="flex items-start justify-between gap-3 mb-3">
+      <h3 class="text-base font-bold text-navy">Ubah Unit Kerja</h3>
+      <button type="button" class="btn btn-garis btn-kecil" data-tutup-modal="modal-ubah">×</button>
     </div>
 
-    <form method="post" action="{{ url('admin/unit/aksi') }}" class="bilah-alat mt-3">
+    <form method="post" action="{{ url('admin/unit/aksi') }}" data-ajax="ubah_unit">
       @csrf
-      <input type="hidden" name="aksi" value="tambah_sub">
-      <input type="hidden" name="unit_kerja_id" value="{{ (int) $uk->id }}">
-      <input type="text" name="nama" placeholder="Nama sub unit baru untuk {{ $uk->nama }}…" required>
-      <select name="atasan_id" class="w-auto min-w-[170px] text-sm" title="Atasan default pegawai sub unit ini">
-        <option value="">— Atasan sub unit —</option>
-        @foreach($pegawaiPilihan as $opt)
-          <option value="{{ (int) $opt->id }}">{{ $opt->nama_lengkap }}</option>
-        @endforeach
-      </select>
-      <button type="submit" class="btn btn-primer btn-kecil">+ Tambah Sub Unit</button>
+      <input type="hidden" name="aksi" value="ubah_unit">
+      <input type="hidden" name="id" id="ubah-unit-id">
+      <input type="hidden" name="tab_asal" id="ubah-unit-tab-asal">
+      <label class="teks-kecil mb-1 block">Nama unit kerja</label>
+      <input type="text" name="nama" id="ubah-unit-nama" required>
+      <label class="teks-kecil mt-3 mb-1 block">Atasan default unit</label>
+      @include('admin.unit.pilih_pegawai', [
+        'namaField' => 'atasan_id',
+        'idSelect' => 'ubah-unit-atasan',
+        'daftar' => $pegawaiPilihan,
+        'terpilih' => 0,
+        'labelKosong' => '— Atasan unit —',
+        'judul' => 'Atasan default unit kerja ini',
+      ])
+      <label class="teks-kecil flex items-center gap-1.5 whitespace-nowrap mt-3">
+        <input type="checkbox" name="punya_sub" value="1" id="ubah-unit-punya-sub" class="w-auto">
+        Memiliki sub unit
+      </label>
+      <div class="flex justify-end gap-2 mt-5">
+        <button type="button" class="btn btn-garis" data-tutup-modal="modal-ubah">Batal</button>
+        <button type="submit" class="btn btn-primer">Simpan Perubahan</button>
+      </div>
     </form>
-  @endif
-</section>
-@endforeach
+  </div>
+</div>
 
+@endsection
+
+@section('script')
+<script>
+(function () {
+  var tabBar   = document.getElementById('tab-bar');
+  var isiTab   = document.getElementById('isi-tab');
+  var pesan    = document.getElementById('pesan-unit');
+  var csrf     = (document.querySelector('meta[name="csrf"]') || {}).content || '';
+  var urlData  = '{{ route('admin.unit.data') }}';
+  var urlAksi  = '{{ route('admin.unit.aksi') }}';
+
+  var tab = '{{ $mode === 'unit' && $unitAktif ? (int) $unitAktif->id : $mode }}';
+  var sedangMuat = false;
+
+  function tampilPesan(teks, berhasil) {
+    if (! teks) {
+      pesan.classList.add('hidden');
+      pesan.textContent = '';
+      return;
+    }
+    pesan.className = 'mb-4 px-4 py-3 rounded-xl text-sm ' + (berhasil
+      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+      : 'bg-rose-50 text-rose-700 border border-rose-200');
+    pesan.textContent = teks;
+  }
+
+  function tabAktifDariTabs() {
+    var aktif = tabBar.querySelector('.tab-unit.aktif[data-tab]');
+    return aktif ? aktif.getAttribute('data-tab') : null;
+  }
+
+  function muatTab(kunci) {
+    if (sedangMuat) return;
+    sedangMuat = true;
+    tampilPesan('', true);
+
+    fetch(urlData + '?' + new URLSearchParams({ tab: kunci }).toString(), { headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.json(); })
+      .then(function (h) {
+        if (! h.sukses) { tampilPesan('Gagal memuat data.', false); return; }
+        tab = kunci;
+        tabBar.innerHTML = h.tabs;
+        isiTab.innerHTML = h.isi;
+      })
+      .catch(function () { tampilPesan('Terjadi kesalahan jaringan.', false); })
+      .then(function () { sedangMuat = false; });
+  }
+
+  window.unitTutup = function (id) {
+    var m = document.getElementById(id);
+    if (! m) return;
+    m.classList.add('hidden');
+    m.classList.remove('flex');
+  };
+
+  function bukaModal(id) {
+    var m = document.getElementById(id);
+    if (! m) return;
+    m.classList.remove('hidden');
+    m.classList.add('flex');
+  }
+
+  function isiModalUbah(b) {
+    document.getElementById('ubah-unit-id').value = b.getAttribute('data-unit') || '';
+    document.getElementById('ubah-unit-nama').value = b.getAttribute('data-nama') || '';
+    document.getElementById('ubah-unit-atasan').value = b.getAttribute('data-atasan') || '';
+    document.getElementById('ubah-unit-punya-sub').checked = b.getAttribute('data-punya-sub') === '1';
+    // Supaya setelah disimpan halaman tetap berada di tab unit itu, bukan
+    // lompat ke tab Semua Unit Kerja.
+    document.getElementById('ubah-unit-tab-asal').value = b.getAttribute('data-unit') || '';
+    bukaModal('modal-ubah');
+    unitSinkronPilihan(document.getElementById('ubah-unit-atasan'));
+  }
+
+  /* ── Pilih pegawai: combo box cari nama ───────────────────────────────
+     <select> asli tetap ada (fallback tanpa JS & sumber nilai form), lalu
+     disembunyikan dan digantikan kotak cari + daftar terfilter. Semua
+     perekatannya di document supaya ikut bekerja pada markup hasil fetch. */
+  // WeakMap: kunci objek tidak boleh berubah jadi string seperti [object HTMLDivElement].
+  var cariPegawai = new WeakMap();
+
+  function unitSiapkanPilihan(bungkus) {
+    if (! bungkus || ! bungkus.isConnected || bungkus.classList.contains('siap')) return;
+    var select = bungkus.querySelector('select');
+    var cari = bungkus.querySelector('.pilih-pegawai-cari');
+    var daftar = bungkus.querySelector('.pilih-pegawai-daftar');
+    if (! select || ! cari || ! daftar) return;
+
+    var isi = [{ nilai: '', label: select.options[0] ? select.options[0].textContent : '', cari: '' }];
+    Array.prototype.forEach.call(select.options, function (o, i) {
+      if (i === 0 && o.value === '') return;
+      isi.push({ nilai: o.value, label: o.textContent.trim(), cari: (o.getAttribute('data-cari') || o.textContent).toLowerCase() });
+    });
+
+    bungkus.classList.add('siap');
+    cariPegawai.set(bungkus, { select: select, cari: cari, daftar: daftar, isi: isi, sorot: -1 });
+    unitTampilPilihan(bungkus);
+  }
+
+  function unitTampilPilihan(bungkus) {
+    var s = cariPegawai.get(bungkus);
+    if (! s) return;
+    var terpilih = s.isi.filter(function (o) { return o.nilai === s.select.value; })[0];
+    s.cari.value = terpilih ? terpilih.label : '';
+  }
+
+  window.unitSinkronPilihan = function (select) {
+    if (! select) return;
+    unitSiapkanPilihan(select.closest('[data-pilih-pegawai]'));
+    unitTampilPilihan(select.closest('[data-pilih-pegawai]'));
+  };
+
+  function unitGambarDaftar(bungkus, kata) {
+    var s = cariPegawai.get(bungkus);
+    if (! s) return;
+    var koma = (kata || '').toLowerCase().trim();
+    var cocok = s.isi.filter(function (o) { return ! koma || o.cari.indexOf(koma) !== -1; });
+
+    s.daftar.innerHTML = '';
+    if (! cocok.length) {
+      var kosong = document.createElement('li');
+      kosong.className = 'kosong';
+      kosong.textContent = 'Nama tidak ditemukan';
+      s.daftar.appendChild(kosong);
+    } else {
+      cocok.forEach(function (o) {
+        var li = document.createElement('li');
+        li.setAttribute('role', 'option');
+        li.setAttribute('data-nilai', o.nilai);
+        li.textContent = o.label;
+        s.daftar.appendChild(li);
+      });
+    }
+    s.sorot = -1;
+  }
+
+  function unitBukaDaftar(bungkus, kata) {
+    var s = cariPegawai.get(bungkus);
+    if (! s) return;
+    unitGambarDaftar(bungkus, kata);
+    s.daftar.classList.remove('hidden');
+    s.cari.setAttribute('aria-expanded', 'true');
+  }
+
+  function unitTutupDaftar(bungkus) {
+    var s = cariPegawai.get(bungkus);
+    if (! s) return;
+    s.daftar.classList.add('hidden');
+    s.cari.setAttribute('aria-expanded', 'false');
+    s.sorot = -1;
+  }
+
+  function unitSorot(bungkus, arah) {
+    var s = cariPegawai.get(bungkus);
+    if (! s) return;
+    var item = s.daftar.querySelectorAll('li[data-nilai]');
+    if (! item.length) return;
+    s.sorot = (s.sorot + arah + item.length) % item.length;
+    Array.prototype.forEach.call(item, function (li, i) { li.classList.toggle('sorot', i === s.sorot); });
+    if (item[s.sorot].scrollIntoView) item[s.sorot].scrollIntoView({ block: 'nearest' });
+  }
+
+  document.addEventListener('focusin', function (e) {
+    var bungkus = e.target.closest ? e.target.closest('[data-pilih-pegawai]') : null;
+    if (! bungkus || ! e.target.classList.contains('pilih-pegawai-cari')) return;
+    e.target.select();
+    unitBukaDaftar(bungkus, '');
+  });
+
+  document.addEventListener('input', function (e) {
+    var bungkus = e.target.closest ? e.target.closest('[data-pilih-pegawai]') : null;
+    if (! bungkus || ! e.target.classList.contains('pilih-pegawai-cari')) return;
+    unitBukaDaftar(bungkus, e.target.value);
+  });
+
+  document.addEventListener('keydown', function (e) {
+    var bungkus = e.target.closest ? e.target.closest('[data-pilih-pegawai]') : null;
+    if (! bungkus || ! e.target.classList.contains('pilih-pegawai-cari')) return;
+    var s = cariPegawai.get(bungkus);
+
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (s.daftar.classList.contains('hidden')) unitBukaDaftar(bungkus, s.cari.value);
+      else unitSorot(bungkus, e.key === 'ArrowDown' ? 1 : -1);
+    } else if (e.key === 'Enter') {
+      var item = s.daftar.querySelectorAll('li[data-nilai]');
+      if (item[s.sorot]) { e.preventDefault(); item[s.sorot].dispatchEvent(new MouseEvent('click', { bubbles: true })); }
+    } else if (e.key === 'Escape') {
+      unitTutupDaftar(bungkus);
+    }
+  });
+
+  document.addEventListener('click', function (e) {
+    var bungkus = e.target.closest ? e.target.closest('[data-pilih-pegawai]') : null;
+
+    if (! bungkus) {
+      Array.prototype.forEach.call(document.querySelectorAll('[data-pilih-pegawai]'), unitTutupDaftar);
+      return;
+    }
+    if (! e.target.classList.contains('pilih-pegawai-cari') && ! bungkus.contains(e.target)) return;
+
+    var li = e.target.closest('li[data-nilai]');
+    if (li) {
+      var s = cariPegawai.get(bungkus);
+      s.select.value = li.getAttribute('data-nilai');
+      s.select.dispatchEvent(new Event('change', { bubbles: true }));
+      unitTampilPilihan(bungkus);
+      unitTutupDaftar(bungkus);
+      s.cari.blur();
+      return;
+    }
+
+    if (e.target.classList.contains('pilih-pegawai-cari')) unitBukaDaftar(bungkus, e.target.value);
+  });
+
+  function unitSiapkanSemua() {
+    Array.prototype.forEach.call(document.querySelectorAll('[data-pilih-pegawai]'), unitSiapkanPilihan);
+  }
+
+  if (window.MutationObserver) {
+    new MutationObserver(unitSiapkanSemua).observe(document.documentElement, { childList: true, subtree: true });
+  }
+  unitSiapkanSemua();
+
+  function kirim(form, tambahan) {
+    var data = new FormData(form);
+    Object.keys(tambahan || {}).forEach(function (k) { data.set(k, tambahan[k]); });
+
+    tampilPesan('Menyimpan…', true);
+
+    return fetch(urlAksi, {
+      method: 'POST',
+      body: data,
+      headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' }
+    })
+      .then(function (r) { return r.json().then(function (h) { return { ok: r.ok, h: h }; }); })
+      .then(function (b) {
+        var h = b.h;
+        if (h.tabs) { tabBar.innerHTML = h.tabs; isiTab.innerHTML = h.isi; }
+        if (h.mode === 'unit') tab = tabAktifDariTabs() || tab;
+        else if (h.mode) tab = h.mode;
+
+        tampilPesan(h.pesan, !! h.sukses);
+
+        if (h.sukses && form.dataset.ajax === 'tambah_unit') window.unitTutup('modal-tambah');
+        if (h.sukses && form.dataset.ajax === 'ubah_unit') window.unitTutup('modal-ubah');
+        if (h.sukses && form.isConnected) { form.reset(); unitSiapkanSemua(); }
+      })
+      .catch(function () { tampilPesan('Terjadi kesalahan jaringan.', false); });
+  }
+
+  // Delegasi: seluruh tombol & form hasil render dinamis tertangkap di sini.
+  document.addEventListener('click', function (e) {
+    var target = e.target;
+
+    var tabKlik = target.closest('[data-tab]');
+    if (tabKlik) {
+      e.preventDefault();
+      muatTab(tabKlik.getAttribute('data-tab'));
+      return;
+    }
+
+    var buka = target.closest('[data-buka-modal]');
+    if (buka) {
+      e.preventDefault();
+      if (buka.getAttribute('data-buka-modal') === 'modal-ubah') isiModalUbah(buka);
+      else bukaModal(buka.getAttribute('data-buka-modal'));
+      return;
+    }
+
+    var tutup = target.closest('[data-tutup-modal]');
+    if (tutup) {
+      e.preventDefault();
+      window.unitTutup(tutup.getAttribute('data-tutup-modal'));
+      return;
+    }
+
+    var aksi = target.closest('button[data-ajax]');
+    if (aksi && aksi.getAttribute('data-ajax') !== 'ubah_sub') {
+      e.preventDefault();
+
+      var konfirmasi = aksi.getAttribute('data-konfirmasi');
+      if (konfirmasi && ! confirm(konfirmasi)) return;
+
+      var form = document.createElement('form');
+      form.dataset.ajax = aksi.getAttribute('data-ajax');
+      kirim(form, {
+        aksi: aksi.getAttribute('data-ajax'),
+        id: aksi.getAttribute('data-id') || '',
+        nama: aksi.getAttribute('data-nama') || '',
+        unit_kerja_id: aksi.getAttribute('data-unit-kerja-id') || '',
+        tab_asal: aksi.getAttribute('data-tab-asal') || tab
+      });
+    }
+  });
+
+  // Simpan atasan sub unit: nilai select di sebelah tombol Simpan.
+  document.addEventListener('click', function (e) {
+    var aksi = e.target.closest('button[data-ajax="ubah_sub"]');
+    if (! aksi) return;
+    e.preventDefault();
+
+    var select = aksi.closest('td').querySelector('select[name="atasan_id"]');
+
+    var form = document.createElement('form');
+    form.dataset.ajax = 'ubah_sub';
+    kirim(form, {
+      aksi: 'ubah_sub',
+      id: aksi.getAttribute('data-id'),
+      nama: aksi.getAttribute('data-nama'),
+      atasan_id: select ? select.value : '',
+      unit_kerja_id: aksi.getAttribute('data-unit-kerja-id')
+    });
+  });
+
+  document.addEventListener('submit', function (e) {
+    var form = e.target;
+    // Semua form di halaman ini AJAX: tambah unit, ubah unit, tambah sub unit.
+    if (! form.dataset || ! form.dataset.ajax) return;
+
+    e.preventDefault();
+    kirim(form, { unit_kerja_id: form.querySelector('[name="unit_kerja_id"]')?.value || '' });
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    ['modal-tambah', 'modal-ubah'].forEach(function (id) {
+      var m = document.getElementById(id);
+      if (m && ! m.classList.contains('hidden')) window.unitTutup(id);
+    });
+  });
+})();
+</script>
 @endsection

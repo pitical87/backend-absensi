@@ -25,33 +25,6 @@
 </section>
 @endif
 
-@if($teladan)
-<section class="kartu">
-  <div class="kartu-kepala">
-    <h2>{!! ikon('bintang') !!} Pegawai Teladan Bulan Ini</h2>
-    <span class="teks-redup teks-kecil">bintang rata-rata ≥ 4.5</span>
-  </div>
-  <div class="tabel-bungkus">
-    <table class="tabel">
-      <thead>
-        <tr><th>Nama Pegawai</th><th>Unit</th><th>Bintang</th><th>Kehadiran</th></tr>
-      </thead>
-      <tbody>
-        @foreach($teladan as $t)
-        <tr>
-          <td>{{ $t['nama'] }}</td>
-          <td>{{ $t['unit'] }}</td>
-          <td><span class="teks-bintang">{{ str_repeat('★', (int) round($t['bintang'])) }}{{ str_repeat('☆', 5 - (int) round($t['bintang'])) }}</span>
-            <span class="teks-redup teks-kecil">({{ $t['bintang'] }})</span></td>
-          <td>{{ $t['hadir'] }} hari</td>
-        </tr>
-        @endforeach
-      </tbody>
-    </table>
-  </div>
-</section>
-@endif
-
 <section class="kartu">
   <div class="kartu-kepala">
     <h2>{!! ikon('centang') !!} Ketaatan Absen Bulan {{ BULAN_ID[(int) now()->format('n')] }} {{ now()->format('Y') }}</h2>
@@ -62,8 +35,8 @@
     <div class="relative shrink-0 w-[180px] h-[180px]">
       <canvas id="grafik-ketaatan" role="img" aria-label="Diagram lingkaran ketaatan absen bulan ini"></canvas>
       <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-        <strong class="text-2xl font-bold text-navy leading-none">{{ $persenKetaatan }}%</strong>
-        <span class="text-[0.65rem] text-slate-500 uppercase tracking-widest mt-1">ketaatan</span>
+        <strong class="text-2xl font-bold text-navy leading-none">{{ number_format($persenKetaatan, 2, ',', '.') }}%</strong>
+        <span class="text-[0.65rem] text-slate-500 uppercase tracking-widest mt-1">{{ BULAN_ID[(int) now()->format('n')] }}/{{ now()->format('Y') }}</span>
       </div>
     </div>
     <ul class="space-y-2.5 text-sm w-full sm:flex-1 m-0 p-0 list-none">
@@ -72,13 +45,43 @@
         <i class="w-3.5 h-3.5 rounded-md shrink-0 inline-block" style="background: {{ $s['warna'] }}"></i>
         <span class="text-slate-700">{{ $s['label'] }}</span>
         <span class="ml-auto tabular-nums whitespace-nowrap"><strong>{{ $s['jml'] }}</strong>
-          <span class="teks-redup teks-kecil">pegawai ({{ $s['pct'] }}%)</span></span>
+          <span class="teks-redup teks-kecil">pegawai ({{ number_format($s['pct'], 2, ',', '.') }}%)</span></span>
       </li>
       @endforeach
     </ul>
   </div>
   @else
   <p class="teks-redup tengah m-0">Belum ada data absensi untuk bulan ini.</p>
+  @endif
+</section>
+
+<section class="kartu">
+  <div class="kartu-kepala">
+    <h2>{!! ikon('jam') !!} Absen Lebih Awal, Lebih Akhir & Sesuai Jam Bulan {{ BULAN_ID[(int) now()->format('n')] }} {{ now()->format('Y') }}</h2>
+    <span class="teks-redup teks-kecil">toleransi ±{{ $lewatJadwal['toleransi'] }} menit · {{ $lewatJadwal['total'] }} pegawai melebihi jadwal</span>
+  </div>
+  @if($lewatJadwal['ada_data'])
+  <div class="flex flex-col sm:flex-row items-center gap-6">
+    <div class="relative shrink-0 w-[180px] h-[180px]">
+      <canvas id="grafik-lewat-jadwal" role="img" aria-label="Diagram lingkaran pegawai datang lebih awal, pulang lebih akhir, dan sesuai jam bulan ini"></canvas>
+      <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+        <strong class="text-2xl font-bold text-navy leading-none">{{ number_format($lewatJadwal['persen'], 2, ',', '.') }}%</strong>
+        <span class="text-[0.65rem] text-slate-500 uppercase tracking-widest mt-1">{{ BULAN_ID[(int) now()->format('n')] }}/{{ now()->format('Y') }}</span>
+      </div>
+    </div>
+    <ul class="space-y-2.5 text-sm w-full sm:flex-1 m-0 p-0 list-none">
+      @foreach($lewatJadwal['irisan'] as $s)
+      <li class="flex items-center gap-2.5">
+        <i class="w-3.5 h-3.5 rounded-md shrink-0 inline-block" style="background: {{ $s['warna'] }}"></i>
+        <span class="text-slate-700">{{ $s['label'] }}</span>
+        <span class="ml-auto tabular-nums whitespace-nowrap"><strong>{{ $s['jml'] }}</strong>
+          <span class="teks-redup teks-kecil">pegawai ({{ number_format($s['pct'], 2, ',', '.') }}%)</span></span>
+      </li>
+      @endforeach
+    </ul>
+  </div>
+  @else
+  <p class="teks-redup tengah m-0">Belum ada data jam absensi pegawai bulan ini.</p>
   @endif
 </section>
 
@@ -169,6 +172,7 @@
 @section('script')
 @php
   $pieAktif = array_values(array_filter($irisanPie, fn ($s) => $s['jml'] > 0));
+  $lewatAktif = array_values(array_filter($lewatJadwal['irisan'], fn ($s) => $s['jml'] > 0));
   $trenData = [
       'labels' => array_map(fn ($g) => (int) substr($g['tgl'], 8, 2), $grafikGaris),
       'hadir'  => array_column($grafikGaris, 'hadir'),
@@ -183,6 +187,7 @@
   'use strict';
 
   var KETAATAN = @json($pieAktif);
+  var LEWAT = @json($lewatAktif);
   var TREN = @json($trenData);
 
   function palet() {
@@ -193,36 +198,42 @@
     };
   }
 
-  function init() {
-    var elPie = document.getElementById('grafik-ketaatan');
-    if (elPie && window.Chart && KETAATAN.length) {
-      new Chart(elPie, {
-        type: 'doughnut',
-        data: {
-          labels: KETAATAN.map(function (s) { return s.label; }),
-          datasets: [{
-            data: KETAATAN.map(function (s) { return s.jml; }),
-            backgroundColor: KETAATAN.map(function (s) { return s.warna; }),
-            borderColor: '#ffffff',
-            borderWidth: 2,
-            hoverOffset: 6
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          cutout: '64%',
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              callbacks: {
-                label: function (c) { return c.label + ': ' + c.parsed + ' pegawai'; }
-              }
+  // Diagram lingkaran untuk kartu ketaatan absen & kartu lewat jadwal
+  function donat(el, data) {
+    if (!el || !window.Chart || !data.length) {
+      return null;
+    }
+    return new Chart(el, {
+      type: 'doughnut',
+      data: {
+        labels: data.map(function (s) { return s.label; }),
+        datasets: [{
+          data: data.map(function (s) { return s.jml; }),
+          backgroundColor: data.map(function (s) { return s.warna; }),
+          borderColor: '#ffffff',
+          borderWidth: 2,
+          hoverOffset: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '64%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function (c) { return c.label + ': ' + c.parsed + ' pegawai'; }
             }
           }
         }
-      });
-    }
+      }
+    });
+  }
+
+  function init() {
+    donat(document.getElementById('grafik-ketaatan'), KETAATAN);
+    donat(document.getElementById('grafik-lewat-jadwal'), LEWAT);
 
     var grafikTren = null;
     var elTren = document.getElementById('grafik-tren');

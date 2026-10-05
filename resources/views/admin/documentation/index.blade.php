@@ -8,11 +8,11 @@ $badgeMetode = ['GET' => 'badge-hijau', 'POST' => 'badge-biru', 'PUT' => 'badge-
 $grupApi = [
   [
     'id' => 'autentikasi', 'judul' => 'Autentikasi & Akun', 'ikon' => 'kunci',
-    'info' => 'Ada dua cara masuk: (1) email &amp; password seperti biasa, atau (2) akun Google. Login dengan Google tersedia di halaman login web (tombol <em>Sign in with Google</em>, alur redirect ke Google lalu kembali ke <code>/auth/google/callback</code>) dan di aplikasi web terpisah lewat <code>POST /api/mobile/login/google</code> yang mengirim <code>id_token</code>. Keduanya memakai aturan yang sama: email harus <strong>sudah terdaftar</strong> di sistem (tidak ada pendaftaran otomatis), hanya role pegawai (admin memakai email &amp; password), akun harus aktif, dan Google harus menyatakan email terverifikasi. Bila email terverifikasi Google dan belum pernah diverifikasi di sistem, <code>email_verified_at</code> diisi otomatis sehingga banner verifikasi hilang dan reset password kembali bisa dipakai. Data master (nama, NIP, unit kerja) tidak pernah diambil dari Google. <strong>Catatan develops lokal:</strong> cookie sesi terikat host, jadi callback yang kembali ke host berbeda tidak membawa cookie dan muncul pesan <em>Sesi login Google tidak cocok</em>. Saat lokal, server memakai <code>localhost</code>, <code>127.0.0.1</code>, atau <code>::1</code> sesuai host yang dipakai browser, dan nilai itu <strong>wajib</strong> didaftarkan di <em>Authorized redirect URIs</em> (untuk <code>php artisan serve</code>: <code>http://localhost:8000/auth/google/callback</code> dan <code>http://127.0.0.1:8000/auth/google/callback</code>). Di produksi nilai <code>GOOGLE_REDIRECT_URI</code> tidak pernah ditimpa. Nilai yang benar-benar dikirim dapat dibaca di <code>php artisan google:cek</code> dan <code>storage/logs/laravel.log</code>.',
+    'info' => 'Ada dua cara masuk: (1) email &amp; password seperti biasa, atau (2) akun Google. Login dengan Google tersedia di halaman login web (tombol <em>Sign in with Google</em>, alur redirect ke Google lalu kembali ke <code>/auth/google/callback</code>) dan di aplikasi web terpisah lewat <code>POST /api/mobile/login/google</code> yang mengirim <code>id_token</code>. Keduanya memakai aturan yang sama: email harus <strong>sudah terdaftar</strong> di sistem (tidak ada pendaftaran otomatis), hanya role pegawai (admin memakai email &amp; password), akun harus aktif, dan Google harus menyatakan email terverifikasi. Bila email terverifikasi Google dan belum pernah diverifikasi di sistem, <code>email_verified_at</code> diisi otomatis sehingga banner verifikasi hilang dan reset password kembali bisa dipakai. Data master (nama, NIP, unit kerja) tidak pernah diambil dari Google. <strong>Hak akses based atasan langsung:</strong> respons login (dan <code>GET /me</code>) selalu menyertakan <code>hak_akses</code> serta <code>bawahan</code>. Kelima flag bernilai <code>true</code> bila user tercatat sebagai atasan langsung minimal satu pegawai pada tabel <code>atasan_langsung</code>, dan <code>false</code> bila tidak punya bawahan. <code>bawahan</code> berisi daftar <code>id</code>, <code>nama</code>, dan <code>email</code> seluruh bawahan langsung user tersebut. <code>role</code> tetap berupa string (<code>"pegawai"</code>) supaya klien lama tidak rusak. <strong>Catatan develops lokal:</strong> cookie sesi terikat host, jadi callback yang kembali ke host berbeda tidak membawa cookie dan muncul pesan <em>Sesi login Google tidak cocok</em>. Saat lokal, server memakai <code>localhost</code>, <code>127.0.0.1</code>, atau <code>::1</code> sesuai host yang dipakai browser, dan nilai itu <strong>wajib</strong> didaftarkan di <em>Authorized redirect URIs</em> (untuk <code>php artisan serve</code>: <code>http://localhost:8000/auth/google/callback</code> dan <code>http://127.0.0.1:8000/auth/google/callback</code>). Di produksi nilai <code>GOOGLE_REDIRECT_URI</code> tidak pernah ditimpa. Nilai yang benar-benar dikirim dapat dibaca di <code>php artisan google:cek</code> dan <code>storage/logs/laravel.log</code>.',
     'endpoints' => [
       [
         'metode' => 'POST', 'jalur' => '/login', 'akses' => 'Publik',
-        'deskripsi' => 'Masuk dengan email & password. Sukses mengembalikan data user beserta titik lokasi RSUD dan menyetel cookie httpOnly auth_token (berlaku 7 hari) yang dibawa otomatis pada semua request berikutnya.',
+        'deskripsi' => 'Masuk dengan email &amp; password. Sukses mengembalikan data user beserta titik lokasi RSUD dan menyetel cookie httpOnly auth_token (berlaku 7 hari) yang dibawa otomatis pada semua request berikutnya. Respons juga membawa <code>hak_akses</code> (lima flag boolean berbasis relasi atasan langsung) dan <code>bawahan</code> (daftar <code>id</code>/<code>nama</code>/<code>email</code> bawahan langsung) supaya klien bisa langsung menentukan menu mana yang tampil tanpa request tambahan.',
         'parameter' => [
           ['email', 'body', 'string', true, 'Email akun terdaftar (role selain admin).'],
           ['password', 'body', 'string', true, 'Password akun.'],
@@ -36,7 +36,18 @@ JSON,
     "sub_unit": null,
     "shift": { "id": 1, "kategori": "Pagi", "jam_masuk": "07:00", "jam_pulang": "14:00" }
   },
-  "lokasi": { "lat": -8.499112, "lng": 140.404984, "radius": 100 }
+  "lokasi": { "lat": -8.499112, "lng": 140.404984, "radius": 100 },
+  "hak_akses": {
+    "verifikasi_logbook": true,
+    "buat_jadwal": true,
+    "verifikasi_ijin": true,
+    "verifikasi_lembur": true,
+    "verifikasi_perubahan_jadwal": true
+  },
+  "bawahan": [
+    { "id": 7, "nama": "Firman", "email": "firman@example.com" },
+    { "id": 9, "nama": "Rina Wijaya", "email": "rina.wijaya@example.com" }
+  ]
 }
 JSON,
       ],
@@ -64,7 +75,15 @@ JSON,
     "email_verified_at": "2026-10-01T09:15:00.000000Z",
     "unit_kerja": { "id": 1, "nama": "Instalasi Rawat Jalan" }
   },
-  "lokasi": { "lat": -8.499112, "lng": 140.404984, "radius": 100 }
+  "lokasi": { "lat": -8.499112, "lng": 140.404984, "radius": 100 },
+  "hak_akses": {
+    "verifikasi_logbook": false,
+    "buat_jadwal": false,
+    "verifikasi_ijin": false,
+    "verifikasi_lembur": false,
+    "verifikasi_perubahan_jadwal": false
+  },
+  "bawahan": []
 }
 
 // 403 — email belum terdaftar
@@ -1276,6 +1295,7 @@ JSON,
   ],
   [
     'id' => 'logbook-saya', 'judul' => 'Logbook Saya', 'ikon' => 'log',
+    'info' => 'Entri yang dibuat user sendiri berstatus <strong>belum terverifikasi</strong> dan menunggu atasan langsung. <strong>Pengecualian:</strong> entri yang diinput admin lewat halaman web <em>Buat Logbook</em> (<code>/admin/logbook</code>) langsung berstatus <strong>terverifikasi</strong> karena diinput atas nama pegawai, sehingga tidak perlu ditunggu atasan. Verifikasi oleh atasan langsung memakai endpoint <code>POST /logbook/verifikasi</code> (lihat grup <em>Verifikasi Logbook Atasan</em>); atasan hanya bisa memverifikasi atau membatalkan verifikasi, tidak bisa mengubah isi maupun menghapus logbook bawahan. Tillah <code>verified_by</code> dan <code>verified_at</code> diisi penanda audit.',
     'endpoints' => [
       [
         'metode' => 'GET', 'jalur' => '/logbook?q=&bulan=&tahun=&hal=', 'akses' => 'Token',
@@ -1386,6 +1406,112 @@ curl -X DELETE 'https://rsud-merauke.id/api/mobile/logbook/837'
 JSON,
 'respons' => <<<'JSON'
 { "sukses": true, "pesan": "1 entri logbook dihapus." }
+JSON,
+      ],
+    ],
+  ],
+  [
+    'id' => 'verifikasi-logbook', 'judul' => 'Verifikasi Logbook Atasan', 'ikon' => 'struktur',
+    'info' => 'Endpoint bagi <strong>atasan langsung</strong> untuk melihat dan memverifikasi logbook bawahannya. <strong>Contoh:</strong> bila atasan langsung Firman adalah Diana, maka user Diana melihat dan dapat memverifikasi logbook Firman, sedangkan user lain tidak. Sumber kewenangan adalah tabel <code>atasan_langsung</code>: baris dengan <code>atasan_id</code> = user yang login berarti <code>user_id</code> pada baris tersebut adalah bawahan langsungnya. Satu pegawai boleh punya beberapa atasan langsung dan setiap atasan yang terdaftar sama-sama berwenang. Relasi ini dikelola admin pada menu <em>Atasan Langsung</em>. <strong>Aturan penting:</strong> (1) atasan <strong>hanya boleh memverifikasi atau membatalkan verifikasi</strong>, tidak dapat mengubah isi atau menghapus entri bawahan; (2) permintaan ditolak utuh bila salah satu <code>ids</code> bukan milik bawahan langsung pemanggil — tidak ada verifikasi parsial; (3) verifikasi yang sudah berstatus terverifikasi atau pembatalan pada entri yang belum terverifikasi tidak dihitung dan mengembalikan <strong>404</strong>; (4) admin bebas memverifikasi logbook siapa pun lewat halaman web <em>Data Logbook</em>.',
+    'endpoints' => [
+      [
+        'metode' => 'GET', 'jalur' => '/logbook/bawahan?bulan=&tahun=', 'akses' => 'Token',
+        'deskripsi' => 'Daftar seluruh bawahan langsung beserta progres verifikasi logbook pada satu bulan. Cocok untuk layar depan atasan: menampilkan badge jumlah entri yang belum diverifikasi per bawahan.',
+        'parameter' => [
+          ['bulan', 'query', 'integer 1-12', false, 'Filter bulan tanggal entri (default: bulan berjalan).'],
+          ['tahun', 'query', 'integer', false, 'Filter tahun tanggal entri (default: tahun berjalan).'],
+        ],
+        'status' => '200 sukses (kosong bila tidak punya bawahan) · 422 bulan/tahun di luar rentang',
+                'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/logbook/bawahan?bulan=8&tahun=2026'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
+{
+  "sukses": true,
+  "bulan": 8,
+  "tahun": 2026,
+  "total_bawahan": 2,
+  "total_belum": 5,
+  "data": [
+    { "id": 7, "nama": "Firman", "nip": "19870101", "total_entri": 12, "terverifikasi": 9, "belum": 3 },
+    { "id": 9, "nama": "Rina Wijaya", "nip": "19880302", "total_entri": 6, "terverifikasi": 4, "belum": 2 }
+  ]
+}
+JSON,
+      ],
+      [
+        'metode' => 'GET', 'jalur' => '/logbook/bawahan/{user_id}?bulan=&tahun=', 'akses' => 'Token',
+        'deskripsi' => 'Isi logbook seorang bawahan pada satu bulan, dikelompokkan per tanggal (terbaru dulu) supaya mudah dibaca sebagai catatan harian. Setiap entri memuat status verifikasinya beserta nama dan waktu verifikasi.',
+        'parameter' => [
+          ['{user_id}', 'path', 'integer', true, 'ID pegawai bawahan langsung.'],
+          ['bulan', 'query', 'integer 1-12', false, 'Filter bulan tanggal entri (default: bulan berjalan).'],
+          ['tahun', 'query', 'integer', false, 'Filter tahun tanggal entri (default: tahun berjalan).'],
+        ],
+        'status' => '200 sukses · 403 bukan atasan langsung / meminta logbook sendiri · 404 pegawai tidak ada · 422 bulan/tahun di luar rentang',
+                'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/mobile/logbook/bawahan/7?bulan=8&tahun=2026'
+  -H 'Accept: application/json'
+JSON,
+'respons' => <<<'JSON'
+{
+  "sukses": true,
+  "bulan": 8,
+  "tahun": 2026,
+  "bawahan": { "id": 7, "nama": "Firman", "nip": "19870101" },
+  "total_hari": 5,
+  "total_entri": 2,
+  "terverifikasi": 1,
+  "belum": 1,
+  "data": {
+    "2026-08-20": [
+      {
+        "id": 901,
+        "jam": "09:30",
+        "isi": "Kontrol pagi ruang Colet Bokong",
+        "is_verified": false,
+        "verified_at": null,
+        "verified_by": null
+      }
+    ],
+    "2026-08-19": [
+      {
+        "id": 895,
+        "jam": "13:00",
+        "isi": "Rawat jalan poliklinik",
+        "is_verified": true,
+        "verified_at": "2026-08-20 08:00:00",
+        "verified_by": "Diana Sihombong"
+      }
+    ]
+  }
+}
+JSON,
+      ],
+      [
+        'metode' => 'POST', 'jalur' => '/logbook/verifikasi', 'akses' => 'Token',
+        'deskripsi' => 'Memverifikasi satu atau banyak entri logbook bawahan langsung sekaligus, atau membatalkan verifikasi yang sebelumnya sudah diberikan. Entri terverifikasi terkunci: pegawai tidak bisa mengubah atau menghapusnya lagi. <strong>Penolakan bersifat utuh:</strong> bila salah satu <code>ids</code> bukan milik bawahan langsung pemanggil, tidak ada entri pun yang disentuh.',
+        'parameter' => [
+          ['ids', 'body JSON', 'array integer', true, 'ID entri logbook yang akan diverifikasi atau dibatalkan verifikasinya (maksimal 100 id).'],
+          ['aksi', 'body JSON', 'verifikasi | batal', true, 'verifikasi menandai terverifikasi, batal melepas status verifikasi.'],
+          ['user_id', 'body JSON', 'integer', false, 'ID bawahan pemilik entri. Mengisi ini membuat server hanya memproses entri bawahan tersebut; bila diisi tetapi pemanggil bukan atasan langsungnya, permintaan ditolak 403.'],
+        ],
+        'body' => <<<'JSON'
+curl -X POST 'https://rsud-merauke.id/api/mobile/logbook/verifikasi' \
+  -H 'Accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{"ids":[901,902],"aksi":"verifikasi","user_id":7}'
+JSON,
+        'status' => '200 berhasil · 403 bukan atasan langsung / ada id di luar kewenangan · 404 entri sudah berstatus sama atau tidak ditemukan · 422 ids kosong, aksi tidak dikenal, atau user_id tidak valid',
+'respons' => <<<'JSON'
+// 200 — verifikasi berhasil
+{ "sukses": true, "pesan": "2 entri logbook berhasil diverifikasi.", "jumlah": 2 }
+
+// 200 — pembatalan verifikasi
+{ "sukses": true, "pesan": "1 entri logbook berhasil dibatalkan verifikasinya.", "jumlah": 1 }
+
+// 403 — mencoba verifikasi logbook yang bukan bawahan langsungnya
+{ "sukses": false, "pesan": "Entri logbook tersebut bukan milik bawahan langsung Anda.", "jumlah": 0 }
 JSON,
       ],
     ],

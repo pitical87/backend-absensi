@@ -12,19 +12,135 @@ use App\Models\User;
 use App\Services\BintangService;
 use DateTime;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 
 class KehadiranController extends Controller
 {
+    /** Batas baris yang dimuat ke tabel dan ke peta sebaran. */
+    private const BATAS_BARIS = 200;
+
     public function index(Request $request)
+    {
+        $filter = $this->filter($request);
+        $daftar = $this->daftarAbsensi($filter);
+
+        return view('admin.kehadiran.index', [
+            'judulHalaman' => 'Data Kehadiran',
+            'menuAktif' => 'kehadiran',
+            'tanggal' => $filter['tanggal'],
+            'fUnit' => $filter['unit'],
+            'q' => $filter['q'],
+            'fStatus' => $filter['status'],
+            'rows' => $daftar['rows'],
+            'total' => $daftar['total'],
+            'titik' => $daftar['titik'],
+            'ditolak' => $this->daftarPercobaan($filter['tanggal']),
+            'pegawaiList' => User::where('role', '!=', 'admin')->where('status', 'aktif')
+                ->orderBy('nama_lengkap')->get(['id', 'nama_lengkap'])->all(),
+            'unitList' => UnitKerja::orderBy('id')->get()->all(),
+            'rsLat' => (float) pengaturan('lokasi_lat', 0),
+            'rsLng' => (float) pengaturan('lokasi_lng', 0),
+            'radius' => (float) pengaturan('radius_meter', 100),
+            'hariLiburSet' => $this->daftarLibur(),
+        ]);
+    }
+
+    /**
+     * Endpoint asinkron: isi tabel kehadiran tanpa memuat ulang halaman.
+     * Balasannya HTML tabel yang sudah dirender server supaya tombol pada
+     * setiap baris (Ubah, Hapus, detail anomali) tetap hidup.
+     */
+    public function data(Request $request)
+    {
+        if (! $request->expectsJson()) {
+            return back();
+        }
+
+        $filter = $this->filter($request);
+        $daftar = $this->daftarAbsensi($filter);
+
+        return response()->json([
+            'sukses' => true,
+            'tanggal' => $filter['tanggal'],
+            'labelTanggal' => tgl_id($filter['tanggal']),
+            'total' => $daftar['total'],
+            'jumlah' => $daftar['rows']->count(),
+            'html' => view('admin.kehadiran.rows', ['rows' => $daftar['rows']])->render(),
+            'titik' => $daftar['titik'],
+        ]);
+    }
+
+    /** Endpoint asinkron: tabel percobaan absen yang ditolak pada satu tanggal. */
+    public function percobaan(Request $request)
+    {
+        if (! $request->expectsJson()) {
+            return back();
+        }
+
+        $tanggal = $this->filter($request)['tanggal'];
+        $ditolak = $this->daftarPercobaan($tanggal);
+
+        return response()->json([
+            'sukses' => true,
+            'total' => $ditolak->count(),
+            'html' => view('admin.kehadiran.percobaan_rows', ['ditolak' => $ditolak])->render(),
+        ]);
+    }
+
+    public function hapus(Request $request)
+    {
+        $absen = Absensi::find((int) $request->input('id'));
+        $pesan = 'Data absensi dihapus.';
+
+        if ($absen) {
+            $nama = (string) User::where('id', $absen->user_id)->value('nama_lengkap');
+            $detail = $nama !== '' ? $nama.' — '.tgl_id($absen->tanggal) : 'ID #'.$absen->id;
+            $absen->delete();
+            catat_aktivitas('Hapus Absensi', $detail);
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json(['sukses' => true, 'pesan' => $pesan]);
+        }
+
+        return redirect()->back()->with('success', $pesan);
+    }
+
+    /**
+     * Parameter ?tanggal=, ?q=, ?unit=, ?status= dari request, dibersihkan
+     * supaya aman dipakai ulang oleh index dan endpoint asinkron.
+     *
+     * @return array{tanggal: string, q: string, unit: int, status: string}
+     */
+    private function filter(Request $request): array
     {
         $tanggal = (string) $request->get('tanggal');
         if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggal)) {
             $tanggal = now()->format('Y-m-d');
         }
-        $fUnit = (int) $request->get('unit');
-        $hanyaAnomali = $request->get('anomali') === '1';
-        $q = trim((string) $request->get('q'));
-        $fStatus = (string) $request->get('status');
+
+        $status = (string) $request->get('status');
+        if (! in_array($status, ['tepat', 'terlambat'], true)) {
+            $status = '';
+        }
+
+        return [
+            'tanggal' => $tanggal,
+            'q' => trim((string) $request->get('q')),
+            'unit' => (int) $request->get('unit'),
+            'status' => $status,
+        ];
+    }
+
+    /**
+     * Catatan kehadiran pada satu tanggal beserta titik peta pembarunya.
+     *
+     * @param  array{tanggal: string, q: string, unit: int, status: string}  $filter
+     * @return array{rows: Collection, total: int, titik: array<int, array<string, mixed>>}
+     */
+    private function daftarAbsensi(array $filter): array
+    {
+        $q = $filter['q'];
 
         $b = Absensi::with([
             'user:id,nama_lengkap,nip,unit_kerja_id,sub_unit_id',
@@ -32,76 +148,63 @@ class KehadiranController extends Controller
             'user.subUnit:id,nama',
             'logLokasiDatang' => fn ($l) => $l->select('id', 'jarak_meter', 'tipe'),
         ])
-            ->whereDate('absensi.tanggal', $tanggal);
-        if ($q !== '') {
-            $b->whereHas('user', function ($u) use ($q) {
-                $u->where('nama_lengkap', 'like', "%{$q}%")
-                    ->orWhere('nip', 'like', "%{$q}%");
-            });
-        }
-        if ($fStatus === 'tepat' || $fStatus === 'terlambat') {
-            $b->where('absensi.status_masuk', $fStatus === 'tepat' ? 'Tepat Waktu' : 'Terlambat');
-        }
-        if ($fUnit) {
-            $b->whereHas('user', fn ($u) => $u->where('unit_kerja_id', $fUnit));
-        }
-        if ($hanyaAnomali) {
-            $b->where('absensi.flag_anomali', 1);
-        }
-        $rows = $b->orderBy('absensi.waktu_masuk')->get();
+            ->whereDate('absensi.tanggal', $filter['tanggal'])
+            ->when($q !== '', fn ($b) => $b->whereHas('user', fn ($u) => $u->where('nama_lengkap', 'like', "%{$q}%")->orWhere('nip', 'like', "%{$q}%")))
+            ->when($filter['status'] !== '', fn ($b) => $b->where('absensi.status_masuk', $filter['status'] === 'tepat' ? 'Tepat Waktu' : 'Terlambat'))
+            ->when($filter['unit'], fn ($b) => $b->whereHas('user', fn ($u) => $u->where('unit_kerja_id', $filter['unit'])))
+            ->orderBy('absensi.waktu_masuk');
 
-        $shiftHariIni = JadwalShift::query()
+        $total = (clone $b)->count();
+        $rows = $b->limit(self::BATAS_BARIS)->get();
+
+        // Satu jadwal shift per pegawai; simpan per baris supaya label_shift()
+        // pada view menerima objek shift, bukan seluruh collection.
+        $shift = JadwalShift::query()
             ->whereIn('user_id', $rows->pluck('user_id')->unique())
-            ->whereDate('tanggal_berlaku', $tanggal)
+            ->whereDate('tanggal_berlaku', $filter['tanggal'])
             ->with('shift:id,kategori,jam_masuk,jam_pulang')
             ->get()
             ->keyBy('user_id');
         foreach ($rows as $r) {
-            $r->setRelation('shiftHariIni', $shiftHariIni);
+            $r->setRelation('shiftHariIni', $shift->get($r->user_id)?->shift);
         }
-
-        $ditolak = LogLokasi::query()
-            ->with('user:id,nama_lengkap')
-            ->where('log_lokasi.ditolak', 1)
-            ->whereDate('log_lokasi.waktu', $tanggal)
-            ->orderBy('log_lokasi.waktu')
-            ->get();
 
         $titik = [];
         foreach ($rows as $r) {
             if ($r->lat_masuk !== null) {
-                $titik[] = ['nama' => $r->user->nama_lengkap, 'tipe' => 'Datang',
+                $titik[] = ['nama' => $r->user?->nama_lengkap, 'tipe' => 'Datang',
                     'lat' => (float) $r->lat_masuk, 'lng' => (float) $r->lng_masuk,
                     'jam' => jam_id($r->waktu_masuk), 'anomali' => (bool) $r->flag_anomali];
             }
             if ($r->lat_pulang !== null) {
-                $titik[] = ['nama' => $r->user->nama_lengkap, 'tipe' => 'Pulang',
+                $titik[] = ['nama' => $r->user?->nama_lengkap, 'tipe' => 'Pulang',
                     'lat' => (float) $r->lat_pulang, 'lng' => (float) $r->lng_pulang,
                     'jam' => jam_id($r->waktu_pulang), 'anomali' => (bool) $r->flag_anomali];
             }
         }
 
-        return view('admin.kehadiran.index', [
-            'judulHalaman' => 'Data Kehadiran',
-            'menuAktif' => 'kehadiran',
-            'tanggal' => $tanggal,
-            'fUnit' => $fUnit,
-            'hanyaAnomali' => $hanyaAnomali,
-            'q' => $q,
-            'fStatus' => $fStatus,
-            'rows' => $rows,
-            'ditolak' => $ditolak,
-            'titik' => $titik,
-            'pegawaiList' => User::where('role', '!=', 'admin')->where('status', 'aktif')
-                ->orderBy('nama_lengkap')->get(['id', 'nama_lengkap'])->all(),
-            'unitList' => UnitKerja::orderBy('id')->get()->all(),
-            'rsLat' => (float) pengaturan('lokasi_lat', 0),
-            'rsLng' => (float) pengaturan('lokasi_lng', 0),
-            'radius' => (float) pengaturan('radius_meter', 100),
-            'hariLiburSet' => HariLibur::whereBetween('tanggal', [
-                now()->subYear()->format('Y-m-d'), now()->addYears(2)->format('Y-m-d'),
-            ])->get()->mapWithKeys(fn ($h) => [$h->tanggal->toDateString() => true])->all(),
-        ]);
+        return ['rows' => $rows, 'total' => $total, 'titik' => $titik];
+    }
+
+    /** Percobaan absen di luar radius pada satu tanggal. */
+    private function daftarPercobaan(string $tanggal)
+    {
+        return LogLokasi::query()
+            ->with('user:id,nama_lengkap')
+            ->where('log_lokasi.ditolak', 1)
+            ->whereDate('log_lokasi.waktu', $tanggal)
+            ->orderBy('log_lokasi.waktu')
+            ->limit(self::BATAS_BARIS)
+            ->get();
+    }
+
+    /** Tanggal libur dalam rentang ±1 tahun, dipakai modal tambah absensi. */
+    private function daftarLibur(): array
+    {
+        return HariLibur::whereBetween('tanggal', [
+            now()->subYear()->format('Y-m-d'),
+            now()->addYears(2)->format('Y-m-d'),
+        ])->get()->mapWithKeys(fn ($h) => [$h->tanggal->toDateString() => true])->all();
     }
 
     public function simpan(Request $request)
@@ -386,18 +489,5 @@ class KehadiranController extends Controller
             'bintang_pulang' => $bintangPulang,
             'bintang_harian' => $bintangHarian,
         ];
-    }
-
-    public function hapus(Request $request)
-    {
-        $absen = Absensi::find((int) $request->input('id'));
-        if ($absen) {
-            $nama = (string) User::where('id', $absen->user_id)->value('nama_lengkap');
-            $detail = $nama !== '' ? $nama.' — '.tgl_id($absen->tanggal) : 'ID #'.$absen->id;
-            $absen->delete();
-            catat_aktivitas('Hapus Absensi', $detail);
-        }
-
-        return redirect()->back()->with('success', 'Data absensi dihapus.');
     }
 }

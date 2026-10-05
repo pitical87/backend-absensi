@@ -29,6 +29,30 @@ class AbsenService
 
         $isDokter = ($u['profesi_nama'] ?? '') === 'Dokter';
 
+        $jadwalMasuk = null;
+        $selisih = null;
+        if (! $isDokter && $u['shift_id'] && ! empty($u['shift_jam_masuk'])) {
+            [$jadwalMasuk, $selisih] = $this->jadwalMasukPegawai($u, $now);
+
+            $batasAwal = max(0, (int) pengaturan('batas_awal_absen_menit', 60));
+            $lebihAwal = (int) ceil(-$selisih);
+            if ($lebihAwal > $batasAwal) {
+                $this->catatLog((int) $u['id'], null, 'datang', $lat, $lng, $akurasi, $jarak, $now, true);
+
+                return response()->json([
+                    'sukses' => false,
+                    'pesan' => 'Absensi ditolak. Absen datang Anda belum sesuai jadwal shift.',
+                    'keterangan' => 'Jam masuk Anda '.jam_singkat($u['shift_jam_masuk'])
+                                  .', Anda datang pukul '.$now->format('H.i')
+                                  .' ('.menit_ke_teks($lebihAwal).' lebih awal). '
+                                  .($batasAwal > 0
+                                      ? 'Absen hanya dapat dilakukan paling cepat '.menit_ke_teks($batasAwal)
+                                        .' sebelum jam masuk.'
+                                      : 'Absen hanya dapat dilakukan tepat pada jam masuk.'),
+                ]);
+            }
+        }
+
         $pesanAutoClose = null;
 
         $hariSebelumnya = $this->hariKerjaSebelumnya($now);
@@ -71,11 +95,8 @@ class AbsenService
         if ($isDokter) {
             $tanggalShift = $now->format('Y-m-d');
         } else {
-            $jadwal = new DateTime($now->format('Y-m-d').' '.$u['shift_jam_masuk']);
-            if ($u['shift_kategori'] === 'Malam' && (int) $now->format('G') < 12) {
-                $jadwal->modify('-1 day');
-            }
-            $tanggalShift = $jadwal->format('Y-m-d');
+            $jadwalMasuk ??= $this->jadwalMasukPegawai($u, $now)[0];
+            $tanggalShift = $jadwalMasuk->format('Y-m-d');
         }
 
         $sudah = Absensi::where('user_id', $u['id'])->whereDate('tanggal', $tanggalShift)
@@ -94,11 +115,8 @@ class AbsenService
                 ->where('tanggal', $tanggalShift)->max('sesi') ?? 0) + 1;
         } else {
             $toleransi = (int) pengaturan('toleransi_menit', 5);
-            $jadwal = new DateTime($now->format('Y-m-d').' '.$u['shift_jam_masuk']);
-            if ($u['shift_kategori'] === 'Malam' && (int) $now->format('G') < 12) {
-                $jadwal->modify('-1 day');
-            }
-            $selisih = ($now->getTimestamp() - $jadwal->getTimestamp()) / 60;
+            $jadwalMasuk ??= $this->jadwalMasukPegawai($u, $now)[0];
+            $selisih ??= ($now->getTimestamp() - $jadwalMasuk->getTimestamp()) / 60;
 
             if ($selisih <= $toleransi) {
                 $status = 'Tepat Waktu';
@@ -153,6 +171,21 @@ class AbsenService
             ],
             'jam' => $now->format('H.i'),
         ]);
+    }
+
+    /**
+     * Mengembalikan [waktuJadwalMasuk, selisihMenit(now - jadwal)].
+     * Selisih negatif berarti datang lebih awal dari jadwal.
+     * Shift Malam yang absennya setelah tengah malam digeser ke tanggal sebelumnya.
+     */
+    private function jadwalMasukPegawai(array $u, DateTime $now): array
+    {
+        $jadwal = new DateTime($now->format('Y-m-d').' '.($u['shift_jam_masuk'] ?? '00:00:00'));
+        if (($u['shift_kategori'] ?? '') === 'Malam' && (int) $now->format('G') < 12) {
+            $jadwal->modify('-1 day');
+        }
+
+        return [$jadwal, ($now->getTimestamp() - $jadwal->getTimestamp()) / 60];
     }
 
     private function tutupOtomatisAbsensi(Absensi $rec, array $u, DateTime $now): void

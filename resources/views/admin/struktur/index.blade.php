@@ -21,16 +21,12 @@
     <input type="text" name="unit_label" placeholder="Label unit (khusus Bidang/Bagian, opsional)">
     <button type="submit" class="btn btn-primer btn-kecil">+ Tambah</button>
   </form>
-  <p class="petunjuk">Label unit hanya diisi untuk node setingkat Bidang/Bagian
-    (cth. <em>Bidang Pelayanan</em>) — dipakai sebagai "Unit Kerja" pada identitas pegawai
-    dan filter laporan.</p>
 </section>
 
 <section class="kartu">
   <div class="kartu-kepala">
     <h2>{!! ikon('struktur') !!} Bagan Organisasi RSUD Merauke</h2>
-    <a class="btn btn-garis btn-kecil" href="{{ route('struktur') }}" target="_blank"
-       rel="noopener">Tampilan Pegawai</a>
+    
   </div>
   <div class="tabel-bungkus">
     @include('partials.pohon', ['cabang' => $pohon, 'kelola' => true, 'akar' => true])

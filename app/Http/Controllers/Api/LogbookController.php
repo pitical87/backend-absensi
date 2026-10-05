@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Logbook;
 use App\Models\MappingSIMRSAccount;
 use App\Models\TemplateLogbook;
+use App\Models\User;
 use App\Services\SimrsService;
+use App\Services\VerifikasiLogbookService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -381,5 +383,147 @@ class LogbookController extends Controller
         catat_aktivitas('Template Logbook Mobile', $user->nama_lengkap.' menghapus template logbook');
 
         return response()->json(['sukses' => true, 'pesan' => 'Template logbook dihapus.']);
+    }
+
+    /**
+     * GET /logbook/bawahan — daftar bawahan langsung beserta progres verifikasi.
+     */
+    public function bawahan(Request $req, VerifikasiLogbookService $svc): JsonResponse
+    {
+        $user = $req->get('user');
+        [$bulan, $tahun, $gagal] = $this->periode($req);
+
+        if ($gagal !== null) {
+            return $gagal;
+        }
+
+        $daftar = $svc->bawahan($user, $bulan, $tahun);
+
+        return response()->json([
+            'sukses' => true,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'total_bawahan' => $daftar->count(),
+            'total_belum' => $daftar->sum('belum'),
+            'data' => $daftar->map(fn ($b) => [
+                'id' => (int) $b->id,
+                'nama' => $b->nama_lengkap,
+                'nip' => $b->nip,
+                'total_entri' => (int) $b->total_entri,
+                'terverifikasi' => (int) $b->terverifikasi,
+                'belum' => (int) $b->belum,
+            ])->values()->all(),
+        ]);
+    }
+
+    /**
+     * GET /logbook/bawahan/{user_id} — isi logbook seorang bawahan pada satu bulan.
+     */
+    public function bawahanDetail(Request $req, VerifikasiLogbookService $svc, int $userId): JsonResponse
+    {
+        $user = $req->get('user');
+        [$bulan, $tahun, $gagal] = $this->periode($req);
+
+        if ($gagal !== null) {
+            return $gagal;
+        }
+
+        if ($userId === (int) $user->id) {
+            return response()->json([
+                'sukses' => false,
+                'pesan' => 'Gunakan /logbook untuk membaca logbook sendiri.',
+            ], 403);
+        }
+
+        if (! $svc->isAtasan($user, $userId)) {
+            return response()->json([
+                'sukses' => false,
+                'pesan' => 'Anda bukan atasan langsung pegawai ini.',
+            ], 403);
+        }
+
+        $bawahan = User::find($userId);
+        if (! $bawahan) {
+            return response()->json([
+                'sukses' => false,
+                'pesan' => 'Pegawai tidak ditemukan.',
+            ], 404);
+        }
+
+        $hasil = $svc->entriBawahan($userId, $bulan, $tahun);
+
+        return response()->json([
+            'sukses' => true,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'bawahan' => [
+                'id' => (int) $bawahan->id,
+                'nama' => $bawahan->nama_lengkap,
+                'nip' => $bawahan->nip,
+            ],
+            'total_hari' => $hasil['total_hari'],
+            'total_entri' => $hasil['total'],
+            'terverifikasi' => $hasil['terverifikasi'],
+            'belum' => $hasil['belum'],
+            'data' => $hasil['grup'],
+        ]);
+    }
+
+    /**
+     * POST /logbook/verifikasi — verifikasi atau batalkan verifikasi logbook bawahan.
+     * Body: ids (array), aksi (verifikasi|batal), user_id (opsional).
+     */
+    public function verifikasi(Request $req, VerifikasiLogbookService $svc): JsonResponse
+    {
+        $user = $req->get('user');
+        $ids = $req->input('ids');
+        $aksi = strtolower(trim((string) $req->input('aksi', '')));
+        $userId = $req->input('user_id');
+
+        if (! is_array($ids) || $ids === []) {
+            return response()->json([
+                'sukses' => false,
+                'pesan' => 'Pilih minimal satu entri logbook.',
+            ], 422);
+        }
+
+        if ($userId !== null && $userId !== '' && (! is_numeric($userId) || (int) $userId <= 0)) {
+            return response()->json([
+                'sukses' => false,
+                'pesan' => 'Parameter user_id tidak valid.',
+            ], 422);
+        }
+
+        $hasil = $svc->terapkan($ids, $user, $aksi, $userId === null || $userId === '' ? null : (int) $userId);
+
+        if ($hasil['ok']) {
+            catat_aktivitas('Verifikasi Logbook', $user->nama_lengkap.' '.$hasil['pesan']);
+        }
+
+        return response()->json([
+            'sukses' => $hasil['ok'],
+            'pesan' => $hasil['pesan'],
+            'jumlah' => $hasil['jumlah'],
+        ], $hasil['ok'] ? 200 : $hasil['status']);
+    }
+
+    /**
+     * Ambil bulan/tahun dari query string, default bulan berjalan.
+     *
+     * @return array{0: int, 1: int, 2: \Illuminate\Http\JsonResponse|null}
+     */
+    private function periode(Request $req): array
+    {
+        $bulan = (int) ($req->query('bulan') ?: now()->month);
+        $tahun = (int) ($req->query('tahun') ?: now()->year);
+
+        if ($bulan < 1 || $bulan > 12 || $tahun < 2000 || $tahun > (int) now()->year + 1) {
+            return [0, 0, response()->json([
+                'sukses' => false,
+                'pesan' => 'Parameter bulan/tahun tidak valid.',
+            ], 422)];
+        }
+
+        return [$bulan, $tahun, null];
     }
 }

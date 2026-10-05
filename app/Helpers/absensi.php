@@ -391,12 +391,6 @@ if (! function_exists('hari_libur_tetap')) {
 if (! function_exists('pastikan_libur_tetap')) {
     function pastikan_libur_tetap(int $tahun): void
     {
-        static $sudah = [];
-        if (isset($sudah[$tahun])) {
-            return;
-        }
-        $sudah[$tahun] = true;
-
         try {
             foreach (hari_libur_tetap($tahun) as $tgl => $ket) {
                 HariLibur::updateOrCreate(['tanggal' => $tgl], ['keterangan' => $ket]);

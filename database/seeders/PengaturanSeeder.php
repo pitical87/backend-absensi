@@ -14,6 +14,7 @@ class PengaturanSeeder extends Seeder
             'lokasi_lng'          => '140.4049840',
             'radius_meter'        => '100',
             'toleransi_menit'     => '5',
+            'batas_awal_absen_menit' => '60',
             'izinkan_pilih_shift' => '1',
             'wajib_selfie'        => '1',
             'minggu_libur'        => '0',

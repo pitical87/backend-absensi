@@ -39,6 +39,15 @@ $grupMenu = [
     ],
   ],
   [
+    'id'    => 'grp-kinerja',
+    'label' => 'Kinerja',
+    'ikon'  => 'log',
+    'items' => [
+      'logbook'      => ['admin/logbook', 'surat', 'Buat Logbook'],
+      'logbook_data' => ['admin/logbook-data', 'log', 'Data Logbook'],
+    ],
+  ],
+  [
     'id'    => 'grp-integrasi',
     'label' => 'Integrasi',
     'ikon'  => 'koneksi',
@@ -83,7 +92,7 @@ $grupMenu = [
       <img class="w-8 h-8 object-contain" src="{{ asset('assets/img/logo.svg') }}" alt="Logo">
     </div>
     <div>
-      <strong class="block text-sm font-bold text-white leading-tight tracking-tight">RSUD Merauke</strong>
+      <strong class="block text-sm font-bold text-white leading-tight tracking-tight">{{ App\Models\Pengaturan::where('kunci', 'nama_instansi')->value('nilai') ?? env('APP_NAME') }}</strong>
       <span class="text-[0.62rem] font-medium tracking-[0.1em] uppercase text-blue-200/80 block mt-0.5">Administrator</span>
     </div>
   </div>
@@ -91,7 +100,7 @@ $grupMenu = [
   {{-- Search Menu --}}
   <div class="px-3 pt-3 pb-1">
     <div class="relative">
-      <span class="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none">
+      <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 105 11a6 6 0 0012 0z"/>
         </svg>
@@ -101,12 +110,12 @@ $grupMenu = [
         id="sidebar-search"
         placeholder="Cari menu…"
         autocomplete="off"
-        class="w-full bg-white/8 border border-white/12 text-white text-xs placeholder-white/35
-               rounded-xl py-2 pl-8 pr-7 focus:outline-none focus:border-[#007afc] focus:bg-white/12
-               transition-all duration-150 shadow-none ring-0"
+        class="w-full bg-blue-500 border border-white/12 text-white text-xs placeholder-white/35
+               rounded-xl py-2 pl-2 pr-3 focus:outline-none focus:border-[#007afc] focus:bg-white/12
+               transition-all duration-150 shadow-none ring-0 text-center placeholder:text-center" 
       >
       <button type="button" id="sidebar-search-clear"
-              class="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/80 transition-colors hidden bg-transparent border-0 cursor-pointer p-0 leading-none text-base">
+              class="absolute right-2.5 top-1/2 -translate-y-1/2 text-red-500 hover:text-red-300 transition-colors hidden bg-transparent border-0 cursor-pointer p-0 leading-none text-base">
         &times;
       </button>
     </div>
@@ -122,16 +131,6 @@ $grupMenu = [
       {!! ikon('beranda', 16) !!}
       <span class="flex-1 truncate">Dashboard</span>
     </a>
-
-    {{-- Standalone --}}
-    <a class="nav-item {{ $menuAktif === 'logbook' ? 'aktif' : '' }} mb-1"
-       href="{{ url('admin/logbook') }}"
-       data-label="logbook">
-      {!! ikon('surat', 16) !!}
-      <span class="flex-1 truncate">Logbook</span>
-    </a>
-
-   
 
     {{-- Accordion Groups --}}
     @foreach($grupMenu as $grup)
@@ -155,7 +154,9 @@ $grupMenu = [
                           ? 'bg-white/12 text-white'
                           : 'text-slate-300 hover:bg-white/8 hover:text-white' }}
                        bg-transparent"
-                data-target="{{ $grupId }}">
+                data-target="{{ $grupId }}"
+                aria-controls="{{ $grupId }}"
+                aria-expanded="{{ $grupAktif ? 'true' : 'false' }}">
           <span class="w-4 h-4 shrink-0 opacity-80 text-current">{!! ikon($grup['ikon'], 16) !!}</span>
           <span class="flex-1 truncate text-[0.84rem]">{{ $grup['label'] }}</span>
           {{-- Chevron icon --}}
@@ -168,7 +169,7 @@ $grupMenu = [
         {{-- Item-item dalam grup (bisa collapse/expand) --}}
         <div id="{{ $grupId }}"
              class="accordion-panel overflow-hidden transition-all duration-200 ease-in-out {{ $grupAktif ? '' : 'max-h-0' }}"
-             style="{{ $grupAktif ? '' : 'max-height:0' }}">
+             style="max-height:{{ $grupAktif ? 'none' : '0' }}">
           <div class="mt-0.5 ml-3 pl-3 border-l border-white/10 space-y-0.5 pb-1">
             @foreach($grup['items'] as $kunci => [$jalur, $namaIkon, $label])
               <a class="nav-item text-[0.82rem] py-1.5 {{ $menuAktif === $kunci ? 'aktif' : '' }}"
@@ -202,9 +203,7 @@ $grupMenu = [
     <a class="nav-item text-xs hover:bg-white/10 {{ $menuAktif === 'dokumentasi' ? 'aktif' : '' }}" href="{{ route('admin.documentation.index') }}">
       {!! ikon('surat', 17) !!}<span>Dokumentasi API</span>
     </a>
-    <a class="nav-item text-xs hover:bg-white/10" href="{{ route('dashboard') }}">
-      {!! ikon('pegawai', 17) !!}<span>Tampilan Pegawai</span>
-    </a>
+   
   </div>
 </aside>
 
@@ -213,35 +212,64 @@ $grupMenu = [
 
 <script>
 (function () {
+  // Buka/tutup panel sekaligus menyamakan gaya tombol trigger dan chevronnya,
+  // supaya tidak meleset saat panel dibuka lewat pencarian menu.
+  // tanpaBatas: pakai max-height:none supaya isi grup yang panjang tidak
+  // terpotong kalau jendela di-resize selagi pencarian aktif.
+  function setPanelTerbuka(panel, terbuka, tanpaBatas) {
+    if (!panel) return;
+
+    panel.style.maxHeight = terbuka
+      ? (tanpaBatas ? 'none' : panel.scrollHeight + 'px')
+      : '0';
+    // Kelas max-h-0 ikut diseuaikan agar tidak bentrok bila inline style
+    // suatu saat dihapus.
+    panel.classList.toggle('max-h-0', ! terbuka);
+
+    var grup = panel.closest('.group-accordion');
+    var trigger = grup ? grup.querySelector('.accordion-trigger') : null;
+    var chevron = trigger ? trigger.querySelector('.accordion-chevron') : null;
+    if (!trigger || !chevron) return;
+
+    trigger.setAttribute('aria-expanded', terbuka ? 'true' : 'false');
+
+    if (terbuka) {
+      trigger.classList.add('bg-white/12', 'text-white');
+      trigger.classList.remove('text-slate-300');
+      chevron.classList.add('rotate-180');
+    } else {
+      trigger.classList.remove('bg-white/12', 'text-white');
+      trigger.classList.add('text-slate-300');
+      chevron.classList.remove('rotate-180');
+    }
+  }
+
+  // Panel grup aktif dirender server tanpa max-height inline (cuma tanpa kelas
+  // max-h-0), jadi inline style kosong harus dibaca sebagai "terbuka".
+  function panelTerbuka(panel) {
+    if (!panel) return false;
+
+    var gaya = panel.style.maxHeight;
+    if (gaya) return gaya !== '0' && gaya !== '0px';
+
+    return !panel.classList.contains('max-h-0');
+  }
+
   // ── Accordion ─────────────────────────────────────
   document.querySelectorAll('.accordion-trigger').forEach(function(btn) {
     btn.addEventListener('click', function() {
-      var targetId = btn.dataset.target;
-      var panel    = document.getElementById(targetId);
-      var chevron  = btn.querySelector('.accordion-chevron');
-      var isOpen   = panel.style.maxHeight && panel.style.maxHeight !== '0px';
-
-      if (isOpen) {
-        panel.style.maxHeight = '0';
-        btn.classList.remove('bg-white/12', 'text-white');
-        btn.classList.add('text-slate-300');
-        chevron.classList.remove('rotate-180');
-      } else {
-        panel.style.maxHeight = panel.scrollHeight + 'px';
-        btn.classList.add('bg-white/12', 'text-white');
-        btn.classList.remove('text-slate-300');
-        chevron.classList.add('rotate-180');
-      }
+      var panel = document.getElementById(btn.dataset.target);
+      var terbuka = !panelTerbuka(panel);
+      setPanelTerbuka(panel, terbuka);
+      catatStateAwal(panel, terbuka);
     });
   });
 
-  // Inisialisasi tinggi panel yang aktif
+  // Samakan tinggi panel yang terbuka dari server agar bisa diklik tanpa
+  // perlu klik dua kali (sebelumnya panel aktif belum punya max-height).
   document.querySelectorAll('.accordion-panel').forEach(function(panel) {
-    if (!panel.style.maxHeight || panel.style.maxHeight === '0px') {
-      return; // sudah di-collapse
-    }
-    // Jika aktif (tidak punya max-h-0), set tinggi konten sesungguhnya
-    panel.style.maxHeight = panel.scrollHeight + 'px';
+    if (!panelTerbuka(panel)) return;
+    setPanelTerbuka(panel, true);
   });
 
   // ── Search ────────────────────────────────────────
@@ -252,71 +280,110 @@ $grupMenu = [
 
   if (!input || !nav) return;
 
-  function filterMenu() {
-    var q = input.value.trim().toLowerCase();
-    var items   = nav.querySelectorAll('a[data-label]');
-    var grps    = nav.querySelectorAll('.group-accordion');
-    var visible = 0;
+  var semuaItem  = Array.prototype.slice.call(nav.querySelectorAll('a[data-label]'));
+  var standalone  = semuaItem.filter(function (a) { return a.parentElement === nav; });
+  var stateAwal   = Array.prototype.slice.call(nav.querySelectorAll('.group-accordion')).map(function (grp) {
+    var panel = grp.querySelector('.accordion-panel');
+    return { grp: grp, panel: panel, terbuka: panelTerbuka(panel) };
+  });
 
-    if (!q) {
-      // Reset: kembalikan ke kondisi semula (hanya grup aktif yg terbuka)
-      items.forEach(function(a) { a.style.display = ''; });
-      grps.forEach(function(grp) {
-        var panel   = grp.querySelector('.accordion-panel');
-        var trigger = grp.querySelector('.accordion-trigger');
-        grp.style.display = '';
-        // Jika bukan grup yang aktif, collapse kembali
-        if (panel && !panel.contains(document.querySelector('.nav-item.aktif'))) {
-          panel.style.maxHeight = '0';
-        }
-      });
-      empty.classList.add('hidden');
-      clear.classList.add('hidden');
-      return;
-    }
-
-    clear.classList.remove('hidden');
-
-    // Saat ada query: tampilkan item yang cocok + buka semua grup yang memiliki match
-    grps.forEach(function(grp) {
-      var labels  = (grp.dataset.labels || '').split('|');
-      var grupCocok = labels.some(function(l) { return l.includes(q); });
-      var panel   = grp.querySelector('.accordion-panel');
-      var anak    = grp.querySelectorAll('a[data-label]');
-      var adaAnak = false;
-
-      anak.forEach(function(a) {
-        var match = a.dataset.label.includes(q);
-        a.style.display = match ? '' : 'none';
-        if (match) { adaAnak = true; visible++; }
-      });
-
-      // Tampilkan/sembunyikan grup
-      var tampil = adaAnak || gruCocok;
-      grp.style.display = adaAnak ? '' : 'none';
-
-      // Buka panel jika ada anak yang cocok
-      if (panel && adaAnak) {
-        panel.style.maxHeight = panel.scrollHeight + 500 + 'px';
-      }
+  // Opening/closing manual ikut dicatat, jadi-grup yang lagi aktif pun tetap
+  // kembali seperti semula setelah pencarian dibersihkan.
+  function catatStateAwal(panel, terbuka) {
+    if (!stateAwal) return; // sidebar tanpa kolom pencarian
+    stateAwal.forEach(function (s) {
+      if (s.panel === panel) s.terbuka = terbuka;
     });
-
-    // Item standalone (Dashboard, Logbook, dll)
-    nav.querySelectorAll(':scope > a[data-label]').forEach(function (a) {
-      var match = (a.dataset.label || '').includes(q);
-      a.style.display = match ? '' : 'none';
-      if (match) visible++;
-    });
-
-    empty.classList.toggle('hidden', visible > 0);
   }
 
-  input.addEventListener('input', filterMenu);
+  function hasilPencarian() {
+    var q = input.value.trim().toLowerCase();
 
-  clear.addEventListener('click', function() {
+    // Kosong: pulihkan kondisi awal, termasuk grup yang tadi dibuka manual.
+    if (!q) {
+      semuaItem.forEach(function (a) { a.style.display = ''; });
+      stateAwal.forEach(function (s) {
+        s.grp.style.display = '';
+        setPanelTerbuka(s.panel, s.terbuka);
+      });
+      if (empty) empty.classList.add('hidden');
+      if (clear) clear.classList.add('hidden');
+      return [];
+    }
+
+    if (clear) clear.classList.remove('hidden');
+
+    var terlihat = [];
+
+    stateAwal.forEach(function (s) {
+      var anak   = Array.prototype.slice.call(s.grp.querySelectorAll('a[data-label]'));
+      var cocok  = anak.filter(function (a) { return (a.dataset.label || '').indexOf(q) !== -1; });
+      var grupCocok = (s.grp.dataset.labels || '').toLowerCase().split('|')
+        .some(function (l) { return l.indexOf(q) !== -1; });
+
+      // Grup yang namanya cocok tetap tampil walau tak ada item yang cocok;
+      // dalam kasus itu seluruh itemnya ditampilkan agar tidak terlihat kosong.
+      if (!cocok.length && grupCocok) cocok = anak;
+
+      anak.forEach(function (a) {
+        a.style.display = cocok.indexOf(a) !== -1 ? '' : 'none';
+      });
+      terlihat = terlihat.concat(cocok);
+
+      s.grp.style.display = cocok.length ? '' : 'none';
+      setPanelTerbuka(s.panel, cocok.length > 0, true);
+    });
+
+    standalone.forEach(function (a) {
+      var cocok = (a.dataset.label || '').indexOf(q) !== -1;
+      a.style.display = cocok ? '' : 'none';
+      if (cocok) terlihat.push(a);
+    });
+
+    if (empty) empty.classList.toggle('hidden', terlihat.length > 0);
+
+    return terlihat;
+  }
+
+  var hasilTerakhir = hasilPencarian();
+
+  input.addEventListener('input', function () {
+    hasilTerakhir = hasilPencarian();
+  });
+
+  function bersihkan() {
     input.value = '';
-    filterMenu();
+    hasilTerakhir = hasilPencarian();
     input.focus();
+  }
+
+  if (clear) clear.addEventListener('click', bersihkan);
+
+  input.addEventListener('keydown', function (e) {
+    // Escape: kosongkan pencarian bila ada isinya.
+    if (e.key === 'Escape' && input.value !== '') {
+      e.stopPropagation();
+      bersihkan();
+      return;
+    }
+    // Enter: langsung buka hasil pertama.
+    if (e.key === 'Enter' && hasilTerakhir.length) {
+      e.preventDefault();
+      window.location.href = hasilTerakhir[0].getAttribute('href');
+    }
+  });
+
+  // Shortboard: "/" atau Cmd/Ctrl+K untuk fokus ke kolom cari menu.
+  document.addEventListener('keydown', function (e) {
+    var isi = document.activeElement;
+    var mengetik = isi && (isi.tagName === 'INPUT' || isi.tagName === 'TEXTAREA' || isi.tagName === 'SELECT' || isi.isContentEditable);
+    if (mengetik) return;
+
+    if (e.key === '/' || ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k')) {
+      e.preventDefault();
+      input.focus();
+      input.select();
+    }
   });
 })();
 </script>

@@ -13,7 +13,7 @@
       <a href="{{ url('/') }}" class="flex items-center gap-3 no-underline hover:opacity-90 transition">
         <img src="{{ asset('assets/img/logo.svg') }}" alt="{{ config('app.name') }}" class="w-10 h-10 sm:w-12 sm:h-12 object-contain drop-shadow-sm">
         <span class="text-white font-bold text-lg sm:text-xl tracking-tight">
-          {{ config('app.name') }}
+          {{ App\Models\Pengaturan::where('kunci', 'nama_instansi')->value('nilai') ?? env('APP_NAME') }}
         </span>
       </a>
     </div>
@@ -88,7 +88,7 @@
     </div>
 
     <div class="w-full pt-8 text-center text-xs text-slate-400">
-      &copy; {{ date('Y') }} PIT RSUD Merauke. All rights reserved.
+      &copy; {{ date('Y') }} PIT {{ App\Models\Pengaturan::where('kunci', 'nama_instansi')->value('nilai') ?? env('APP_NAME') }}. All rights reserved.
     </div>
 
   </div>

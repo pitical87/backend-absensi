@@ -17,6 +17,7 @@ class PengaturanController extends Controller
             'lng'          => pengaturan('lokasi_lng', '140.4049840'),
             'rad'          => pengaturan('radius_meter', '100'),
             'tol'          => pengaturan('toleransi_menit', '5'),
+            'batasAwal'   => pengaturan('batas_awal_absen_menit', '60'),
             'batasJadwal'  => pengaturan('batas_ubah_jadwal_jam', '1'),
             'batasLemburJam' => pengaturan('batas_pengajuan_lembur_jam', '2'),
             'maksLemburJam'  => pengaturan('maks_lembur_per_hari_jam', '4'),
@@ -35,6 +36,7 @@ class PengaturanController extends Controller
         $lng  = trim((string) $request->input('lokasi_lng'));
         $rad  = (int) $request->input('radius_meter');
         $tol  = (int) $request->input('toleransi_menit');
+        $bAwal = (int) $request->input('batas_awal_absen_menit');
         $bjam = (int) $request->input('batas_ubah_jadwal_jam');
         $bLembur = (int) $request->input('batas_pengajuan_lembur_jam');
         $mLembur = (int) $request->input('maks_lembur_per_hari_jam');
@@ -52,6 +54,7 @@ class PengaturanController extends Controller
         simpan_pengaturan('lokasi_lng', (string) round((float) $lng, 7));
         simpan_pengaturan('radius_meter', (string) max(10, min(5000, $rad)));
         simpan_pengaturan('toleransi_menit', (string) max(0, min(120, $tol)));
+        simpan_pengaturan('batas_awal_absen_menit', (string) max(0, min(240, $bAwal)));
         simpan_pengaturan('batas_ubah_jadwal_jam', (string) max(0, min(24, $bjam)));
         simpan_pengaturan('batas_pengajuan_lembur_jam', (string) max(0, min(24, $bLembur)));
         simpan_pengaturan('maks_lembur_per_hari_jam', (string) max(1, min(24, $mLembur)));

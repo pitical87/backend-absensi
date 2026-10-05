@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\DaftarAjax;
 use App\Http\Controllers\Controller;
 use App\Models\PengajuanJadwal;
 use App\Services\UbahJadwalService;
@@ -9,13 +10,55 @@ use Illuminate\Http\Request;
 
 class PengajuanJadwalController extends Controller
 {
+    use DaftarAjax;
+
+    private const STATUS = ['Semua', 'Menunggu', 'Disetujui', 'Ditolak'];
+
     public function index(Request $request)
     {
-        $status = (string) $request->query('status', 'Semua');
-        if (! in_array($status, ['Semua', 'Menunggu', 'Disetujui', 'Ditolak'], true)) {
-            $status = 'Semua';
+        $filter = $this->filterAjax($request, self::STATUS, 'Semua');
+        $daftar = $this->paginateAjax($this->query($filter), $filter);
+
+        return view('admin.jadwal.pengajuan', [
+            'judulHalaman' => 'Pengajuan Perubahan Jadwal',
+            'menuAktif' => 'jadwal_pengajuan',
+            'daftar' => $daftar,
+            'status' => $filter['status'],
+            'q' => $filter['q'],
+            'jumlah' => $this->jumlah(),
+        ]);
+    }
+
+    public function data(Request $request)
+    {
+        $filter = $this->filterAjax($request, self::STATUS, 'Semua');
+
+        return $this->tabelAjax($filter);
+    }
+
+    public function proses(Request $request)
+    {
+        $id = (int) $request->input('id');
+        $putusan = (string) $request->input('putusan');
+        $catatan = trim((string) $request->input('catatan')) ?: null;
+        $filter = $this->filterAjax($request, self::STATUS, 'Semua');
+
+        if (! in_array($putusan, ['setuju', 'tolak'], true)) {
+            return $this->selesaiAjax($request, $filter, 'Pilih tindakan Setujui atau Tolak lebih dulu.', false);
         }
 
+        $pj = PengajuanJadwal::find($id);
+        if (! $pj || $pj->status !== 'Menunggu') {
+            return $this->selesaiAjax($request, $filter, 'Pengajuan tidak ditemukan atau sudah diproses.', false);
+        }
+
+        $hasil = app(UbahJadwalService::class)->putuskan($pj, $putusan, (int) session('uid'), $catatan);
+
+        return $this->selesaiAjax($request, $filter, $hasil['pesan'], $hasil['ok']);
+    }
+
+    private function query(array $filter)
+    {
         $q = PengajuanJadwal::with([
             'user:id,nama_lengkap,nip,unit_kerja_id,sub_unit_id',
             'user.unitKerja:id,nama', 'user.subUnit:id,nama',
@@ -23,40 +66,61 @@ class PengajuanJadwalController extends Controller
             'diprosesOlehUser:id,nama_lengkap',
         ])->orderByRaw("CASE status WHEN 'Menunggu' THEN 0 WHEN 'Disetujui' THEN 1 ELSE 2 END")->orderByDesc('id');
 
-        if ($status !== 'Semua') {
-            $q->where('status', $status);
+        if ($filter['status'] !== 'Semua') {
+            $q->where('status', $filter['status']);
         }
 
-        $daftar   = $q->limit(200)->get()->all();
-        $menunggu = PengajuanJadwal::where('status', 'Menunggu')->count();
+        if ($filter['q'] !== '') {
+            $q->where(function ($sub) use ($filter) {
+                $sub->where('alasan', 'like', "%{$filter['q']}%")
+                    ->orWhereHas('user', function ($u) use ($filter) {
+                        $u->where('nama_lengkap', 'like', "%{$filter['q']}%")
+                            ->orWhere('nip', 'like', "%{$filter['q']}%");
+                    });
+            });
+        }
 
-        return view('admin.jadwal.pengajuan', [
-            'judulHalaman' => 'Pengajuan Perubahan Jadwal',
-            'menuAktif'    => 'jadwal_pengajuan',
-            'daftar'       => $daftar,
-            'status'       => $status,
-            'menunggu'     => $menunggu,
-        ]);
+        return $q;
     }
 
-    public function proses(Request $request)
+    private function jumlah(): array
     {
-        $id      = (int) $request->input('id');
-        $putusan = (string) $request->input('putusan');
-        $catatan = trim((string) $request->input('catatan')) ?: null;
+        $hitung = PengajuanJadwal::selectRaw('status, count(*) as jml')->groupBy('status')->pluck('jml', 'status');
 
-        if (! in_array($putusan, ['setuju', 'tolak'], true)) {
-            return redirect('admin/jadwal_pengajuan')->with('error', 'Putusan tidak valid.');
+        return [
+            'Semua' => (int) $hitung->sum(),
+            'Menunggu' => (int) $hitung->get('Menunggu', 0),
+            'Disetujui' => (int) $hitung->get('Disetujui', 0),
+            'Ditolak' => (int) $hitung->get('Ditolak', 0),
+        ];
+    }
+
+    private function tabelAjax(array $filter, string $pesan = '', bool $sukses = true)
+    {
+        $daftar = $this->paginateAjax($this->query($filter), $filter);
+
+        return $this->balasAjax(view('admin.jadwal.pengajuan_tabel', [
+            'daftar' => $daftar,
+            'status' => $filter['status'],
+            'q' => $filter['q'],
+        ])->render(), [
+            'pesan' => $pesan,
+            'status' => $filter['status'],
+            'q' => $filter['q'],
+            'hal' => $daftar->currentPage(),
+            'total' => $daftar->total(),
+            'totalHal' => $daftar->lastPage(),
+            'jumlah' => $this->jumlah(),
+        ], $sukses);
+    }
+
+    private function selesaiAjax(Request $request, array $filter, string $pesan, bool $sukses)
+    {
+        if (! $request->expectsJson()) {
+            return redirect('admin/jadwal_pengajuan')
+                ->with($sukses ? 'success' : 'error', $pesan);
         }
 
-        $pj = PengajuanJadwal::find($id);
-        if (! $pj || $pj->status !== 'Menunggu') {
-            return redirect('admin/jadwal_pengajuan')->with('error', 'Pengajuan tidak ditemukan atau sudah diproses.');
-        }
-
-        $hasil = app(UbahJadwalService::class)->putuskan($pj, $putusan, (int) session('uid'), $catatan);
-
-        return redirect('admin/jadwal_pengajuan')
-            ->with($hasil['ok'] ? 'success' : 'error', $hasil['pesan']);
+        return $this->tabelAjax($filter, $pesan, $sukses);
     }
 }

@@ -494,6 +494,7 @@ Pengaturan disimpan di tabel `pengaturan` (key-value), dapat diubah melalui hala
 | `lokasi_lng` | 140.4049840 | Longitude lokasi absen |
 | `radius_meter` | 100 | Radius geofencing (meter) |
 | `toleransi_menit` | 5 | Toleransi keterlambatan (menit) |
+| `batas_awal_absen_menit` | 60 | Batas datang lebih awal sebelum jam masuk (menit). Absen datang lebih awal dari nilai ini **ditolak** dengan pesan "belum sesuai jadwal". Isi `0` untuk melarang absen sebelum jam masuk |
 | `izinkan_pilih_shift` | 1 | Izinkan pegawai pilih shift |
 | `wajib_selfie` | 1 | Wajib selfie saat absen |
 | `minggu_libur` | 0 | Minggu hari libur |
