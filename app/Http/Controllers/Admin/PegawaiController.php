@@ -326,6 +326,7 @@ class PegawaiController extends Controller
                 : [],
             'atasanUnitMap' => UnitKerja::pluck('atasan_id', 'id'),
             'atasanSubMap' => SubUnit::pluck('atasan_id', 'id'),
+            'passwordDefault' => pengaturan('password_default_pegawai', 'pegawai123'),
         ]);
     }
 
@@ -356,7 +357,10 @@ class PegawaiController extends Controller
         $data['status_pegawai'] = $request->boolean('status_pegawai') ? 'PNS' : 'Non-PNS';
         $data['role'] = 'pegawai';
 
-        $password = (string) $request->input('password');
+        $pakaiDefault = $request->boolean('password_default');
+        $password = $pakaiDefault
+            ? (string) pengaturan('password_default_pegawai', 'pegawai123')
+            : (string) $request->input('password');
         $shiftHariIni = (int) ($data['shift_id'] ?? 0) ?: null;
         unset($data['password'], $data['shift_id']);
 

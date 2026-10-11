@@ -26,6 +26,7 @@ class PengaturanController extends Controller
             'selfie'       => pengaturan('wajib_selfie', '1') === '1',
             'lembur'       => pengaturan('aktifkan_lembur', '1') === '1',
             'nama'         => pengaturan('nama_instansi', 'RSUD Merauke'),
+            'passwordDefault' => pengaturan('password_default_pegawai', 'pegawai123'),
             'apiKey'       => pengaturan('api_key', ''),
         ]);
     }
@@ -63,6 +64,14 @@ class PengaturanController extends Controller
         simpan_pengaturan('wajib_selfie', $request->input('wajib_selfie') ? '1' : '0');
         simpan_pengaturan('aktifkan_lembur', $request->input('aktifkan_lembur') ? '1' : '0');
         simpan_pengaturan('nama_instansi', $nama !== '' ? $nama : 'RSUD Merauke');
+
+        $pwDefault = trim((string) $request->input('password_default_pegawai'));
+        if (strlen($pwDefault) < 6) {
+            return redirect('admin/pengaturan')
+                ->with('error', 'Password default pegawai minimal 6 karakter.');
+        }
+        simpan_pengaturan('password_default_pegawai', $pwDefault);
+
         catat_aktivitas('Ubah Pengaturan', 'Titik/radius GPS, toleransi, atau opsi aplikasi diperbarui');
 
         return redirect('admin/pengaturan')->with('success', 'Pengaturan berhasil disimpan.');

@@ -38,7 +38,7 @@ class PegawaiRequest extends FormRequest
             'role'           => ['in:admin,pegawai'],            'status'         => ['in:aktif,nonaktif'],
             'password'       => $id
                 ? ['nullable', 'string', 'min:6']
-                : ['required', 'string', 'min:6'],
+                : ['nullable', 'string', 'min:6', Rule::requiredIf(fn () => ! $this->boolean('password_default'))],
             'jabatan_kategori'  => ['nullable', 'string'],
             'jabatan_id'        => ['nullable', 'integer'],
             'posisi'            => ['nullable', 'string'],

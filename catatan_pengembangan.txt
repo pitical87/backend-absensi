@@ -122,3 +122,9 @@ Sudah Selesai  : 4 item (✅)
 Belum Selesai  : 26 item (❌)
 
 ================================================================================
+
+
+-> permudah cara masuk
+-> tata cara untuk. 
+-> bisa tampilkan password
+-> laporan capaian tiap minggu untuk rapat

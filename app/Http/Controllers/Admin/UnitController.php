@@ -26,23 +26,10 @@ class UnitController extends Controller
             'unitAktif' => $unitAktif,
             'unitUbah' => null,
             'tabs' => $this->renderTabs($mode, $unitAktif, $unitList),
-            'isi' => $this->renderIsi($mode, $unitAktif, $unitList, $pegawaiPilihan),
-        ]);
-    }
-
-    /**
-     * Endpoint asinkron: isi tab (semua / satu unit / tambah unit) tanpa reload.
-     */
-    public function data(Request $request): JsonResponse
-    {
-        $unitList = $this->unitList();
-        [$mode, $unitAktif] = $this->modeTab((string) $request->get('tab', 'semua'), $unitList);
-
-        return response()->json([
-            'sukses' => true,
-            'mode' => $mode,
-            'tabs' => $this->renderTabs($mode, $unitAktif, $unitList),
-            'isi' => $this->renderIsi($mode, $unitAktif, $unitList, $this->pegawaiPilihan()),
+            'tabAktif' => $this->kunciAktif($mode, $unitAktif),
+            // Seluruh isi tab dirender sekaligus di awal, jadi berpindah tab
+            // tidak lagi menunggu permintaan jaringan.
+            'isiSemua' => $this->renderIsiSemua($unitList, $pegawaiPilihan),
         ]);
     }
 
@@ -166,7 +153,7 @@ class UnitController extends Controller
             'pesan' => $pesan,
             'mode' => $mode,
             'tabs' => $this->renderTabs($mode, $unitAktif, $unitList),
-            'isi' => $this->renderIsi($mode, $unitAktif, $unitList, $this->pegawaiPilihan()),
+            'isiSemua' => $this->renderIsiSemua($unitList, $this->pegawaiPilihan()),
         ], $sukses ? 200 : 422);
     }
 
@@ -261,5 +248,35 @@ class UnitController extends Controller
             'unitList' => $unitList,
             'pegawaiPilihan' => $pegawaiPilihan,
         ])->render();
+    }
+
+    /**
+     * Seluruh panel tab (semua unit + tab tambah) dirender dalam satu panggilan
+     * supaya klien dapat memuat semuanya sekaligus dan berpindah tab instan.
+     *
+     * @return array<string, string> kunci panel => HTML
+     */
+    private function renderIsiSemua($unitList, $pegawaiPilihan): array
+    {
+        $peta = [
+            'semua' => $this->renderIsi('semua', null, $unitList, $pegawaiPilihan),
+            'tambah' => $this->renderIsi('tambah', null, $unitList, $pegawaiPilihan),
+        ];
+
+        foreach ($unitList as $uk) {
+            $peta[(string) (int) $uk->id] = $this->renderIsi('unit', $uk, $unitList, $pegawaiPilihan);
+        }
+
+        return $peta;
+    }
+
+    /** Kunci panel yang ditampilkan pada muat pertama. */
+    private function kunciAktif(string $mode, ?UnitKerja $unitAktif): string
+    {
+        if ($mode === 'unit' && $unitAktif) {
+            return (string) (int) $unitAktif->id;
+        }
+
+        return $mode;
     }
 }

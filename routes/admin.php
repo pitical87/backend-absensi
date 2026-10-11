@@ -71,7 +71,6 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::post('pegawai/hapus', [PegawaiController::class, 'hapus'])->name('admin.pegawai.hapus');
 
     Route::get('unit', [UnitController::class, 'index'])->name('admin.unit.index');
-    Route::get('unit/data', [UnitController::class, 'data'])->name('admin.unit.data');
     Route::post('unit/aksi', [UnitController::class, 'aksi'])->name('admin.unit.aksi');
 
     Route::get('atasan_langsung', [AtasanLangsungController::class, 'index'])->name('admin.atasan_langsung.index');

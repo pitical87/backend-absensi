@@ -13,6 +13,13 @@
       <input type="text" name="nama_instansi" value="{{ $nama }}">
     </div>
 
+    <div class="form-grup">
+      <label>Password Default Pegawai</label>
+      <input type="text" name="password_default_pegawai" value="{{ $passwordDefault }}" minlength="6" required>
+      <div class="petunjuk">Dipakai saat admin menambah pegawai baru dengan opsi
+        "Gunakan password default" pada formulir pegawai. Minimal 6 karakter. Bawaan: <code>pegawai123</code>.</div>
+    </div>
+
     <h3>Titik Lokasi RSUD Merauke</h3>
     <p class="petunjuk">Absensi hanya diterima bila posisi GPS pegawai berada dalam radius dari titik ini.
       Cara termudah: berdiri di tengah area RSUD lalu tekan tombol di bawah, atau klik langsung pada peta.</p>

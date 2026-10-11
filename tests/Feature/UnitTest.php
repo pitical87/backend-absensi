@@ -28,6 +28,24 @@ class UnitTest extends TestCase
         return $admin;
     }
 
+    /** Isi panel tab yang sedang tampil (yakni panel tanpa class `hidden`). */
+    private function teksPanelAktif(string $html): string
+    {
+        $doc = new \DOMDocument();
+        libxml_use_internal_errors(true);
+        $doc->loadHTML($html);
+        libxml_clear_errors();
+
+        $xp = new \DOMXPath($doc);
+        foreach ($xp->query('//div[contains(concat(" ", normalize-space(@class), " "), " tab-panel ")]') as $node) {
+            if (! preg_match('/\bhidden\b/', $node->getAttribute('class'))) {
+                return (string) $node->textContent;
+            }
+        }
+
+        return '';
+    }
+
     // ── TAB ───────────────────────────────────────────────────────────
 
     public function test_tab_default_menampilkan_semua_unit(): void
@@ -66,11 +84,16 @@ class UnitTest extends TestCase
         SubUnit::create(['unit_kerja_id' => $inap->id, 'nama' => 'Anggrek']);
         SubUnit::create(['unit_kerja_id' => $farmasi->id, 'nama' => 'Apotek Utama']);
 
-        $this->get(route('admin.unit.index').'?tab='.$inap->id)
+        $html = $this->get(route('admin.unit.index').'?tab='.$inap->id)
             ->assertOk()
             ->assertSee('Anggrek')
-            ->assertDontSee('Apotek Utama')
-            ->assertSee('+ Tambah Sub Unit');
+            ->assertSee('+ Tambah Sub Unit')
+            ->getContent();
+
+        // Semua panel memang sudah ada (berpindah tab instan tanpa menunggu
+        // jaringan), tetapi hanya panel tab aktif yang tampil — panel itu
+        // hanya memuat sub unit milik unit tersebut.
+        $this->assertStringNotContainsString('Apotek Utama', $this->teksPanelAktif($html));
     }
 
     public function test_tab_unit_kosong_menampilkan_pesan_dan_form_tambah(): void
@@ -78,10 +101,12 @@ class UnitTest extends TestCase
         $this->admin();
         $unit = UnitKerja::create(['nama' => 'Rawat Inap', 'punya_sub' => 0]);
 
-        $this->get(route('admin.unit.index').'?tab='.$unit->id)
+        $html = $this->get(route('admin.unit.index').'?tab='.$unit->id)
             ->assertOk()
-            ->assertSee('Belum ada sub unit pada unit ini.')
-            ->assertSee('+ Tambah Sub Unit');
+            ->assertSee('+ Tambah Sub Unit')
+            ->getContent();
+
+        $this->assertStringContainsString('Belum ada sub unit pada unit ini.', $this->teksPanelAktif($html));
     }
 
     public function test_tab_tanpa_javascript_menampilkan_form_tambah(): void
@@ -101,48 +126,6 @@ class UnitTest extends TestCase
 
         $this->get(route('admin.unit.index').'?tab=99999')->assertOk()->assertSee('Daftar Unit Kerja');
         $this->get(route('admin.unit.index').'?tab=ngawur')->assertOk()->assertSee('Daftar Unit Kerja');
-    }
-
-    // ── ENDPOINT ASINKRON ────────────────────────────────────────────
-
-    public function test_endpoint_data_membalas_tab_tanpa_reload(): void
-    {
-        $this->admin();
-        $inap = UnitKerja::create(['nama' => 'Rawat Inap', 'punya_sub' => 1]);
-        $farmasi = UnitKerja::create(['nama' => 'Farmasi', 'punya_sub' => 1]);
-        SubUnit::create(['unit_kerja_id' => $inap->id, 'nama' => 'Anggrek']);
-        SubUnit::create(['unit_kerja_id' => $farmasi->id, 'nama' => 'Apotek Utama']);
-
-        $semua = $this->getJson(route('admin.unit.data').'?tab=semua')->assertOk();
-        $semua->assertJsonPath('sukses', true)->assertJsonPath('mode', 'semua');
-        $semua->assertSee('Rawat Inap')->assertSee('Daftar Unit Kerja');
-
-        $satu = $this->getJson(route('admin.unit.data').'?tab='.$inap->id)->assertOk();
-        $satu->assertJsonPath('mode', 'unit');
-        $suta = $satu->getContent();
-        $this->assertStringContainsString('Anggrek', $suta);
-        $this->assertStringNotContainsString('Apotek Utama', $suta);
-        $this->assertStringContainsString('class="tab-unit aktif"', (string) $satu->json('tabs'));
-    }
-
-    public function test_endpoint_data_tambah_menampilkan_form(): void
-    {
-        $this->admin();
-
-        $this->getJson(route('admin.unit.data').'?tab=tambah')
-            ->assertOk()
-            ->assertJsonPath('mode', 'tambah')
-            ->assertSee('Nama unit kerja baru');
-    }
-
-    public function test_endpoint_data_tidak_menerima_admin(): void
-    {
-        User::create([
-            'nama_lengkap' => 'Pegawai', 'email' => 'p@contoh.test', 'password_hash' => bcrypt('rahasia-kuat'),
-            'role' => 'pegawai', 'status' => 'aktif', 'email_verified_at' => now(),
-        ]);
-
-        $this->getJson(route('admin.unit.data'))->assertRedirect();
     }
 
     // ── MODAL UBAH ────────────────────────────────────────────────────
@@ -391,11 +374,12 @@ class UnitTest extends TestCase
 
         $this->assertStringContainsString('data-pilih-pegawai', $html);
         $this->assertStringContainsString('pilih-pegawai-cari', $html);
-        // Pencarian memakai nama, NIP, dan email.
-        $this->assertStringContainsString('data-cari="siti rahayu 198705122011012003 siti@contoh.test"', $html);
+        // Data pencarian (nama, NIP, email) dibagikan sekali via window.PEGAWAI_UNIT;
+        // setiap combo mengisinya lewat JS agar tidak diduplikasi per baris.
+        $this->assertStringContainsString('siti rahayu 198705122011012003 siti@contoh.test', $html);
     }
 
-    public function test_select_asal_tetap_ada_sebagai_fallback_tanpa_javascript(): void
+    public function test_select_asal_tetap_ada_dan_daftar_dibagikan_satu_kali(): void
     {
         $this->admin();
         User::create([
@@ -406,11 +390,15 @@ class UnitTest extends TestCase
         $html = $this->get(route('admin.unit.index'))->assertOk()->getContent();
         $Markup = preg_replace('/\s+/', ' ', $html);
 
+        // <select> asli tetap dirender (sumber nilai form), dan seluruh daftar
+        // pegawai untuk combo disediakan sekali lewat JS.
         $this->assertStringContainsString('id="ubah-unit-atasan"', $html);
-        $this->assertMatchesRegularExpression(
-            '#<option value="'.(int) User::where('email', 'siti@contoh.test')->value('id').'"[^>]*>Siti Rahayu</option>#',
-            $Markup
-        );
+        $this->assertStringContainsString('window.PEGAWAI_UNIT', $html);
+        $this->assertStringContainsString('"nama":"Siti Rahayu"', $html);
+
+        // Daftar lengkap hanya dirender di satu combo (modal ubah unit) supaya
+        // nilai atasan dapat diatur lebih dulu; combo lainnya memakai JS.
+        $this->assertSame(1, substr_count($Markup, 'Siti Rahayu</option>'));
     }
 
     public function test_combo_box_atasan_sub_unit_menampilkan_nama_yang_terpilih(): void

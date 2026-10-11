@@ -12,8 +12,13 @@
 <div id="pesan-unit" class="hidden mb-4 px-4 py-3 rounded-xl text-sm"></div>
 
 {{-- ===== ISI TAB ===== --}}
+{{-- Seluruh isi tab dirender sekaligus di sini; JS hanya menampilkan/menyembunyikan
+     panel sehingga berpindah tab tidak perlu menunggu jaringan. --}}
 <div id="isi-tab">
-  {!! $isi !!}
+  @foreach($isiSemua as $kunci => $htmlPanel)
+    <div class="tab-panel {{ (string) $kunci === (string) $tabAktif ? '' : 'hidden' }}"
+         data-panel="{{ $kunci }}">{!! $htmlPanel !!}</div>
+  @endforeach
 </div>
 
 {{-- ===== MODAL TAMBAH UNIT ===== --}}
@@ -65,6 +70,7 @@
         'terpilih' => 0,
         'labelKosong' => '— Atasan unit —',
         'judul' => 'Atasan default unit kerja ini',
+        'opsiLengkap' => true,
       ])
       <label class="teks-kecil flex items-center gap-1.5 whitespace-nowrap mt-3">
         <input type="checkbox" name="punya_sub" value="1" id="ubah-unit-punya-sub" class="w-auto">
@@ -81,17 +87,28 @@
 @endsection
 
 @section('script')
+{{-- Daftar pegawai untuk combo atasan dibagikan sekali di sini; tiap combo
+     mengisinya lewat JS agar tidak diduplikasi pada setiap baris. --}}
+@php
+  $daftarPegawaiJson = json_encode($pegawaiPilihan->map(function ($p) {
+      return [
+          'id' => (int) $p->id,
+          'nama' => $p->nama_lengkap,
+          'cari' => mb_strtolower(trim($p->nama_lengkap.' '.($p->nip ?? '').' '.($p->email ?? ''))),
+      ];
+  })->values()->all(), JSON_UNESCAPED_UNICODE);
+@endphp
+<script>
+window.PEGAWAI_UNIT = {!! $daftarPegawaiJson !!};
 <script>
 (function () {
   var tabBar   = document.getElementById('tab-bar');
   var isiTab   = document.getElementById('isi-tab');
   var pesan    = document.getElementById('pesan-unit');
   var csrf     = (document.querySelector('meta[name="csrf"]') || {}).content || '';
-  var urlData  = '{{ route('admin.unit.data') }}';
   var urlAksi  = '{{ route('admin.unit.aksi') }}';
 
-  var tab = '{{ $mode === 'unit' && $unitAktif ? (int) $unitAktif->id : $mode }}';
-  var sedangMuat = false;
+  var tab = '{{ $tabAktif }}';
 
   function tampilPesan(teks, berhasil) {
     if (! teks) {
@@ -110,21 +127,29 @@
     return aktif ? aktif.getAttribute('data-tab') : null;
   }
 
-  function muatTab(kunci) {
-    if (sedangMuat) return;
-    sedangMuat = true;
-    tampilPesan('', true);
+  // Semua isi tab sudah ada di halaman, jadi berpindah tab hanya perlu
+  // menampilkan/menyembunyikan panel — tidak ada lagi permintaan jaringan.
+  function aktifkanTab(kunci) {
+    kunci = String(kunci);
+    tab = kunci;
 
-    fetch(urlData + '?' + new URLSearchParams({ tab: kunci }).toString(), { headers: { 'Accept': 'application/json' } })
-      .then(function (r) { return r.json(); })
-      .then(function (h) {
-        if (! h.sukses) { tampilPesan('Gagal memuat data.', false); return; }
-        tab = kunci;
-        tabBar.innerHTML = h.tabs;
-        isiTab.innerHTML = h.isi;
-      })
-      .catch(function () { tampilPesan('Terjadi kesalahan jaringan.', false); })
-      .then(function () { sedangMuat = false; });
+    Array.prototype.forEach.call(isiTab.querySelectorAll('.tab-panel'), function (p) {
+      p.classList.toggle('hidden', p.getAttribute('data-panel') !== kunci);
+    });
+
+    Array.prototype.forEach.call(tabBar.querySelectorAll('.tab-unit[data-tab]'), function (a) {
+      a.classList.toggle('aktif', a.getAttribute('data-tab') === kunci);
+    });
+  }
+
+  // Bangun ulang seluruh panel dari respons server (peta kunci => HTML).
+  function renderSemuaPanel(peta) {
+    if (! peta) return;
+    var html = '';
+    Object.keys(peta).forEach(function (k) {
+      html += '<div class="tab-panel hidden" data-panel="' + k + '">' + peta[k] + '</div>';
+    });
+    isiTab.innerHTML = html;
   }
 
   window.unitTutup = function (id) {
@@ -167,11 +192,27 @@
     var daftar = bungkus.querySelector('.pilih-pegawai-daftar');
     if (! select || ! cari || ! daftar) return;
 
-    var isi = [{ nilai: '', label: select.options[0] ? select.options[0].textContent : '', cari: '' }];
-    Array.prototype.forEach.call(select.options, function (o, i) {
-      if (i === 0 && o.value === '') return;
-      isi.push({ nilai: o.value, label: o.textContent.trim(), cari: (o.getAttribute('data-cari') || o.textContent).toLowerCase() });
+    var nilaiAwal = select.value || '';
+    var labelKosong = select.options[0] ? select.options[0].textContent : '';
+
+    // Isi daftar <select> dari daftar pegawai global supaya pilihan atasan tetap
+    // tersimpan saat formulir dikirim (nilai select = id pegawai terpilih).
+    select.innerHTML = '';
+    var optKosong = document.createElement('option');
+    optKosong.value = '';
+    optKosong.textContent = labelKosong;
+    select.appendChild(optKosong);
+
+    var isi = [{ nilai: '', label: labelKosong, cari: '' }];
+    (window.PEGAWAI_UNIT || []).forEach(function (p) {
+      var o = document.createElement('option');
+      o.value = String(p.id);
+      o.textContent = p.nama;
+      select.appendChild(o);
+      isi.push({ nilai: String(p.id), label: p.nama, cari: p.cari || '' });
     });
+
+    select.value = nilaiAwal;
 
     bungkus.classList.add('siap');
     cariPegawai.set(bungkus, { select: select, cari: cari, daftar: daftar, isi: isi, sorot: -1 });
@@ -303,11 +344,34 @@
   }
   unitSiapkanSemua();
 
-  function kirim(form, tambahan) {
+  var spinner = '<svg class="w-3.5 h-3.5 inline-block align-[-2px] animate-spin" viewBox="0 0 24 24" fill="none">'
+              + '<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>'
+              + '<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>';
+
+  // Loading per tombol: hanya tombol yang memicu disimpan + dimatikan sampai
+  // respons tiba, tombol lain tetap bisa diklik sehingga beberapa data dapat
+  // disimpan berurutan sekaligus.
+  function tandaiMemuat(tombol) {
+    if (! tombol || tombol.disabled) return;
+    tombol.dataset.teksAwal = tombol.innerHTML;
+    tombol.disabled = true;
+    tombol.classList.add('opacity-70', 'cursor-wait');
+    tombol.innerHTML = spinner + ' Menyimpan…';
+  }
+
+  function pulihkanTombol(tombol) {
+    if (! tombol) return;
+    if (tombol.dataset.teksAwal != null) tombol.innerHTML = tombol.dataset.teksAwal;
+    tombol.disabled = false;
+    tombol.classList.remove('opacity-70', 'cursor-wait');
+  }
+
+  function kirim(form, tambahan, tombol) {
     var data = new FormData(form);
     Object.keys(tambahan || {}).forEach(function (k) { data.set(k, tambahan[k]); });
 
     tampilPesan('Menyimpan…', true);
+    tandaiMemuat(tombol);
 
     return fetch(urlAksi, {
       method: 'POST',
@@ -317,9 +381,12 @@
       .then(function (r) { return r.json().then(function (h) { return { ok: r.ok, h: h }; }); })
       .then(function (b) {
         var h = b.h;
-        if (h.tabs) { tabBar.innerHTML = h.tabs; isiTab.innerHTML = h.isi; }
+        if (h.tabs) tabBar.innerHTML = h.tabs;
+        if (h.isiSemua) renderSemuaPanel(h.isiSemua);
         if (h.mode === 'unit') tab = tabAktifDariTabs() || tab;
         else if (h.mode) tab = h.mode;
+        aktifkanTab(tab);
+        unitSiapkanSemua();
 
         tampilPesan(h.pesan, !! h.sukses);
 
@@ -327,7 +394,8 @@
         if (h.sukses && form.dataset.ajax === 'ubah_unit') window.unitTutup('modal-ubah');
         if (h.sukses && form.isConnected) { form.reset(); unitSiapkanSemua(); }
       })
-      .catch(function () { tampilPesan('Terjadi kesalahan jaringan.', false); });
+      .catch(function () { tampilPesan('Terjadi kesalahan jaringan.', false); })
+      .finally(function () { pulihkanTombol(tombol); });
   }
 
   // Delegasi: seluruh tombol & form hasil render dinamis tertangkap di sini.
@@ -337,7 +405,7 @@
     var tabKlik = target.closest('[data-tab]');
     if (tabKlik) {
       e.preventDefault();
-      muatTab(tabKlik.getAttribute('data-tab'));
+      aktifkanTab(tabKlik.getAttribute('data-tab'));
       return;
     }
 
@@ -371,7 +439,7 @@
         nama: aksi.getAttribute('data-nama') || '',
         unit_kerja_id: aksi.getAttribute('data-unit-kerja-id') || '',
         tab_asal: aksi.getAttribute('data-tab-asal') || tab
-      });
+      }, aksi);
     }
   });
 
@@ -391,7 +459,7 @@
       nama: aksi.getAttribute('data-nama'),
       atasan_id: select ? select.value : '',
       unit_kerja_id: aksi.getAttribute('data-unit-kerja-id')
-    });
+    }, aksi);
   });
 
   document.addEventListener('submit', function (e) {
@@ -400,7 +468,8 @@
     if (! form.dataset || ! form.dataset.ajax) return;
 
     e.preventDefault();
-    kirim(form, { unit_kerja_id: form.querySelector('[name="unit_kerja_id"]')?.value || '' });
+    var tombol = e.submitter || form.querySelector('button[type="submit"]');
+    kirim(form, { unit_kerja_id: form.querySelector('[name="unit_kerja_id"]')?.value || '' }, tombol);
   });
 
   document.addEventListener('keydown', function (e) {
