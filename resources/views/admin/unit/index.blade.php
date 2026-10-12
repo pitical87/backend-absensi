@@ -100,6 +100,7 @@
 @endphp
 <script>
 window.PEGAWAI_UNIT = {!! $daftarPegawaiJson !!};
+</script>
 <script>
 (function () {
   var tabBar   = document.getElementById('tab-bar');
