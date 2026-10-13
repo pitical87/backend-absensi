@@ -15,7 +15,7 @@
   <div class="kartu-kepala">
     <h2>{!! ikon('kalender') !!} Kehadiran — <span id="label-tanggal">{{ tgl_id($tanggal) }}</span></h2>
     <div class="flex items-center gap-3">
-      <span class="badge badge-biru"><span id="total-catatan">{{ $total }}</span> catatan</span>
+      <span class="badge badge-biru"><span id="total-catatan">…</span> catatan</span>
       <button type="button" id="tombol-peta" class="btn btn-navy btn-kecil">
         {!! ikon('peta', 14) !!} Peta Sebaran Absen
       </button>
@@ -55,20 +55,29 @@
           <th>Jarak</th><th>Koordinat Masuk</th><th>Aksi</th>
         </tr>
       </thead>
-      <tbody id="tbody-kehadiran">
-        @include('admin.kehadiran.rows', ['rows' => $rows])
+      <tbody id="tbody-kehadiran" aria-busy="true" aria-live="polite">
+        @for($i = 0; $i < 6; $i++)
+          <tr>
+            <td><div class="skel h-3.5 w-44"></div><div class="skel h-2.5 w-24 mt-1.5"></div></td>
+            <td><div class="skel h-8 w-12"></div></td>
+            <td><div class="skel h-3.5 w-20"></div></td>
+            <td><div class="skel h-3.5 w-16"></div></td>
+            <td><div class="skel h-4 w-20 rounded-full"></div></td>
+            <td><div class="skel h-3.5 w-10"></div></td>
+            <td><div class="skel h-3.5 w-28"></div></td>
+            <td><div class="skel h-6 w-20"></div></td>
+          </tr>
+        @endfor
       </tbody>
     </table>
   </div>
-  <p class="teks-kecil teks-redup mt-2 mb-0" id="catatan-batas" @if($total <= 200) hidden @endif>
-    Menampilkan {{ count($rows) }} dari {{ $total }} catatan. Persempit dengan filter tanggal, pencarian, unit, atau status.
-  </p>
+  <div id="paginasi-kehadiran"></div>
 </section>
 
 <section class="kartu hidden" id="panel-percobaan" role="tabpanel">
   <div class="kartu-kepala">
     <h2>{!! ikon('peringatan') !!} Percobaan Absen Ditolak (di luar radius)</h2>
-    <span class="badge badge-merah"><span id="total-percobaan">{{ $ditolak->count() }}</span> percobaan</span>
+    <span class="badge badge-merah"><span id="total-percobaan">…</span> percobaan</span>
   </div>
 
   <div class="tabel-bungkus">
@@ -76,8 +85,16 @@
       <thead>
         <tr><th>Waktu</th><th>Nama</th><th>Aksi</th><th>Jarak dari Titik Absen</th><th>Koordinat</th></tr>
       </thead>
-      <tbody id="tbody-percobaan">
-        @include('admin.kehadiran.percobaan_rows', ['ditolak' => $ditolak])
+      <tbody id="tbody-percobaan" aria-busy="true">
+        @for($i = 0; $i < 4; $i++)
+          <tr>
+            <td><div class="skel h-3.5 w-24"></div></td>
+            <td><div class="skel h-3.5 w-40"></div></td>
+            <td><div class="skel h-3.5 w-24"></div></td>
+            <td><div class="skel h-3.5 w-12"></div></td>
+            <td><div class="skel h-3.5 w-28"></div></td>
+          </tr>
+        @endfor
       </tbody>
     </table>
   </div>
@@ -215,7 +232,7 @@
   var urlPercobaan = @json(route('admin.kehadiran.percobaan'));
   var rsPusat      = [@json($rsLat), @json($rsLng)];
   var radiusPusat  = @json($radius);
-  var titikAwal    = @json($titik);
+  var titikAwal    = [];
 
   var namaHari  = @json(HARI_ID);
   var namaBulan = @json(array_values(BULAN_ID));
@@ -230,7 +247,7 @@
   var tbody        = document.getElementById('tbody-kehadiran');
   var totalCatatan = document.getElementById('total-catatan');
   var labelTanggalEl = document.getElementById('label-tanggal');
-  var catatanBatas = document.getElementById('catatan-batas');
+  var paginasiKehadiran = document.getElementById('paginasi-kehadiran');
   var tombolPeta   = document.getElementById('tombol-peta');
   var tabButtons   = document.querySelectorAll('.tab-kehadiran');
 
@@ -238,6 +255,7 @@
   var tabAktif  = localStorage.getItem(KUNCI_TAB) === 'percobaan' ? 'percobaan' : 'kehadiran';
   var titikPeta = titikAwal;
   var jedaCari  = null;
+  var halKehadiran = 1;
 
   /* ---------- Tab ---------- */
 
@@ -286,6 +304,7 @@
     if (inputQ.value.trim()) params.set('q', inputQ.value.trim());
     if (inputUnit.value) params.set('unit', inputUnit.value);
     if (inputStatus.value) params.set('status', inputStatus.value);
+    params.set('hal', halKehadiran);
     params.set('_', Date.now());
     return params;
   }
@@ -301,19 +320,41 @@
       .then(function (h) {
         if (! h.sukses) { tampilPesan('Gagal memuat data kehadiran.', false); return; }
         tbody.innerHTML = h.html;
+        tbody.removeAttribute('aria-busy');
+        paginasiKehadiran.innerHTML = h.paginasi || '';
+        halKehadiran = h.hal || 1;
         totalCatatan.textContent = h.total;
         labelTanggalEl.textContent = h.labelTanggal || labelTanggalEl.textContent;
-        catatanBatas.hidden = h.total <= h.jumlah;
         titikPeta = h.titik || [];
         if (peta) gambarTitik();
         tampilPesan('', true);
       })
-      .catch(function () { tampilPesan('Terjadi kesalahan jaringan saat memuat kehadiran.', false); });
+      .catch(function () {
+        tbody.removeAttribute('aria-busy');
+        tampilPesan('Terjadi kesalahan jaringan saat memuat kehadiran.', false);
+      });
   }
+
+  function keHalamanKehadiran(halBaru) {
+    var nomor = parseInt(halBaru, 10);
+    if (! nomor || nomor === halKehadiran) return;
+    halKehadiran = nomor;
+    muatKehadiran();
+    if (tbody.scrollIntoView) tbody.scrollIntoView({ block: 'nearest' });
+  }
+
+  // Delegasi karena isi pagination diganti ulang tiap halaman.
+  paginasiKehadiran.addEventListener('click', function (e) {
+    var tautan = e.target.closest('[data-hal]');
+    if (! tautan) return;
+    e.preventDefault();
+    keHalamanKehadiran(tautan.getAttribute('data-hal'));
+  });
 
   function muatPercobaan() {
     var params = new URLSearchParams({ tanggal: inputTanggal.value, _: String(Date.now()) });
     var kolom = document.getElementById('tbody-percobaan');
+    kolom.setAttribute('aria-busy', 'true');
 
     fetch(urlPercobaan + '?' + params.toString(), {
       headers: { Accept: 'application/json' },
@@ -323,12 +364,14 @@
       .then(function (h) {
         if (! h.sukses) return;
         kolom.innerHTML = h.html;
+        kolom.removeAttribute('aria-busy');
         document.getElementById('total-percobaan').textContent = h.total;
       })
       .catch(function () { /* panel sekunder: biarkan tabel terakhir tetap tampil */ });
   }
 
   function muatSemua() {
+    halKehadiran = 1;
     muatKehadiran();
     if (tabAktif === 'percobaan') muatPercobaan();
   }
@@ -616,8 +659,11 @@
 
   /* ---------- Mulai ---------- */
 
-  // Kedua panel sudah dirender server, jadi tidak perlu muat data lagi.
+  // Tabel kehadiran dimuat lazy lewat endpoint (halaman pertama); panel
+  // percobaan hanya dimuat bila tabnya sedang aktif.
   pasangTab();
+  muatKehadiran();
+  if (tabAktif === 'percobaan') muatPercobaan();
 })();
 </script>
 @endsection

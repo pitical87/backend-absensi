@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AktivitasController;
+use App\Http\Controllers\Admin\AsetController;
 use App\Http\Controllers\Admin\AtasanLangsungController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DataLogbookController;
@@ -33,6 +34,15 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('admin')->middleware('admin')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('admin.dashboard.index');
+
+    // Data dashboard diambil lazy oleh browser setelah halaman tampil.
+    Route::get('dashboard/data', [DashboardController::class, 'data'])->name('admin.dashboard.data');
+
+    // Aset statis (public/assets/*) disajikan lewat Laravel dengan header cache
+    // jangka panjang + ETag, agar tidak selalu diunduh ulang dari server.
+    Route::get('assets/{berkas}', [AsetController::class, 'tampil'])
+        ->where('berkas', '.*')
+        ->name('admin.asset');
 
     Route::get('mapping_simrs/cek', [MappingSIMRSController::class, 'cek'])->name('admin.mapping_simrs.cek');
     Route::get('mapping_simrs/cari', [MappingSIMRSController::class, 'cari'])->name('admin.mapping_simrs.cari');
@@ -85,6 +95,8 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::post('shift/aksi', [ShiftController::class, 'aksi'])->name('admin.shift.aksi');
 
     Route::get('jadwal', [JadwalController::class, 'index'])->name('admin.jadwal.index');
+    Route::get('jadwal/data', [JadwalController::class, 'dataPegawai'])->name('admin.jadwal.data');
+    Route::get('jadwal/pegawai-jadwal', [JadwalController::class, 'jadwalPegawai'])->name('admin.jadwal.pegawai-jadwal');
     Route::post('jadwal/aksi', [JadwalController::class, 'aksi'])->name('admin.jadwal.aksi');
     Route::post('jadwal/aksi-pegawai', [JadwalController::class, 'aksiPegawai'])->name('admin.jadwal.pegawai');
     Route::get('jadwal/template', [JadwalController::class, 'template'])->name('admin.jadwal.template');
@@ -101,6 +113,7 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::post('finger/mapping/hapus', [FingerController::class, 'hapusMapping'])->name('admin.finger.mapping.hapus');
     Route::post('finger/import', [FingerController::class, 'imporCsv'])->name('admin.finger.import');
     Route::post('finger/import-url', [FingerController::class, 'ambilDariMesin'])->name('admin.finger.import.url');
+    Route::post('finger/cek-koneksi', [FingerController::class, 'cekKoneksi'])->name('admin.finger.cek');
     Route::post('finger/setting', [FingerController::class, 'simpanSetting'])->name('admin.finger.setting');
 
     Route::get('izin', [IzinController::class, 'index'])->name('admin.izin.index');

@@ -151,6 +151,20 @@ class KehadiranTest extends TestCase
         $this->assertStringContainsString('320 m', $html);
     }
 
+    public function test_halaman_index_memuat_shell_lazy(): void
+    {
+        $this->admin();
+        $u = $this->pegawai('Budi Santoso');
+        $this->absensi($u);
+
+        $html = $this->get(route('admin.kehadiran.index', ['tanggal' => $this->tanggal]))->assertOk()->getContent();
+
+        $this->assertStringContainsString('id="tbody-kehadiran"', $html);
+        $this->assertStringContainsString('aria-busy="true"', $html);
+        $this->assertStringContainsString('id="paginasi-kehadiran"', $html);
+        $this->assertStringContainsString('id="total-catatan"', $html);
+    }
+
     public function test_label_shift_mengikuti_jadwal_pegawai(): void
     {
         $this->admin();
@@ -162,26 +176,38 @@ class KehadiranTest extends TestCase
         $u->jadwalShift()->create(['shift_id' => $shift->id, 'tanggal_berlaku' => $this->tanggal]);
         $this->absensi($u);
 
-        $this->get(route('admin.kehadiran.index', ['tanggal' => $this->tanggal]))
+        $html = $this->getJson(route('admin.kehadiran.data', ['tanggal' => $this->tanggal]))
             ->assertOk()
-            ->assertSee('Dewi Lestari')
-            ->assertSee('Pagi (07.00 - 15.00)')
-            ->assertSee('Bagian Keuangan');
+            ->json('html');
+
+        $this->assertStringContainsString('Dewi Lestari', $html);
+        $this->assertStringContainsString('Pagi (07.00 - 15.00)', $html);
+        $this->assertStringContainsString('Bagian Keuangan', $html);
     }
 
-    public function test_hapus_balasan_json_dan_menghapus_data(): void
+    public function test_pagination_membatasi_baris_per_halaman(): void
     {
         $this->admin();
-        $u = $this->pegawai('Toni Saputra');
-        $a = $this->absensi($u);
+        for ($i = 1; $i <= 20; $i++) {
+            $u = $this->pegawai('Pegawai '.$i, ['nip' => '199000'.$i]);
+            $this->absensi($u);
+        }
 
-        $this->getJson(route('admin.kehadiran.index', ['tanggal' => $this->tanggal]))->assertOk();
-
-        $this->postJson(route('admin.kehadiran.hapus'), ['id' => $a->id])
+        $hal1 = $this->getJson(route('admin.kehadiran.data', ['tanggal' => $this->tanggal, 'hal' => 1]))
             ->assertOk()
-            ->assertJsonPath('sukses', true);
+            ->assertJsonPath('sukses', true)
+            ->assertJsonPath('total', 20)
+            ->assertJsonPath('totalHal', 2)
+            ->assertJsonPath('hal', 1);
 
-        $this->assertDatabaseMissing('absensi', ['id' => $a->id]);
+        $this->assertEquals(15, substr_count($hal1->json('html'), '<tr'));
+        $this->assertStringContainsString('paginasi', $hal1->json('paginasi'));
+
+        $hal2 = $this->getJson(route('admin.kehadiran.data', ['tanggal' => $this->tanggal, 'hal' => 2]))
+            ->assertOk()
+            ->assertJsonPath('hal', 2);
+
+        $this->assertEquals(5, substr_count($hal2->json('html'), '<tr'));
     }
 
     public function test_tambah_absensi_manfaat_melalui_formulir(): void

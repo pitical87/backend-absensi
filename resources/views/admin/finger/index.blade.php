@@ -225,6 +225,14 @@
       </label>
     </div>
     <button type="submit" class="btn btn-navy btn-kecil self-end">Ambil &amp; Impor</button>
+    <p class="teks-redup teks-kecil">
+      @if($bridgeUrl !== '')
+        Data ditarik melalui bridge <code>{{ $bridgeUrl }}</code>.
+      @else
+        Mesin ini memakai protokol SDK (port 5005), bukan HTTP. Atur <strong>URL Bridge</strong>
+        pada tab Pengaturan agar data dapat ditarik. Tanpa bridge, penarikan langsung akan gagal.
+      @endif
+    </p>
   </form>
   
 </section>
@@ -242,9 +250,31 @@
       </label>
       <label class="blok m-0">
         <span class="teks-kecil">Port</span>
-        <input type="number" name="port" placeholder="cth. 80" value="{{ old('port', $portMesin) }}" min="1" max="65535" required>
+        <input type="number" name="port" placeholder="cth. 5005" value="{{ old('port', $portMesin) }}" min="1" max="65535" required>
       </label>
-    <button type="submit" class="btn btn-navy btn-besar self-end">Simpan Pengaturan</button>
+      <label class="blok m-0">
+        <span class="teks-kecil">URL Bridge <span class="teks-redup">(aplikasi Windows SDK, mis. http://192.168.0.50:8080)</span></span>
+        <input type="text" name="bridge_url" placeholder="http://192.168.0.50:8080" value="{{ old('bridge_url', $bridgeUrl) }}">
+      </label>
+      <label class="blok m-0">
+        <span class="teks-kecil">Token Bridge <span class="teks-redup">(opsional)</span></span>
+        <input type="password" name="bridge_token" autocomplete="new-password" value="{{ old('bridge_token', $bridgeToken) }}">
+      </label>
+      <div class="grid grid-cols-2 gap-2">
+        <label class="blok m-0">
+          <span class="teks-kecil">Password Mesin</span>
+          <input type="number" name="password" min="0" max="999999" value="{{ old('password', $passwordMesin) }}">
+        </label>
+        <label class="blok m-0">
+          <span class="teks-kecil">Machine No</span>
+          <input type="number" name="machine" min="1" max="999" value="{{ old('machine', $machineNo) }}">
+        </label>
+      </div>
+    <div class="flex flex-wrap items-center justify-end gap-2">
+      <button type="button" id="cek-koneksi-finger" class="btn btn-garis btn-besar">Cek Koneksi</button>
+      <button type="submit" class="btn btn-navy btn-besar">Simpan Pengaturan</button>
+    </div>
+    <div id="hasil-cek-koneksi" class="hidden rounded-lg px-3 py-2 text-sm"></div>
   </form></section>
 
 @endsection
@@ -381,6 +411,57 @@
   }
 
   renderPaginasi(cari ? cari.value.trim().toLowerCase() : '');
+
+  // ── Cek koneksi mesin ──
+  var tombolCek = document.getElementById('cek-koneksi-finger');
+  var kotakCek = document.getElementById('hasil-cek-koneksi');
+
+  function tampilCek(teks, berhasil) {
+    if (! kotakCek) return;
+    kotakCek.classList.remove('hidden');
+    kotakCek.className = 'rounded-lg px-3 py-2 text-sm ' + (berhasil
+      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+      : 'bg-rose-50 text-rose-700 border border-rose-200');
+    kotakCek.textContent = teks;
+  }
+
+  if (tombolCek) {
+    tombolCek.addEventListener('click', function () {
+      var form = tombolCek.closest('form');
+      var ip = (form.querySelector('[name="ip"]') || {}).value || '';
+      var port = (form.querySelector('[name="port"]') || {}).value || '';
+      var bridgeUrl = (form.querySelector('[name="bridge_url"]') || {}).value || '';
+      var bridgeToken = (form.querySelector('[name="bridge_token"]') || {}).value || '';
+      var csrf = (document.querySelector('meta[name="csrf"]') || {}).content || '';
+
+      var teksAwal = tombolCek.innerHTML;
+      tombolCek.disabled = true;
+      tombolCek.classList.add('opacity-70', 'cursor-wait');
+      tombolCek.textContent = 'Menguji…';
+      tampilCek(bridgeUrl
+        ? 'Menghubungi bridge ' + bridgeUrl + ' dan mesin ' + ip + ':' + port + '…'
+        : 'Menghubungi mesin ' + ip + ':' + port + '…', true);
+
+      fetch('{{ route('admin.finger.cek') }}', {
+        method: 'POST',
+        headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip: ip, port: port, bridge_url: bridgeUrl, bridge_token: bridgeToken })
+      })
+        .then(function (r) { return r.json().then(function (h) { return { ok: r.ok, h: h }; }); })
+        .then(function (b) {
+          var h = b.h || {};
+          var pesan = h.pesan || h.message || (h.errors ? Object.values(h.errors)[0][0] : 'Gagal menguji koneksi.');
+          if (h.ms != null) pesan += ' (' + h.ms + ' ms)';
+          tampilCek(pesan, !! h.sukses);
+        })
+        .catch(function () { tampilCek('Terjadi kesalahan jaringan saat menguji koneksi.', false); })
+        .finally(function () {
+          tombolCek.disabled = false;
+          tombolCek.classList.remove('opacity-70', 'cursor-wait');
+          tombolCek.innerHTML = teksAwal;
+        });
+    });
+  }
 })();
 </script>
 @endsection

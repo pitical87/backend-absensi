@@ -94,7 +94,10 @@ class FingerImportService
 
     public function ambilDariMesin(string $url, string $tanggalMulai, string $tanggalSelesai, array $extra = []): array
     {
-        $response = Http::timeout(30)->withOptions(['verify' => false])
+        // Mesin dapat lambat membalas saat rentang tanggalnya lebar, jadi beri
+        // waktu yang lapang. connectTimeout memisahkan gagal-koneksi (cepat)
+        // dari sekadar respons yang lambat.
+        $response = Http::connectTimeout(10)->timeout(120)->withOptions(['verify' => false])
             ->get($url, array_merge([
                 'tanggal_mulai' => $tanggalMulai,
                 'tanggal_selesai' => $tanggalSelesai,
@@ -117,6 +120,177 @@ class FingerImportService
         file_put_contents($tmp, $isi);
         $scan = $this->parseCsv($tmp);
         @unlink($tmp);
+
+        return $scan;
+    }
+
+    /**
+     * Uji koneksi ke mesin: cek apakah alamat IP:port dapat dijangkau.
+     * Mengembalikan ['sukses' => bool, 'pesan' => string, 'ms' => int|null].
+     */
+    public function cekKoneksi(string $ip, int $port, float $timeout = 5.0): array
+    {
+        $ip = trim($ip);
+        if ($ip === '') {
+            return ['sukses' => false, 'pesan' => 'IP mesin belum diisi.', 'ms' => null];
+        }
+        if ($port < 1 || $port > 65535) {
+            return ['sukses' => false, 'pesan' => 'Port mesin tidak valid.', 'ms' => null];
+        }
+
+        $mulai = microtime(true);
+        $errno = 0;
+        $errstr = '';
+        $koneksi = @fsockopen($ip, $port, $errno, $errstr, $timeout);
+        $ms = (int) round((microtime(true) - $mulai) * 1000);
+
+        if (! $koneksi) {
+            $sebab = trim((string) $errstr) !== '' ? $errstr : 'koneksi gagal / timeout';
+
+            return [
+                'sukses' => false,
+                'pesan' => 'Tidak dapat terhubung ke '.$ip.':'.$port.' — '.$sebab.'.',
+                'ms' => $ms,
+            ];
+        }
+        fclose($koneksi);
+
+        return [
+            'sukses' => true,
+            'pesan' => 'Mesin '.$ip.':'.$port.' dapat dijangkau.',
+            'ms' => $ms,
+        ];
+    }
+
+    /**
+     * Ambil log absensi lewat bridge HTTP (aplikasi Windows yang memanggil
+     * SDK SBXPCDLL). Mengembalikan ['status' => 'success'|'failed',
+     * 'message' => string, 'scan' => array].
+     */
+    public function ambilDariBridge(
+        string $bridgeUrl,
+        string $ip,
+        int $port,
+        int $password,
+        int $machineNo,
+        string $tanggalMulai,
+        string $tanggalSelesai,
+        ?string $token = null
+    ): array {
+        $url = rtrim($bridgeUrl, '/').'/api/logs';
+
+        try {
+            $req = Http::connectTimeout(10)->timeout(120)->acceptJson();
+            if ($token !== null && $token !== '') {
+                $req = $req->withHeaders(['X-Bridge-Token' => $token]);
+            }
+            $response = $req->post($url, [
+                'ip' => $ip,
+                'port' => $port,
+                'password' => $password,
+                'machineNo' => $machineNo,
+            ]);
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            return [
+                'status' => 'failed',
+                'message' => 'Tidak dapat menghubungi bridge di '.$url.'. Pastikan aplikasi bridge di Windows menyala dan dapat dijangkau.',
+                'scan' => [],
+            ];
+        }
+
+        if (! $response->ok()) {
+            return [
+                'status' => 'failed',
+                'message' => 'Bridge membalas HTTP '.$response->status().'.',
+                'scan' => [],
+            ];
+        }
+
+        $data = $response->json();
+        if (! is_array($data)) {
+            return ['status' => 'failed', 'message' => 'Respons bridge tidak dikenali.', 'scan' => []];
+        }
+
+        if (($data['status'] ?? '') !== 'success') {
+            return [
+                'status' => 'failed',
+                'message' => (string) ($data['message'] ?? 'Bridge melaporkan kegagalan.'),
+                'scan' => [],
+            ];
+        }
+
+        return [
+            'status' => 'success',
+            'message' => '',
+            'scan' => $this->normalisasiLogBridge((array) ($data['logs'] ?? []), $tanggalMulai, $tanggalSelesai),
+        ];
+    }
+
+    /**
+     * Uji bridge + mesin lewat endpoint /api/ping.
+     * Mengembalikan ['sukses' => bool, 'pesan' => string, 'ms' => int|null].
+     */
+    public function cekKoneksiBridge(string $bridgeUrl, string $ip, int $port, ?string $token = null): array
+    {
+        $url = rtrim($bridgeUrl, '/').'/api/ping';
+
+        try {
+            $req = Http::connectTimeout(5)->timeout(20)->acceptJson();
+            if ($token !== null && $token !== '') {
+                $req = $req->withHeaders(['X-Bridge-Token' => $token]);
+            }
+            $response = $req->post($url, ['ip' => $ip, 'port' => $port]);
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            return ['sukses' => false, 'pesan' => 'Bridge tidak dapat dihubungi di '.$url.'.', 'ms' => null];
+        }
+
+        $data = $response->json();
+        if (! is_array($data)) {
+            return ['sukses' => false, 'pesan' => 'Respons bridge tidak dikenali (HTTP '.$response->status().').', 'ms' => null];
+        }
+
+        $sukses = ($data['status'] ?? '') === 'success';
+
+        return [
+            'sukses' => $sukses,
+            'pesan' => (string) ($data['message'] ?? ($sukses ? 'Mesin dapat dijangkau.' : 'Mesin tidak dapat dijangkau.')),
+            'ms' => isset($data['latency_ms']) ? (int) round((float) $data['latency_ms']) : null,
+        ];
+    }
+
+    /**
+     * Ubah daftar log dari bridge (user_id + timestamp) menjadi baris scan
+     * standar dan saring sesuai rentang tanggal.
+     */
+    private function normalisasiLogBridge(array $logs, string $tanggalMulai, string $tanggalSelesai): array
+    {
+        $scan = [];
+        foreach ($logs as $log) {
+            if (! is_array($log)) {
+                continue;
+            }
+            $finger = trim((string) ($log['user_id'] ?? ''));
+            $ts = trim((string) ($log['timestamp'] ?? ''));
+            if ($finger === '' || $ts === '') {
+                continue;
+            }
+
+            $tanggal = substr($ts, 0, 10);
+            $waktu = substr($ts, 11, 5);
+            if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggal) || $tanggal < $tanggalMulai || $tanggal > $tanggalSelesai) {
+                continue;
+            }
+            if (! preg_match('/^\d{2}:\d{2}$/', $waktu)) {
+                continue;
+            }
+
+            $scan[] = [
+                'finger_id' => mb_strtolower($finger),
+                'tanggal' => $tanggal,
+                'waktu' => $waktu,
+                'tipe' => 'scan',
+            ];
+        }
 
         return $scan;
     }

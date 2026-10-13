@@ -56,6 +56,9 @@ class JadwalController extends Controller
 
         $hariDalamBulan = (int) cal_days_in_month(CAL_GREGORIAN, $bulan, $tahun);
 
+        // Daftar pegawai aktif untuk popup pilih pegawai (tab Per Pegawai).
+        // Ringan berupa daftar datar; grid jadwal per bulan tidak lagi dihitung
+        // di sini, melainkan diambil lewat endpoint lazy.
         $semuaPegawai = User::select('users.id', 'users.nama_lengkap',
             'uk.nama AS unit_nama', 'su.nama AS sub_unit_nama')
             ->leftJoin('unit_kerja as uk', 'uk.id', '=', 'users.unit_kerja_id')
@@ -65,35 +68,9 @@ class JadwalController extends Controller
             ->orderBy('nama_lengkap')
             ->get();
 
-        // jadwal yang sudah tersimpan untuk semua pegawai aktif pada bulan terpilih
-        // (dipakai tab Per Pegawai agar pengisian tidak diulang)
-        $awalSemua = sprintf('%04d-%02d-01', $tahun, $bulan);
-        $akhirSemua = sprintf('%04d-%02d-%02d', $tahun, $bulan,
-            cal_days_in_month(CAL_GREGORIAN, $bulan, $tahun));
-
-        $jadwalPegawai = [];
-        JadwalShift::join('users as u', 'u.id', '=', 'jadwal_shift.user_id')
-            ->where('u.role', '!=', 'admin')
-            ->where('u.status', 'aktif')
-            ->where('jadwal_shift.tanggal_berlaku', '>=', $awalSemua)
-            ->where('jadwal_shift.tanggal_berlaku', '<=', $akhirSemua)
-            ->get(['jadwal_shift.user_id', 'jadwal_shift.tanggal_berlaku', 'jadwal_shift.shift_id'])
-            ->each(function ($j) use (&$jadwalPegawai) {
-                $jadwalPegawai[$j->user_id][(string) $j->tanggal_berlaku] = (int) $j->shift_id;
-            });
-
-        // pegawai yang punya jadwal tersimpan pada bulan terpilih (untuk tab Data Jadwal)
-        $pegawaiBertugas = collect();
-        if ($jadwalPegawai) {
-            $pegawaiBertugas = User::select('users.id', 'users.nama_lengkap',
-                'uk.nama AS unit_nama', 'su.nama AS sub_unit_nama')
-                ->leftJoin('unit_kerja as uk', 'uk.id', '=', 'users.unit_kerja_id')
-                ->leftJoin('sub_unit as su', 'su.id', '=', 'users.sub_unit_id')
-                ->whereIn('users.id', array_keys($jadwalPegawai))
-                ->orderBy('users.nama_lengkap')
-                ->get();
-        }
-
+        // Data Jadwal dan Per Pegawai dimuat lazy lewat endpoint terpisah
+        // (dataPegawai/jadwalPegawai) supaya request halaman ini tidak
+        // menghitung jadwal seluruh pegawai sekaligus.
         return view('admin.jadwal.index', [
             'judulHalaman' => 'Jadwal Shift Pegawai',
             'menuAktif' => 'jadwal',
@@ -107,9 +84,125 @@ class JadwalController extends Controller
             'shiftById' => $shiftList->keyBy('id'),
             'hariDalamBulan' => $hariDalamBulan,
             'semuaPegawai' => $semuaPegawai,
-            'jadwalPegawai' => $jadwalPegawai,
-            'pegawaiBertugas' => $pegawaiBertugas,
         ]);
+    }
+
+    /**
+     * Data Jadwal (tab Data Jadwal) dimuat lazy: daftar pegawai yang punya
+     * jadwal pada periode terpilih, dengan pencarian dan pagination server-side.
+     * Mengembalikan potongan HTML tabel agar tidak perlu menggandakan logika
+     * render di JavaScript.
+     */
+    public function dataPegawai(Request $request)
+    {
+        [$bulan, $tahun] = $this->periode($request);
+        $cari = trim((string) $request->get('cari', ''));
+        $semua = $request->get('per') === 'all';
+        $per = (int) $request->get('per', 20);
+        if ($per < 1) {
+            $per = 20;
+        }
+        $page = max(1, (int) $request->get('page', 1));
+
+        $awal = sprintf('%04d-%02d-01', $tahun, $bulan);
+        $akhir = sprintf('%04d-%02d-%02d', $tahun, $bulan,
+            cal_days_in_month(CAL_GREGORIAN, $bulan, $tahun));
+
+        $idQuery = JadwalShift::query()
+            ->join('users as u', 'u.id', '=', 'jadwal_shift.user_id')
+            ->leftJoin('unit_kerja as uk', 'uk.id', '=', 'u.unit_kerja_id')
+            ->leftJoin('sub_unit as su', 'su.id', '=', 'u.sub_unit_id')
+            ->where('jadwal_shift.tanggal_berlaku', '>=', $awal)
+            ->where('jadwal_shift.tanggal_berlaku', '<=', $akhir)
+            ->where('u.role', '!=', 'admin')
+            ->where('u.status', 'aktif');
+
+        if ($cari !== '') {
+            $idQuery->where(function ($w) use ($cari) {
+                $w->where('u.nama_lengkap', 'like', "%{$cari}%")
+                    ->orWhere('uk.nama', 'like', "%{$cari}%")
+                    ->orWhere('su.nama', 'like', "%{$cari}%");
+            });
+        }
+
+        $ids = $idQuery->distinct()->orderBy('u.nama_lengkap')->pluck('jadwal_shift.user_id');
+        $total = $ids->count();
+
+        $perHalaman = $semua ? max(1, $total) : $per;
+        $lastPage = $semua ? 1 : max(1, (int) ceil($total / $perHalaman));
+        $page = min($page, $lastPage);
+
+        $pageIds = $ids->slice(($page - 1) * $perHalaman, $perHalaman)->values()->all();
+
+        $pegawaiBertugas = collect();
+        $jadwalPegawai = [];
+
+        if ($pageIds) {
+            $pegawaiBertugas = User::select('users.id', 'users.nama_lengkap',
+                'uk.nama AS unit_nama', 'su.nama AS sub_unit_nama')
+                ->leftJoin('unit_kerja as uk', 'uk.id', '=', 'users.unit_kerja_id')
+                ->leftJoin('sub_unit as su', 'su.id', '=', 'users.sub_unit_id')
+                ->whereIn('users.id', $pageIds)
+                ->orderBy('users.nama_lengkap')
+                ->get();
+
+            JadwalShift::whereIn('user_id', $pageIds)
+                ->where('tanggal_berlaku', '>=', $awal)
+                ->where('tanggal_berlaku', '<=', $akhir)
+                ->get(['user_id', 'tanggal_berlaku', 'shift_id'])
+                ->each(function ($j) use (&$jadwalPegawai) {
+                    $jadwalPegawai[$j->user_id][(string) $j->tanggal_berlaku] = (int) $j->shift_id;
+                });
+        }
+
+        $shiftList = Shift::where('aktif', 1)->orderBy('jam_masuk')->get();
+
+        return response()
+            ->view('admin.jadwal._tabel', [
+                'pegawaiBertugas' => $pegawaiBertugas,
+                'jadwalPegawai' => $jadwalPegawai,
+                'shiftList' => $shiftList,
+                'shiftById' => $shiftList->keyBy('id'),
+                'hariDalamBulan' => (int) cal_days_in_month(CAL_GREGORIAN, $bulan, $tahun),
+                'bulan' => $bulan,
+                'tahun' => $tahun,
+                'cari' => $cari,
+                'page' => $page,
+                'lastPage' => $lastPage,
+                'per' => $perHalaman,
+                'total' => $total,
+                'offset' => ($page - 1) * $perHalaman,
+            ])
+            ->header('Cache-Control', 'no-store');
+    }
+
+    /**
+     * Jadwal satu pegawai pada periode terpilih (map tanggal => shift_id),
+     * dipakai tab Per Pegawai untuk mengisi baris saat pegawai ditambahkan.
+     */
+    public function jadwalPegawai(Request $request)
+    {
+        [$bulan, $tahun] = $this->periode($request);
+        $userId = (int) $request->get('user_id');
+
+        if (! $userId) {
+            return response()->json([], 200, ['Cache-Control' => 'no-store']);
+        }
+
+        $awal = sprintf('%04d-%02d-01', $tahun, $bulan);
+        $akhir = sprintf('%04d-%02d-%02d', $tahun, $bulan,
+            cal_days_in_month(CAL_GREGORIAN, $bulan, $tahun));
+
+        $map = [];
+        JadwalShift::where('user_id', $userId)
+            ->where('tanggal_berlaku', '>=', $awal)
+            ->where('tanggal_berlaku', '<=', $akhir)
+            ->get(['tanggal_berlaku', 'shift_id'])
+            ->each(function ($j) use (&$map) {
+                $map[(string) $j->tanggal_berlaku] = (int) $j->shift_id;
+            });
+
+        return response()->json($map, 200, ['Cache-Control' => 'no-store']);
     }
 
     /**

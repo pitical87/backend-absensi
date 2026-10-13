@@ -11,19 +11,28 @@ use App\Models\UnitKerja;
 use App\Models\User;
 use App\Services\BintangService;
 use DateTime;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 
 class KehadiranController extends Controller
 {
-    /** Batas baris yang dimuat ke tabel dan ke peta sebaran. */
+    /** Batas baris untuk daftar percobaan absen yang ditolak. */
     private const BATAS_BARIS = 200;
+
+    /** Jumlah catatan kehadiran per halaman tabel. */
+    private const PER_HALAMAN = 15;
+
+    /** Batas titik yang digambar di peta sebaran (peta tetap utuh lintas halaman). */
+    private const BATAS_TITIK = 500;
 
     public function index(Request $request)
     {
         $filter = $this->filter($request);
-        $daftar = $this->daftarAbsensi($filter);
 
+        // Tabel kehadiran dan panel percobaan dimuat lazy lewat endpoint
+        // (data/percobaan) supaya request halaman ini ringan: tanpa menghitung
+        // seluruh catatan absensi dan titik peta pada hari yang dipilih.
         return view('admin.kehadiran.index', [
             'judulHalaman' => 'Data Kehadiran',
             'menuAktif' => 'kehadiran',
@@ -31,10 +40,6 @@ class KehadiranController extends Controller
             'fUnit' => $filter['unit'],
             'q' => $filter['q'],
             'fStatus' => $filter['status'],
-            'rows' => $daftar['rows'],
-            'total' => $daftar['total'],
-            'titik' => $daftar['titik'],
-            'ditolak' => $this->daftarPercobaan($filter['tanggal']),
             'pegawaiList' => User::where('role', '!=', 'admin')->where('status', 'aktif')
                 ->orderBy('nama_lengkap')->get(['id', 'nama_lengkap'])->all(),
             'unitList' => UnitKerja::orderBy('id')->get()->all(),
@@ -46,9 +51,10 @@ class KehadiranController extends Controller
     }
 
     /**
-     * Endpoint asinkron: isi tabel kehadiran tanpa memuat ulang halaman.
-     * Balasannya HTML tabel yang sudah dirender server supaya tombol pada
-     * setiap baris (Ubah, Hapus, detail anomali) tetap hidup.
+     * Endpoint asinkron: satu halaman tabel kehadiran tanpa memuat ulang
+     * halaman. Balasannya HTML tabel yang sudah dirender server supaya tombol
+     * pada setiap baris (Ubah, Hapus, detail anomali) tetap hidup, plus HTML
+     * pagination dan titik peta untuk hari yang dipilih.
      */
     public function data(Request $request)
     {
@@ -57,16 +63,20 @@ class KehadiranController extends Controller
         }
 
         $filter = $this->filter($request);
-        $daftar = $this->daftarAbsensi($filter);
+        $hal = max(1, (int) $request->get('hal', 1));
+        $rows = $this->halamanAbsensi($filter, $hal);
 
         return response()->json([
             'sukses' => true,
             'tanggal' => $filter['tanggal'],
             'labelTanggal' => tgl_id($filter['tanggal']),
-            'total' => $daftar['total'],
-            'jumlah' => $daftar['rows']->count(),
-            'html' => view('admin.kehadiran.rows', ['rows' => $daftar['rows']])->render(),
-            'titik' => $daftar['titik'],
+            'total' => $rows->total(),
+            'jumlah' => $rows->count(),
+            'hal' => $rows->currentPage(),
+            'totalHal' => $rows->lastPage(),
+            'html' => view('admin.kehadiran.rows', ['rows' => $rows])->render(),
+            'paginasi' => view('admin.bersama.paginasi', ['rows' => $rows, 'satuan' => 'catatan'])->render(),
+            'titik' => $this->titikAbsensi($filter),
         ]);
     }
 
@@ -133,41 +143,72 @@ class KehadiranController extends Controller
     }
 
     /**
-     * Catatan kehadiran pada satu tanggal beserta titik peta pembarunya.
+     * Query dasar catatan kehadiran pada tanggal terpilih, sudah menerapkan
+     * pencarian, filter status, dan filter unit. Dipakai bersama oleh tabel
+     * (halamanAbsensi) dan titik peta (titikAbsensi).
      *
      * @param  array{tanggal: string, q: string, unit: int, status: string}  $filter
-     * @return array{rows: Collection, total: int, titik: array<int, array<string, mixed>>}
      */
-    private function daftarAbsensi(array $filter): array
+    private function kueriAbsensi(array $filter): Builder
     {
         $q = $filter['q'];
 
-        $b = Absensi::with([
-            'user:id,nama_lengkap,nip,unit_kerja_id,sub_unit_id',
-            'user.unitKerja:id,nama',
-            'user.subUnit:id,nama',
-            'logLokasiDatang' => fn ($l) => $l->select('id', 'jarak_meter', 'tipe'),
-        ])
+        return Absensi::query()
             ->whereDate('absensi.tanggal', $filter['tanggal'])
             ->when($q !== '', fn ($b) => $b->whereHas('user', fn ($u) => $u->where('nama_lengkap', 'like', "%{$q}%")->orWhere('nip', 'like', "%{$q}%")))
             ->when($filter['status'] !== '', fn ($b) => $b->where('absensi.status_masuk', $filter['status'] === 'tepat' ? 'Tepat Waktu' : 'Terlambat'))
             ->when($filter['unit'], fn ($b) => $b->whereHas('user', fn ($u) => $u->where('unit_kerja_id', $filter['unit'])))
             ->orderBy('absensi.waktu_masuk');
+    }
 
-        $total = (clone $b)->count();
-        $rows = $b->limit(self::BATAS_BARIS)->get();
+    /**
+     * Satu halaman tabel kehadiran, lengkap dengan relasi shift hari itu yang
+     * dipakai label_shift() pada view.
+     *
+     * @param  array{tanggal: string, q: string, unit: int, status: string}  $filter
+     * @return LengthAwarePaginator
+     */
+    private function halamanAbsensi(array $filter, int $hal)
+    {
+        $rows = $this->kueriAbsensi($filter)
+            ->with([
+                'user:id,nama_lengkap,nip,unit_kerja_id,sub_unit_id',
+                'user.unitKerja:id,nama',
+                'user.subUnit:id,nama',
+                'logLokasiDatang' => fn ($l) => $l->select('id', 'jarak_meter', 'tipe'),
+            ])
+            ->paginate(self::PER_HALAMAN, ['*'], 'hal', $hal);
 
         // Satu jadwal shift per pegawai; simpan per baris supaya label_shift()
         // pada view menerima objek shift, bukan seluruh collection.
+        $items = $rows->getCollection();
         $shift = JadwalShift::query()
-            ->whereIn('user_id', $rows->pluck('user_id')->unique())
+            ->whereIn('user_id', $items->pluck('user_id')->unique())
             ->whereDate('tanggal_berlaku', $filter['tanggal'])
             ->with('shift:id,kategori,jam_masuk,jam_pulang')
             ->get()
             ->keyBy('user_id');
-        foreach ($rows as $r) {
+        foreach ($items as $r) {
             $r->setRelation('shiftHariIni', $shift->get($r->user_id)?->shift);
         }
+
+        return $rows;
+    }
+
+    /**
+     * Titik peta sebaran absen untuk seluruh catatan yang cocok dengan filter
+     * (bukan hanya halaman yang tampil), dibatasi BATAS_TITIK agar tetap ringan.
+     *
+     * @param  array{tanggal: string, q: string, unit: int, status: string}  $filter
+     * @return array<int, array<string, mixed>>
+     */
+    private function titikAbsensi(array $filter): array
+    {
+        $rows = $this->kueriAbsensi($filter)
+            ->with('user:id,nama_lengkap')
+            ->limit(self::BATAS_TITIK)
+            ->get(['absensi.id', 'absensi.user_id', 'lat_masuk', 'lng_masuk', 'waktu_masuk',
+                'lat_pulang', 'lng_pulang', 'waktu_pulang', 'flag_anomali']);
 
         $titik = [];
         foreach ($rows as $r) {
@@ -183,7 +224,7 @@ class KehadiranController extends Controller
             }
         }
 
-        return ['rows' => $rows, 'total' => $total, 'titik' => $titik];
+        return $titik;
     }
 
     /** Percobaan absen di luar radius pada satu tanggal. */

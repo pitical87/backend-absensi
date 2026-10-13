@@ -239,6 +239,26 @@ if (! function_exists('ikon')) {
     }
 }
 
+if (! function_exists('aset_admin')) {
+    /**
+     * URL aset admin lewat route admin.asset (public/assets/*) dengan versi
+     * berbasis waktu ubah berkas, agar cache browser aman saat berkas berubah.
+     */
+    function aset_admin(string $berkas): string
+    {
+        $bersih = ltrim(str_replace('\\', '/', $berkas), '/');
+        $jalur = public_path('assets/' . $bersih);
+        $versi = is_file($jalur) ? filemtime($jalur) : null;
+
+        $parameter = ['berkas' => $bersih];
+        if ($versi !== null) {
+            $parameter['v'] = $versi;
+        }
+
+        return route('admin.asset', $parameter);
+    }
+}
+
 if (! function_exists('badge_status')) {
     function badge_status(?string $status, int $menitTerlambat = 0): string
     {

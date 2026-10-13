@@ -50,8 +50,6 @@
     </div>
   </section>
 
-  @if(count($pegawaiBertugas))
-
   <section class="kartu" id="area-cetak-jadwal">
     {{-- kepala khusus cetak --}}
     <div class="kepala-cetak text-center mb-2">
@@ -61,62 +59,34 @@
 
     <div class="kartu-kepala no-cetak">
       <h2>{!! ikon('jam') !!} Data Jadwal — {{ BULAN_ID[$bulan] }} {{ $tahun }}
-        <span class="badge badge-biru ms-1" id="jumlah-filter"></span>
       </h2>
       <div class="flex gap-2">
-        <button type="button" id="tombol-filter-pegawai" class="btn btn-garis btn-kecil">
-          {!! ikon('pegawai') !!} Filter <span class="ms-1 font-semibold" id="jumlah-pilih-filter"></span>
-        </button>
         <button type="button" id="tombol-cetak" class="btn btn-navy btn-kecil">Cetak</button>
       </div>
     </div>
 
-    <div class="tabel-bungkus overflow-x-auto">
-      <table id="grid-unit" class="tabel jadwal-grid" style="min-width:{{ 210 + ($hariDalamBulan * 46) }}px">
-        <thead>
-          <tr>
-            <th class="angka min-w-[36px]">No</th>
-            <th class="sticky left-0 bg-white z-[2] min-w-[150px]">Nama Pegawai</th>
-            @for($d = 1; $d <= $hariDalamBulan; $d++)
-              @php
-                $dtD = Carbon\Carbon::createFromDate($tahun, $bulan, $d);
-                $tglD = sprintf('%04d-%02d-%02d', $tahun, $bulan, $d);
-              @endphp
-              <th class="angka min-w-[40px]" style="{{ $dtD->dayOfWeek === Carbon\Carbon::SUNDAY ? 'color:var(--merah)' : '' }}"
-                  title="{{ $dtD->translatedFormat('l') }}">{{ $d }}</th>
+    <div class="px-3 pb-3 no-cetak">
+      <input type="search" id="cari-jadwal" autocomplete="off"
+             placeholder="Cari nama pegawai / unit…"
+             class="w-full max-w-md px-3 py-1.5 text-sm border border-garis rounded-lg">
+    </div>
+
+    <div id="data-jadwal-isi" aria-busy="true" aria-live="polite">
+      <div class="tabel-bungkus overflow-x-auto">
+        <table class="tabel jadwal-grid" style="min-width:{{ 210 + ($hariDalamBulan * 46) }}px">
+          <tbody>
+            @for($i = 0; $i < 8; $i++)
+              <tr>
+                <td><div class="skel h-3.5 w-6"></div></td>
+                <td><div class="skel h-3.5 w-40"></div></td>
+                @for($d = 1; $d <= $hariDalamBulan; $d++)
+                  <td><div class="skel h-4 w-full"></div></td>
+                @endfor
+              </tr>
             @endfor
-          </tr>
-        </thead>
-        <tbody>
-          @foreach($pegawaiBertugas as $i => $pg)
-          <tr class="baris-data" data-user="{{ $pg->id }}">
-            <td class="angka teks-redup">{{ $i + 1 }}</td>
-            <td class="sticky left-0 bg-white z-[1] whitespace-nowrap">
-              <strong>{{ $pg->nama_lengkap }}</strong>
-              @if($pg->sub_unit_nama)
-                <br><span class="teks-redup teks-kecil">{{ $pg->unit_nama }} — {{ $pg->sub_unit_nama }}</span>
-              @elseif($pg->unit_nama)
-                <br><span class="teks-redup teks-kecil">{{ $pg->unit_nama }}</span>
-              @endif
-            </td>
-            @for($d = 1; $d <= $hariDalamBulan; $d++)
-              @php
-                $tglS = sprintf('%04d-%02d-%02d', $tahun, $bulan, $d);
-                $sh = $shiftById->get($jadwalPegawai[$pg->id][$tglS] ?? null);
-                $warnaSh = $sh ? match ($sh->kategori) {
-                    'Pagi' => '#fef3c7', 'Siang' => '#dbeafe', 'Sore' => '#e0e7ff', default => '#e2e8f0',
-                } : null;
-              @endphp
-              <td class="text-center teks-kecil"
-                  style="{{ $warnaSh ? 'background:'.$warnaSh.';border-radius:4px' : '' }}"
-                  title="{{ $sh ? $sh->kategori.' '.$sh->jam_masuk->format('H:i').'-'.$sh->jam_pulang->format('H:i') : '' }}">
-                {{ $sh?->kategori }}
-              </td>
-            @endfor
-          </tr>
-          @endforeach
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <div class="px-3 py-2 teks-redup teks-kecil border-t border-garis">
@@ -126,18 +96,6 @@
       @endforeach
     </div>
   </section>
-
-  @else
-
-  <section class="kartu no-cetak">
-    <div class="kartu-kepala"><h2>{!! ikon('jam') !!} Data Jadwal</h2></div>
-    <p class="teks-redup text-center py-[30px]">
-      Belum ada jadwal tersimpan pada {{ BULAN_ID[$bulan] }} {{ $tahun }}.<br>
-      Isi melalui tab <strong>Per Unit</strong> atau <strong>Per Pegawai</strong>.
-    </p>
-  </section>
-
-  @endif
 </section>
 
 <style>
@@ -206,7 +164,7 @@
       </div>
 
       <div class="tabel-bungkus overflow-x-auto">
-        <table class="tabel jadwal-grid" style="min-width:{{ 180 + ($hariDalamBulan * 52) }}px">
+        <table id="grid-unit" class="tabel jadwal-grid" style="min-width:{{ 180 + ($hariDalamBulan * 52) }}px">
           <thead>
             <tr>
               <th class="sticky left-0 bg-white z-[2] min-w-[160px]">Nama Pegawai</th>
@@ -318,8 +276,16 @@
         Klik <b>+ Tambah Pegawai</b> untuk memilih. Jadwal yang sudah tersimpan pada periode ini terisi otomatis.
       </div>
 
+      <div class="px-3 py-2 border-t border-garis flex flex-wrap items-center gap-2">
+        <span class="teks-kecil teks-redup">
+          Dropdown <b>⇩</b> di tiap tanggal untuk mengisi seluruh pegawai pada tanggal itu.
+          Tombol <b>Atur Semua Pegawai</b> untuk mengisi semua tanggal (bisa sekaligus semua pegawai aktif).
+        </span>
+        <button type="button" id="toolbar-kosongkan-semua" class="btn btn-garis btn-kecil ms-auto">Kosongkan Semua</button>
+      </div>
+
       <div class="tabel-bungkus overflow-x-auto">
-        <table class="tabel jadwal-grid" style="min-width:{{ 180 + ($hariDalamBulan * 52) }}px">
+        <table id="tabel-pegawai" class="tabel jadwal-grid" style="min-width:{{ 180 + ($hariDalamBulan * 52) }}px">
           <thead>
             <tr>
               <th class="sticky left-0 bg-white z-[2] min-w-[160px]">Nama Pegawai</th>
@@ -328,10 +294,23 @@
                 @php
                   $dt2 = Carbon\Carbon::createFromDate($tahun, $bulan, $d);
                   $libur2 = $dt2->dayOfWeek === Carbon\Carbon::SUNDAY;
+                  $tglKolom = sprintf('%04d-%02d-%02d', $tahun, $bulan, $d);
                 @endphp
-                <th class="angka min-w-[52px]" style="{{ $libur2 ? 'color:var(--merah)' : '' }}"
-                    data-tanggal="{{ sprintf('%04d-%02d-%02d', $tahun, $bulan, $d) }}"
-                    title="{{ $dt2->translatedFormat('l') }}">{{ $d }}</th>
+                <th class="angka min-w-[52px] align-top" style="{{ $libur2 ? 'color:var(--merah)' : '' }}"
+                    data-tanggal="{{ $tglKolom }}"
+                    title="{{ $dt2->translatedFormat('l') }}">
+                  <div>{{ $d }}</div>
+                  <select class="isi-kolom-tanggal mt-0.5 p-0 text-[0.6rem] border border-garis rounded"
+                          data-tanggal="{{ $tglKolom }}"
+                          title="Isi shift ini untuk semua pegawai pada tanggal {{ $d }}"
+                          style="width:46px">
+                    <option value="">⇩</option>
+                    <option value="">—</option>
+                    @foreach($shiftList as $s)
+                      <option value="{{ (int) $s->id }}">{{ $s->kategori }} | {{ $s->jam_masuk->format('h:i') }} - {{ $s->jam_pulang->format('h:i') }}</option>
+                    @endforeach
+                  </select>
+                </th>
               @endfor
             </tr>
           </thead>
@@ -458,38 +437,7 @@
   </section>
 </div>
 
-{{-- ── POPUP FILTER PEGAWAI (DATA JADWAL) ── --}}
-<div id="modal-filter-pegawai" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
-  <section class="kartu w-full max-w-lg max-h-[85vh] flex flex-col">
-    <div class="kartu-kepala">
-      <h2>{!! ikon('pegawai') !!} Tampilkan Pegawai</h2>
-      <button type="button" id="modal-filter-tutup" class="btn btn-garis btn-kecil">&times;</button>
-    </div>
-    <div class="p-3 flex flex-col gap-2 overflow-hidden flex-1">
-      <input type="text" id="cari-pegawai-filter" placeholder="Cari nama / unit…"
-             class="w-full px-3 py-1.5 text-sm border border-garis rounded-lg">
-      <div id="daftar-modal-filter" class="overflow-y-auto border border-garis rounded-xl divide-y divide-slate-100 flex-1">
-        @forelse($pegawaiBertugas as $pg)
-          <label class="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-slate-50 cursor-pointer baris-modal-filter"
-                 data-cari="{{ strtolower($pg->nama_lengkap.' '.($pg->unit_nama ?? '').' '.($pg->sub_unit_nama ?? '')) }}">
-            <input type="checkbox" class="checkbox-filter-pegawai filter-pgw accent-[var(--biru)]" value="{{ $pg->id }}" checked>
-            <span class="font-medium">{{ $pg->nama_lengkap }}</span>
-            <span class="teks-redup teks-kecil ms-auto">{{ $pg->unit_nama }}{{ $pg->sub_unit_nama ? ' — '.$pg->sub_unit_nama : '' }}</span>
-          </label>
-        @empty
-          <p class="px-3 py-3 teks-redup teks-kecil">Belum ada pegawai dengan jadwal tersimpan.</p>
-        @endforelse
-      </div>
-    </div>
-    <div class="px-3 pb-3 pt-1 flex justify-between items-center gap-2">
-      <div class="flex gap-2">
-        <button type="button" id="filter-semua" class="btn btn-garis btn-kecil">Pilih Semua</button>
-        <button type="button" id="filter-kosong" class="btn btn-garis btn-kecil">Kosongkan</button>
-      </div>
-      <button type="button" id="modal-filter-selesai" class="btn btn-primer btn-kecil">Selesai</button>
-    </div>
-  </section>
-</div>
+{{-- ── POPUP FILTER dihapus: Data Jadwal kini pakai pencarian + pagination ── --}}
 
 @endsection
 
@@ -564,58 +512,103 @@ document.addEventListener('DOMContentLoaded', function () {
     || new URLSearchParams(location.search).get('tab') || '';
   bukaTab(tabAwal === 'unit' || tabAwal === 'pegawai' ? tabAwal : 'data');
 
-  // ── Tab Data Jadwal: filter pegawai (popup) & cetak ──
-  const cekFilter = document.querySelectorAll('.filter-pgw');
-  const jumlahFilter = document.getElementById('jumlah-filter');
-  const jumlahPilih = document.getElementById('jumlah-pilih-filter');
-  const modalFilter = document.getElementById('modal-filter-pegawai');
-  const cariFilter = document.getElementById('cari-pegawai-filter');
+  // ── Tab Data Jadwal: lazy load + pencarian + pagination ──
+  const URL_DATA_JADWAL = @json(route('admin.jadwal.data'));
+  const BULAN_JADWAL = @json((int) $bulan);
+  const TAHUN_JADWAL = @json((int) $tahun);
+  const isiData = document.getElementById('data-jadwal-isi');
+  const cariJadwal = document.getElementById('cari-jadwal');
+  const tombolCetak = document.getElementById('tombol-cetak');
 
-  function segarkanFilter() {
-    let tampil = 0;
-    document.querySelectorAll('tr.baris-data').forEach(function (tr) {
-      const cek = document.querySelector('.filter-pgw[value="' + tr.getAttribute('data-user') + '"]');
-      const ok = !cek || cek.checked;
-      tr.style.display = ok ? '' : 'none';
-      if (ok) tampil++;
+  let halData = 1;
+  let cariData = '';
+  let mintaData = 0;
+
+  // per = undefined (halaman biasa) atau 'all' (untuk cetak seluruh hasil).
+  function ambilData(per) {
+    const params = new URLSearchParams({
+      bulan: BULAN_JADWAL,
+      tahun: TAHUN_JADWAL,
+      cari: cariData,
+      page: halData
     });
-    if (jumlahFilter) jumlahFilter.textContent = tampil + '/' + cekFilter.length + ' pegawai';
-    if (jumlahPilih) jumlahPilih.textContent = tampil + ' dipilih';
+    if (per) params.set('per', per);
+
+    const idPermintaan = ++mintaData;
+    isiData.setAttribute('aria-busy', 'true');
+
+    return fetch(URL_DATA_JADWAL + '?' + params.toString(), {
+      headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' },
+      credentials: 'same-origin'
+    })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.text();
+      })
+      .then(function (html) {
+        // Abaikan respons usang bila sudah ada permintaan yang lebih baru.
+        return idPermintaan === mintaData ? html : null;
+      });
   }
 
-  function saringFilter(q) {
-    q = q.toLowerCase().trim();
-    document.querySelectorAll('#daftar-modal-filter .baris-modal-filter').forEach(function (row) {
-      row.style.display = row.dataset.cari.includes(q) ? '' : 'none';
+  function muatData() {
+    return ambilData()
+      .then(function (html) {
+        if (html === null) return;
+        isiData.innerHTML = html;
+        isiData.removeAttribute('aria-busy');
+      })
+      .catch(function () {
+        isiData.removeAttribute('aria-busy');
+        isiData.innerHTML = '<p class="teks-redup tengah py-[30px]">Gagal memuat data jadwal. ' +
+          '<a class="tautan" href="">Coba lagi</a>.</p>';
+      });
+  }
+
+  // Pencarian ditunda sedikit supaya mengetik tidak memicu request berkali-kali.
+  let jedaCariJadwal = null;
+  cariJadwal?.addEventListener('input', function () {
+    const nilai = this.value;
+    clearTimeout(jedaCariJadwal);
+    jedaCariJadwal = setTimeout(function () {
+      cariData = nilai.trim();
+      halData = 1;
+      muatData();
+    }, 300);
+  });
+
+  // Pagination: delegasi karena isi diganti ulang tiap request.
+  isiData?.addEventListener('click', function (e) {
+    const tombol = e.target.closest('[data-hal]');
+    if (!tombol || tombol.disabled) return;
+    const tujuan = parseInt(tombol.getAttribute('data-hal'), 10);
+    if (!tujuan || tujuan === halData) return;
+    halData = tujuan;
+    muatData();
+  });
+
+  // Cetak: muat seluruh hasil pencarian (tanpa pagination), cetak, lalu pulihkan.
+  tombolCetak?.addEventListener('click', function () {
+    const simpan = isiData.innerHTML;
+    ambilData('all').then(function (html) {
+      if (html === null) return;
+      isiData.innerHTML = html;
+      let dipulihkan = false;
+      const pulihkan = function () {
+        if (dipulihkan) return;
+        dipulihkan = true;
+        isiData.innerHTML = simpan;
+      };
+      window.addEventListener('afterprint', pulihkan, { once: true });
+      setTimeout(function () {
+        window.print();
+        // Pengaman bila afterprint tidak dipanggil (mis. Safari).
+        setTimeout(pulihkan, 800);
+      }, 50);
     });
-  }
-  function bukaModalFilter() {
-    modalFilter.classList.remove('hidden');
-    modalFilter.classList.add('flex');
-    cariFilter.value = '';
-    saringFilter('');
-  }
-  function tutupModalFilter() {
-    modalFilter.classList.add('hidden');
-    modalFilter.classList.remove('flex');
-  }
-
-  cekFilter.forEach(function (c) { c.addEventListener('change', segarkanFilter); });
-  document.getElementById('filter-semua')?.addEventListener('click', function () {
-    cekFilter.forEach(function (c) { c.checked = true; }); segarkanFilter();
   });
-  document.getElementById('filter-kosong')?.addEventListener('click', function () {
-    cekFilter.forEach(function (c) { c.checked = false; }); segarkanFilter();
-  });
-  document.getElementById('tombol-cetak')?.addEventListener('click', function () { window.print(); });
 
-  document.getElementById('tombol-filter-pegawai')?.addEventListener('click', bukaModalFilter);
-  document.getElementById('modal-filter-tutup')?.addEventListener('click', tutupModalFilter);
-  document.getElementById('modal-filter-selesai')?.addEventListener('click', tutupModalFilter);
-  modalFilter?.addEventListener('click', function (e) { if (e.target === modalFilter) tutupModalFilter(); });
-  cariFilter?.addEventListener('input', function () { saringFilter(this.value); });
-
-  segarkanFilter();
+  if (isiData) muatData();
 
   // ── Tab Per Unit: isi semua & warna ──
   // Delegasi di level tabel agar tidak memasang listener per select (ratusan
@@ -640,7 +633,7 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   // ── Tab Per Pegawai: baris dinamis per pegawai ──
-  const jadwalTersimpan = @json($jadwalPegawai);
+  const URL_JADWAL_PEGAWAI = @json(route('admin.jadwal.pegawai-jadwal'));
   const tubuh   = document.getElementById('tubuh-tabel-pegawai');
   const template = document.getElementById('template-baris-pegawai');
   const kosong  = document.getElementById('baris-kosong-pegawai');
@@ -669,13 +662,26 @@ document.addEventListener('DOMContentLoaded', function () {
     tr.querySelector('.input-user-pgw').value = id;
     tr.querySelector('.nama-pgw').textContent = nama;
 
-    const isiLama = jadwalTersimpan[id] || {};
-    tr.querySelectorAll('select.sel-hari').forEach(function (sel) {
-      if (isiLama[sel.dataset.tanggal]) {
-        sel.value = String(isiLama[sel.dataset.tanggal]);
-        sel.classList.add('terisi');
-      }
-    });
+    // Jadwal tersimpan diambil saat baris ditambahkan (lazy) -- bukan seluruh
+    // pegawai sekaligus ketika halaman dibuka.
+    const params = new URLSearchParams({ user_id: id, bulan: BULAN_JADWAL, tahun: TAHUN_JADWAL });
+    return fetch(URL_JADWAL_PEGAWAI + '?' + params.toString(), {
+      headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      credentials: 'same-origin'
+    })
+      .then(function (r) { return r.ok ? r.json() : {}; })
+      .then(function (isiLama) {
+        if (!document.body.contains(tr)) return;
+        tr.querySelectorAll('select.sel-hari').forEach(function (sel) {
+          // Jangan timpa nilai yang sudah diisi pengguna (mis. lewat Atur Semua).
+          if (sel.value) return;
+          if (isiLama[sel.dataset.tanggal]) {
+            sel.value = String(isiLama[sel.dataset.tanggal]);
+            sel.classList.add('terisi');
+          }
+        });
+      })
+      .catch(function () {});
   }
 
   function tambahBaris(id, nama) {
@@ -718,6 +724,35 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     const sel = e.target.closest('select.sel-hari');
     if (sel) sel.classList.toggle('terisi', Boolean(sel.value));
+  });
+
+  // ── Isi seluruh pegawai pada satu tanggal (dropdown di header kolom) ──
+  const tabelPegawai = document.getElementById('tabel-pegawai');
+
+  tabelPegawai?.addEventListener('change', function (e) {
+    const isiKolom = e.target.closest('.isi-kolom-tanggal');
+    if (!isiKolom) return;
+    const tanggal = isiKolom.dataset.tanggal;
+    const val = isiKolom.value;
+    tubuh.querySelectorAll('select.sel-hari[data-tanggal="' + tanggal + '"]').forEach(function (sel) {
+      sel.value = val;
+      sel.classList.toggle('terisi', Boolean(val));
+    });
+    isiKolom.value = '';
+  });
+
+  // ── Toolbar: kosongkan seluruh jadwal pegawai terdaftar ──
+  document.getElementById('toolbar-kosongkan-semua')?.addEventListener('click', function () {
+    const target = Array.from(barisPegawai());
+    if (!target.length) {
+      alert('Belum ada pegawai. Tambahkan pegawai terlebih dahulu.');
+      return;
+    }
+    return jalanBertahap(this, function (i, total) {
+      return 'Mengosongkan ' + Math.min(i, total) + '/' + total + ' pegawai…';
+    }, target.map(function (tr) {
+      return function () { isiBaris(tr, ''); };
+    }), 30);
   });
 
   function bukaModal() {

@@ -16,6 +16,19 @@ class DashboardController extends Controller
 {
     public function index()
     {
+        return view('admin.dashboard.index', [
+            'judulHalaman' => 'Dashboard',
+            'menuAktif'    => 'dashboard',
+        ]);
+    }
+
+    /**
+     * Endpoint data dashboard yang diambil secara lazy (AJAX) setelah halaman
+     * selesai dimuat, supaya request halaman utama tidak menunggu rekap yang
+     * berat.
+     */
+    public function data()
+    {
         $hariIni = now()->format('Y-m-d');
 
         $totalPegawai = User::where('role', 'pegawai')->where('status', 'aktif')->count();
@@ -172,27 +185,27 @@ class DashboardController extends Controller
 
         $lewatJadwal = $this->rekapLewatJadwal($mulaiBulan, $hariIni, $totalPegawai);
 
-        return view('admin.dashboard.index', [
-            'judulHalaman' => 'Dashboard',
-            'menuAktif'    => 'dashboard',
-            'totalPegawai' => $totalPegawai,
-            'hadir'        => $hadir,
-            'terlambat'    => $terlambat,
-            'belum'        => $belum,
-            'izinHariIni'  => $izinHariIni,
-            'anomali'      => $anomali,
-            'menunggu'     => $menunggu,
-            'terbaru'      => $terbaru,
-            'grafikBulan'  => $grafikBulan,
-            'maks'         => $maks,
-            'grafikGaris'  => $grafikGaris,
-            'maksGaris'    => $maksGaris,
-            'teladan'      => $teladan,
-            'ketaatan'     => $ketaatan,
-            'irisanPie'    => $irisanPie,
-            'persenKetaatan' => $persenKetaatan,
-            'lewatJadwal'  => $lewatJadwal,
-        ]);
+        return response()
+            ->view('admin.dashboard._isi', [
+                'totalPegawai' => $totalPegawai,
+                'hadir'        => $hadir,
+                'terlambat'    => $terlambat,
+                'belum'        => $belum,
+                'izinHariIni'  => $izinHariIni,
+                'anomali'      => $anomali,
+                'menunggu'     => $menunggu,
+                'terbaru'      => $terbaru,
+                'grafikBulan'  => $grafikBulan,
+                'maks'         => $maks,
+                'grafikGaris'  => $grafikGaris,
+                'maksGaris'    => $maksGaris,
+                'teladan'      => $teladan,
+                'ketaatan'     => $ketaatan,
+                'irisanPie'    => $irisanPie,
+                'persenKetaatan' => $persenKetaatan,
+                'lewatJadwal'  => $lewatJadwal,
+            ])
+            ->header('Cache-Control', 'no-store');
     }
 
     /**

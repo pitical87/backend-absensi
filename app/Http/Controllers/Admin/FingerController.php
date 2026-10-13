@@ -65,6 +65,10 @@ class FingerController extends Controller
             'tahun' => $tahun,
             'ipMesin' => (string) pengaturan('finger_ip', ''),
             'portMesin' => (string) pengaturan('finger_port', ''),
+            'bridgeUrl' => (string) pengaturan('finger_bridge_url', ''),
+            'bridgeToken' => (string) pengaturan('finger_bridge_token', ''),
+            'passwordMesin' => (string) pengaturan('finger_password', '0'),
+            'machineNo' => (string) pengaturan('finger_machine', '1'),
         ]);
     }
 
@@ -73,14 +77,26 @@ class FingerController extends Controller
         $request->validate([
             'ip' => ['required', 'ip'],
             'port' => ['required', 'numeric', 'min:1', 'max:65535'],
+            'bridge_url' => ['nullable', 'url'],
+            'bridge_token' => ['nullable', 'string', 'max:200'],
+            'password' => ['nullable', 'numeric', 'min:0', 'max:999999'],
+            'machine' => ['nullable', 'numeric', 'min:1', 'max:999'],
         ], [], [
             'ip' => 'IP Mesin',
             'port' => 'Port',
+            'bridge_url' => 'URL Bridge',
+            'bridge_token' => 'Token Bridge',
+            'password' => 'Password Mesin',
+            'machine' => 'Machine No',
         ]);
 
         simpan_pengaturan('finger_ip', trim((string) $request->input('ip')));
         simpan_pengaturan('finger_port', (string) (int) $request->input('port'));
-        catat_aktivitas('Pengaturan FingerSpot', 'IP/port mesin diperbarui');
+        simpan_pengaturan('finger_bridge_url', rtrim(trim((string) $request->input('bridge_url')), '/'));
+        simpan_pengaturan('finger_bridge_token', trim((string) $request->input('bridge_token')));
+        simpan_pengaturan('finger_password', (string) max(0, (int) $request->input('password', 0)));
+        simpan_pengaturan('finger_machine', (string) max(1, (int) $request->input('machine', 1)));
+        catat_aktivitas('Pengaturan FingerSpot', 'IP/port/bridge mesin diperbarui');
 
         return redirect()->route('admin.finger', ['tab' => 'pengaturan'])
             ->with('success', 'Pengaturan mesin FingerSpot disimpan.');
@@ -171,8 +187,45 @@ class FingerController extends Controller
         return redirect()->route('admin.finger', ['tab' => 'csv'])->with('finger_hasil', $hasil);
     }
 
+    public function cekKoneksi(Request $request)
+    {
+        $data = $request->validate([
+            'ip' => ['required', 'ip'],
+            'port' => ['required', 'numeric', 'min:1', 'max:65535'],
+            'bridge_url' => ['nullable', 'url'],
+            'bridge_token' => ['nullable', 'string', 'max:200'],
+        ], [], [
+            'ip' => 'IP Mesin',
+            'port' => 'Port',
+            'bridge_url' => 'URL Bridge',
+            'bridge_token' => 'Token Bridge',
+        ]);
+
+        $ip = trim((string) $data['ip']);
+        $port = (int) $data['port'];
+        $bridgeUrl = trim((string) ($data['bridge_url'] ?? pengaturan('finger_bridge_url', '')));
+        $token = trim((string) ($data['bridge_token'] ?? pengaturan('finger_bridge_token', '')));
+
+        $service = app(FingerImportService::class);
+
+        // Bila bridge diatur, uji bridge + mesin sekaligus. Jika tidak, lakukan
+        // uji TCP langsung (hanya memastikan port terbuka).
+        if ($bridgeUrl !== '') {
+            $hasil = $service->cekKoneksiBridge($bridgeUrl, $ip, $port, $token !== '' ? $token : null);
+        } else {
+            $hasil = $service->cekKoneksi($ip, $port);
+        }
+
+        return response()->json($hasil, $hasil['sukses'] ? 200 : 422);
+    }
+
     public function ambilDariMesin(Request $request)
     {
+        // Menarik dan memproses data dari mesin bisa memakan waktu lama
+        // (unduh ratusan baris + tulis absensi), jadi lepaskan batas 30 detik
+        // bawaan PHP agar tidak berhenti dengan "Maximum execution time exceeded".
+        @set_time_limit(0);
+
         $request->validate([
             'tanggal_mulai' => 'required|date',
             'tanggal_selesai' => 'required|date|after_or_equal:tanggal_mulai',
@@ -184,28 +237,67 @@ class FingerController extends Controller
         $ip = trim((string) $request->input('ip', (string) pengaturan('finger_ip', '')));
         $port = trim((string) $request->input('port', (string) pengaturan('finger_port', '')));
         $url = trim((string) $request->input('url'));
+        $bridgeUrl = trim((string) pengaturan('finger_bridge_url', ''));
+        $bridgeToken = trim((string) pengaturan('finger_bridge_token', ''));
+        $password = (int) pengaturan('finger_password', 0);
+        $machineNo = max(1, (int) pengaturan('finger_machine', 1));
 
-        if ($url === '') {
+        $mulai = (string) $request->input('tanggal_mulai');
+        $selesai = (string) $request->input('tanggal_selesai');
+        $service = app(FingerImportService::class);
+
+        // Mesin ini memakai protokol SBXPCDLL (bukan HTTP). Bila bridge sudah
+        // diatur, tarik data lewat bridge tersebut.
+        if ($bridgeUrl !== '') {
             if ($ip === '' || $port === '') {
                 return redirect()->route('admin.finger', ['tab' => 'mesin'])->with('error',
                     'Alamat mesin belum diatur. Isi IP dan Port pada tab Pengaturan terlebih dahulu.');
             }
-            $url = 'http://'.$ip.':'.$port.'/GetTransactionData';
-        }
 
-        $mulai = (string) $request->input('tanggal_mulai');
-        $selesai = (string) $request->input('tanggal_selesai');
+            $hasilBridge = $service->ambilDariBridge(
+                $bridgeUrl, $ip, (int) $port, $password, $machineNo, $mulai, $selesai,
+                $bridgeToken !== '' ? $bridgeToken : null
+            );
 
-        $service = app(FingerImportService::class);
-        $scan = $service->ambilDariMesin($url, $mulai, $selesai);
+            if ($hasilBridge['status'] !== 'success') {
+                return redirect()->route('admin.finger', ['tab' => 'mesin'])->with('error', $hasilBridge['message'])
+                    ->withInput(['tanggal_mulai' => $mulai, 'tanggal_selesai' => $selesai]);
+            }
 
-        if ($scan === []) {
-            return redirect()->route('admin.finger', ['tab' => 'mesin'])->with('error',
-                'Tidak ada data yang didapat dari mesin. Periksa IP/port, jarak tanggal, atau koneksi mesin.');
+            $scan = $hasilBridge['scan'];
+            $sumberLog = $bridgeUrl.' (bridge)';
+
+            if ($scan === []) {
+                return redirect()->route('admin.finger', ['tab' => 'mesin'])->with('error',
+                    'Bridge berhasil terhubung tetapi tidak ada scan pada rentang tanggal tersebut.')
+                    ->withInput(['tanggal_mulai' => $mulai, 'tanggal_selesai' => $selesai]);
+            }
+        } else {
+            if ($url === '') {
+                if ($ip === '' || $port === '') {
+                    return redirect()->route('admin.finger', ['tab' => 'mesin'])->with('error',
+                        'Alamat mesin belum diatur. Isi IP dan Port pada tab Pengaturan terlebih dahulu.');
+                }
+                $url = 'http://'.$ip.':'.$port.'/GetTransactionData';
+            }
+
+            try {
+                $scan = $service->ambilDariMesin($url, $mulai, $selesai);
+            } catch (\Illuminate\Http\Client\ConnectionException $e) {
+                return redirect()->route('admin.finger', ['tab' => 'mesin'])->with('error',
+                    'Gagal terhubung ke mesin ('.$url.') dalam batas waktu. Periksa apakah IP/port benar, mesin menyala, dan berada di jaringan yang sama.');
+            }
+
+            if ($scan === []) {
+                return redirect()->route('admin.finger', ['tab' => 'mesin'])->with('error',
+                    'Tidak ada data yang didapat dari mesin. Periksa IP/port, jarak tanggal, atau koneksi mesin.');
+            }
+
+            $sumberLog = $url;
         }
 
         $hasil = $service->impor($scan);
-        catat_aktivitas('Impor Absen FingerSpot (Mesin)', $url.' → '.$hasil['ditambah'].' baru, '.$hasil['diperbarui'].' diperbarui');
+        catat_aktivitas('Impor Absen FingerSpot (Mesin)', $sumberLog.' → '.$hasil['ditambah'].' baru, '.$hasil['diperbarui'].' diperbarui');
 
         return redirect()->route('admin.finger', ['tab' => 'mesin'])->with('finger_hasil', $hasil)
             ->withInput(['tanggal_mulai' => $mulai, 'tanggal_selesai' => $selesai]);

@@ -89,7 +89,7 @@ $grupMenu = [
   {{-- Header Sidebar --}}
   <div class="flex items-center gap-3 py-4 px-4 pb-3 border-b border-white/10">
     <div class="w-10 h-10 rounded-xl backdrop-blur-md p-1 flex items-center justify-center shrink-0 shadow-sm">
-      <img class="w-8 h-8 object-contain" src="{{ asset('assets/img/logo.svg') }}" alt="Logo">
+      <img class="w-8 h-8 object-contain" src="{{ aset_admin('img/logo.svg') }}" alt="Logo">
     </div>
     <div>
       <strong class="block text-sm font-bold text-white leading-tight tracking-tight">{{ App\Models\Pengaturan::where('kunci', 'nama_instansi')->value('nilai') ?? env('APP_NAME') }}</strong>
