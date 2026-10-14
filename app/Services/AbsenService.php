@@ -176,12 +176,20 @@ class AbsenService
     /**
      * Mengembalikan [waktuJadwalMasuk, selisihMenit(now - jadwal)].
      * Selisih negatif berarti datang lebih awal dari jadwal.
-     * Shift Malam yang absennya setelah tengah malam digeser ke tanggal sebelumnya.
+     * Shift lintas hari (pulang keesokan hari) yang absennya setelah tengah malam
+     * digeser ke tanggal sebelumnya.
      */
     private function jadwalMasukPegawai(array $u, DateTime $now): array
     {
         $jadwal = new DateTime($now->format('Y-m-d').' '.($u['shift_jam_masuk'] ?? '00:00:00'));
-        if (($u['shift_kategori'] ?? '') === 'Malam' && (int) $now->format('G') < 12) {
+        $isLintasHari = (bool) ($u['shift_lintas_hari'] ?? false);
+        if (! $isLintasHari && isset($u['shift_jam_pulang'], $u['shift_jam_masuk'])) {
+            $isLintasHari = ($u['shift_jam_pulang'] <= $u['shift_jam_masuk']);
+        }
+        if (! $isLintasHari) {
+            $isLintasHari = (($u['shift_kategori'] ?? '') === 'Malam');
+        }
+        if ($isLintasHari && (int) $now->format('G') < 12) {
             $jadwal->modify('-1 day');
         }
 
@@ -193,6 +201,13 @@ class AbsenService
         $jamPulang = $u['shift_jam_pulang'] ?? null;
         if ($jamPulang) {
             $waktuPulang = new DateTime($rec->tanggal->format('Y-m-d').' '.$jamPulang);
+            $isLintasHari = (bool) ($u['shift_lintas_hari'] ?? false);
+            if (! $isLintasHari && isset($u['shift_jam_masuk'])) {
+                $isLintasHari = ($jamPulang <= $u['shift_jam_masuk']);
+            }
+            if ($isLintasHari || $jamPulang <= ($u['shift_jam_masuk'] ?? $jamPulang)) {
+                $waktuPulang->modify('+1 day');
+            }
         } else {
             $waktuPulang = (clone $rec->waktu_masuk)->modify('+8 hours');
         }
@@ -202,11 +217,11 @@ class AbsenService
         ));
 
         Absensi::where('id', $rec->id)->update([
-            'waktu_pulang'      => $waktuPulang->format('Y-m-d H:i:s'),
+            'waktu_pulang' => $waktuPulang->format('Y-m-d H:i:s'),
             'total_menit_kerja' => $totalMenit,
-            'bintang_pulang'    => 1,
-            'status_pulang'     => 'Tepat Waktu',
-            'catatan_anomali'   => trim(
+            'bintang_pulang' => 1,
+            'status_pulang' => 'Tepat Waktu',
+            'catatan_anomali' => trim(
                 ($rec->catatan_anomali ? $rec->catatan_anomali.' | ' : '')
                 .'Lupa absen pulang – ditutup otomatis'
             ),
@@ -275,7 +290,14 @@ class AbsenService
 
             $jadwalMasuk = new DateTime($now->format('Y-m-d').' '.$u['shift_jam_masuk']);
             $tanggalShift = $jadwalMasuk->format('Y-m-d');
-            if (($u['shift_kategori'] ?? '') === 'Malam' && (int) $now->format('G') < 12) {
+            $isLintasHari = (bool) ($u['shift_lintas_hari'] ?? false);
+            if (! $isLintasHari && isset($u['shift_jam_pulang'], $u['shift_jam_masuk'])) {
+                $isLintasHari = ($u['shift_jam_pulang'] <= $u['shift_jam_masuk']);
+            }
+            if (! $isLintasHari) {
+                $isLintasHari = (($u['shift_kategori'] ?? '') === 'Malam');
+            }
+            if ($isLintasHari && (int) $now->format('G') < 12) {
                 $jadwalMasuk->modify('-1 day');
                 $tanggalShift = $jadwalMasuk->format('Y-m-d');
             }
