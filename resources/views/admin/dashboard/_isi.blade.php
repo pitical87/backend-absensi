@@ -13,7 +13,7 @@
       <a class="btn btn-navy btn-kecil" href="{{ url('admin/izin') }}">
         {!! ikon('surat', 15) !!} {{ $menunggu }} pengajuan izin menunggu persetujuan</a>
     @endif
-    
+
     @if($NotActive > 0)
       <a class="btn btn-navy btn-kecil" href="{{ url('admin/pegawai') }}">
         {!! ikon('user', 15) !!} {{ $NotActive }} akun pegawai Belum aktif</a>
@@ -81,8 +81,38 @@
       @endforeach
     </ul>
   </div>
-  @else
+@else
   <p class="teks-redup tengah m-0">Belum ada data jam absensi pegawai bulan ini.</p>
+@endif
+</section>
+
+<section class="kartu">
+  <div class="kartu-kepala">
+    <h2>{!! ikon('jam') !!} Distribusi Shift Pegawai Bulan {{ BULAN_ID[(int) now()->format('n')] }} {{ now()->format('Y') }}</h2>
+    <span class="teks-redup teks-kecil">Berdasarkan jadwal shift yang berlaku bulan ini</span>
+  </div>
+  @if($shiftPie)
+  <div class="flex flex-col sm:flex-row items-center gap-6">
+    <div class="relative shrink-0 w-[180px] h-[180px]">
+      <canvas id="grafik-shift" role="img" aria-label="Diagram lingkaran distribusi shift pegawai bulan ini"></canvas>
+      <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+        <strong class="text-2xl font-bold text-navy leading-none">{{ $shiftTotal ?? 0 }}</strong>
+        <span class="text-[0.65rem] text-slate-500 uppercase tracking-widest mt-1">Total Pegawai</span>
+      </div>
+    </div>
+    <ul class="space-y-2.5 text-sm w-full sm:flex-1 m-0 p-0 list-none">
+      @foreach($shiftPie as $s)
+      <li class="flex items-center gap-2.5">
+        <i class="w-3.5 h-3.5 rounded-md shrink-0 inline-block" style="background: {{ $s['warna'] }}"></i>
+        <span class="text-slate-700">{{ $s['label'] }}</span>
+        <span class="ml-auto tabular-nums whitespace-nowrap"><strong>{{ $s['jml'] }}</strong>
+          <span class="teks-redup teks-kecil">pegawai ({{ number_format($s['pct'], 2, ',', '.') }}%)</span></span>
+      </li>
+      @endforeach
+    </ul>
+  </div>
+  @else
+  <p class="teks-redup tengah m-0">Belum ada data jadwal shift untuk bulan ini.</p>
   @endif
 </section>
 
@@ -101,40 +131,11 @@
   </div>
 </section>
 
-<section class="kartu">
-  <div class="kartu-kepala">
-    <h2>{!! ikon('kalender') !!} Absensi Hari Ini</h2>
-    <a class="btn btn-garis btn-kecil" href="{{ url('admin/kehadiran') }}">Lihat semua</a>
-  </div>
-  <div class="tabel-bungkus">
-    <table class="tabel">
-      <thead>
-        <tr><th>Nama Pegawai</th><th>Unit</th><th>Shift</th><th>Status</th></tr>
-      </thead>
-      <tbody>
-        @foreach($terbaru as $r)
-        <tr {{ $r->flag_anomali ? 'class="anomali-baris"' : '' }}>
-          <td>{{ $r->nama_lengkap }}
-            @if($r->flag_anomali) <span class="badge badge-amber">⚠</span>@endif</td>
-          <td>{{ $r->unit_nama ?? '—' }}@if($r->sub_nama) — {{ $r->sub_nama }}@endif</td>
-          <td>{{ label_shift((object)['kategori' => $r->shift_kategori, 'jam_masuk' => $r->shift_masuk, 'jam_pulang' => $r->shift_pulang]) }}</td>
-
-          <td>{!! badge_status(! $r->waktu_pulang ? 'Belum Pulang'
-                 : ($r->status_masuk === 'Terlambat' ? 'Terlambat' : 'Tepat Waktu'),
-                 (int) $r->menit_terlambat) !!}</td>
-        </tr>
-        @endforeach
-        @if(! $terbaru)
-        <tr><td colspan="6" class="tengah teks-redup">Belum ada absensi hari ini.</td></tr>
-        @endif
-      </tbody>
-    </table>
-  </div>
-</section>
-
+@section('script')
 @php
   $pieAktif = array_values(array_filter($irisanPie, fn ($s) => $s['jml'] > 0));
   $lewatAktif = array_values(array_filter($lewatJadwal['irisan'], fn ($s) => $s['jml'] > 0));
+  $shiftAktif = array_values(array_filter($shiftPie ?? [], fn ($s) => $s['jml'] > 0));
   $trenData = [
       'labels' => array_map(fn ($g) => (int) substr($g['tgl'], 8, 2), $grafikGaris),
       'hadir'  => array_column($grafikGaris, 'hadir'),
@@ -150,6 +151,7 @@
 
   var KETAATAN = @json($pieAktif);
   var LEWAT = @json($lewatAktif);
+  var SHIFT = @json($shiftAktif);
   var TREN = @json($trenData);
 
   function palet() {
@@ -196,6 +198,7 @@
   function init() {
     donat(document.getElementById('grafik-ketaatan'), KETAATAN);
     donat(document.getElementById('grafik-lewat-jadwal'), LEWAT);
+    donat(document.getElementById('grafik-shift'), SHIFT);
 
     var grafikTren = null;
     var elTren = document.getElementById('grafik-tren');
@@ -291,3 +294,4 @@
   }
 })();
 </script>
+@endsection

@@ -186,6 +186,42 @@ class DashboardController extends Controller
 
         $lewatJadwal = $this->rekapLewatJadwal($mulaiBulan, $hariIni, $totalPegawai);
 
+        // Distribusi pegawai per shift (kategori) bulan ini
+        $mulaiBulanCarbon = Carbon::parse($mulaiBulan);
+        $shiftDistribusi = DB::table('jadwal_shift')
+            ->join('shift as s', 's.id', '=', 'jadwal_shift.shift_id')
+            ->join('users as u', 'u.id', '=', 'jadwal_shift.user_id')
+            ->where('jadwal_shift.tanggal_berlaku', '>=', $mulaiBulan)
+            ->where('jadwal_shift.tanggal_berlaku', '<=', $hariIni)
+            ->where('u.role', 'pegawai')
+            ->where('u.status', 'aktif')
+            ->select('s.kategori', DB::raw('COUNT(DISTINCT jadwal_shift.user_id) as jml'))
+            ->groupBy('s.kategori')
+            ->get()
+            ->keyBy('kategori');
+
+        $shiftPie = [];
+        $shiftLabels = ['Pagi', 'Siang', 'Sore', 'Malam'];
+        foreach ($shiftLabels as $label) {
+            $jml = $shiftDistribusi[$label]->jml ?? 0;
+            $shiftPie[] = [
+                'label' => $label,
+                'jml' => (int) $jml,
+                'warna' => match ($label) {
+                    'Pagi' => '#007AFC',
+                    'Siang' => '#D97706',
+                    'Sore' => '#7C3AED',
+                    'Malam' => '#1E293B',
+                    default => '#64748B',
+                },
+            ];
+        }
+        $shiftTotal = array_sum(array_column($shiftPie, 'jml'));
+        foreach ($shiftPie as &$s) {
+            $s['pct'] = $shiftTotal > 0 ? round($s['jml'] / $shiftTotal * 100, 2) : 0.0;
+        }
+        unset($s);
+
         return response()
             ->view('admin.dashboard._isi', [
                 'totalPegawai' => $totalPegawai,
@@ -206,6 +242,7 @@ class DashboardController extends Controller
                 'irisanPie'    => $irisanPie,
                 'persenKetaatan' => $persenKetaatan,
                 'lewatJadwal'  => $lewatJadwal,
+                'shiftPie'     => $shiftPie,
             ])
             ->header('Cache-Control', 'no-store');
     }
