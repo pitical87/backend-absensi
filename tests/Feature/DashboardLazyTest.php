@@ -58,6 +58,7 @@ class DashboardLazyTest extends TestCase
         $this->assertStringContainsString('stat-admin', $html);
         $this->assertStringContainsString('Ketaatan Absen Bulan', $html);
         $this->assertStringContainsString('id="grafik-tren"', $html);
+        $this->assertStringContainsString('<script>', $html);
     }
 
     public function test_endpoint_data_dilindungi_login(): void

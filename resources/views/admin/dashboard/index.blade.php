@@ -15,9 +15,27 @@
     @endfor
   </div>
 
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
+    @for($k = 0; $k < 2; $k++)
+      <section class="kartu mb-0">
+        <div class="kartu-kepala">
+          <div class="skel h-4 w-56"></div>
+        </div>
+        <div class="flex flex-col sm:flex-row items-center gap-5">
+          <div class="skel shrink-0 w-[150px] h-[150px] sm:w-[160px] sm:h-[160px] rounded-full"></div>
+          <ul class="space-y-3 w-full sm:flex-1 m-0 p-0 list-none">
+            @for($i = 0; $i < 4; $i++)
+              <li class="skel h-4 w-full max-w-md"></li>
+            @endfor
+          </ul>
+        </div>
+      </section>
+    @endfor
+  </div>
+
   <section class="kartu">
     <div class="kartu-kepala">
-      <div class="skel h-4 w-64"></div>
+      <div class="skel h-4 w-60"></div>
     </div>
     <div class="flex flex-col sm:flex-row items-center gap-6">
       <div class="skel shrink-0 w-[180px] h-[180px] rounded-full"></div>
@@ -34,20 +52,6 @@
       <div class="skel h-4 w-72"></div>
     </div>
     <div class="h-[250px] skel rounded-xl"></div>
-  </section>
-
-  <section class="kartu">
-    <div class="kartu-kepala">
-      <div class="skel h-4 w-40"></div>
-    </div>
-    @for($i = 0; $i < 6; $i++)
-      <div class="flex items-center gap-3 py-3 border-b border-slate-100 dark:border-slate-800/60 last:border-0">
-        <div class="skel h-3.5 flex-1"></div>
-        <div class="skel h-3.5 w-28"></div>
-        <div class="skel h-3.5 w-24"></div>
-        <div class="skel h-5 w-20 rounded-full"></div>
-      </div>
-    @endfor
   </section>
 
 </div>

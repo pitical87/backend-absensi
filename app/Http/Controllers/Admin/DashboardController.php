@@ -243,6 +243,7 @@ class DashboardController extends Controller
                 'persenKetaatan' => $persenKetaatan,
                 'lewatJadwal'  => $lewatJadwal,
                 'shiftPie'     => $shiftPie,
+                'shiftTotal'   => $shiftTotal,
             ])
             ->header('Cache-Control', 'no-store');
     }

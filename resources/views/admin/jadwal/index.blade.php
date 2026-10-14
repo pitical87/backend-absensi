@@ -89,12 +89,7 @@
       </div>
     </div>
 
-    <div class="px-3 py-2 teks-redup teks-kecil border-t border-garis">
-      Keterangan:
-      @foreach($shiftList as $s)
-        <span class="ms-2 whitespace-nowrap"><b>{{ $s->kategori }}</b> {{ $s->jam_masuk->format('H:i') }}–{{ $s->jam_pulang->format('H:i') }}</span>
-      @endforeach
-    </div>
+   
   </section>
 </section>
 

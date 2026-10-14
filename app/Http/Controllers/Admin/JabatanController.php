@@ -8,7 +8,7 @@ use Illuminate\Http\Request;
 
 class JabatanController extends Controller
 {
-    public function index()
+public function index()
     {
         $jabatans = Jabatan::with(['induk', 'users'])
             ->orderBy('kategori')
@@ -16,10 +16,13 @@ class JabatanController extends Controller
             ->orderBy('nama')
             ->paginate(20);
 
+        $kategoriList = array_slice(kategori_jabatan_list(), 0, 5);
+
         return view('admin.jabatan.index', [
             'judulHalaman' => 'Master Jabatan',
-            'menuAktif' => 'jabatan',
-            'jabatans' => $jabatans,
+            'menuAktif'    => 'jabatan',
+            'jabatans'     => $jabatans,
+            'kategoriList' => $kategoriList,
         ]);
     }
 
