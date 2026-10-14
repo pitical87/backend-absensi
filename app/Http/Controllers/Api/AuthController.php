@@ -8,6 +8,7 @@ use App\Http\Controllers\Concerns\TerbitkanTokenMobile;
 use App\Http\Controllers\Controller;
 use App\Mail\ResetPasswordMail;
 use App\Models\ApiToken;
+use App\Models\Notifikasi;
 use App\Models\Profesi;
 use App\Models\SubUnit;
 use App\Models\UnitKerja;
@@ -222,6 +223,18 @@ class AuthController extends Controller
 
         catat_aktivitas('Pendaftaran', $d['nama_lengkap'].' mendaftarkan akun pegawai baru');
 
+        // Notifikasi ke admin
+        $adminIds = User::where('role', 'admin')->pluck('id')->all();
+        if ($adminIds) {
+            buat_notifikasi_banyak(
+                $adminIds,
+                "Pendaftaran baru: {$d['nama_lengkap']} ({$d['email']}) butuh verifikasi/aktivasi.",
+                'warning',
+                route('admin.pegawai.index'),
+                'keamanan'
+            );
+        }
+
         return response()->json([
             'sukses' => true,
             'pesan' => 'Pendaftaran berhasil. silahkan konfirmasi email anda ke administrator untuk mengaktifkan akun Anda.',
@@ -280,6 +293,7 @@ class AuthController extends Controller
 
         if (! $user) {
             catat_aktivitas('Lupa Password', 'Percobaan reset untuk email yang tidak terdaftar/aktif: '.$email);
+
             return response()->json([
                 'sukses' => false,
                 'pesan' => 'Email tersebut tidak terdaftar pada sistem.',
@@ -321,6 +335,7 @@ class AuthController extends Controller
             ));
         } catch (\Throwable $e) {
             report($e);
+
             return response()->json([
                 'sukses' => false,
                 'pesan' => 'Terjadi kendala saat mengirim email. Coba lagi nanti.',
