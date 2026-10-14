@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Absensi;
+use App\Models\AtasanLangsung;
 use App\Models\HariLibur;
 use App\Models\Izin;
 use App\Models\LogLokasi;
@@ -41,7 +42,7 @@ class AbsenService
 
                 return response()->json([
                     'sukses' => false,
-                    'pesan' => 'Absensi ditolak. Absen datang Anda belum sesuai jadwal shift.',
+                    'pesan' => 'Absensi ditolak. Absen datang Anda belum sesuai jadwal shift, silakan tunggu hingga jam masuk atau ajukan pergantian jadwal.',
                     'keterangan' => 'Jam masuk Anda '.jam_singkat($u['shift_jam_masuk'])
                                   .', Anda datang pukul '.$now->format('H.i')
                                   .' ('.menit_ke_teks($lebihAwal).' lebih awal). '
@@ -75,8 +76,22 @@ class AbsenService
         }
 
         if (! $isDokter && ! $u['shift_id']) {
+            $namaAtasan = '';
+            try {
+                $atasan = AtasanLangsung::where('user_id', $u['id'])
+                    ->join('users as au', 'au.id', '=', 'atasan_langsung.atasan_id')
+                    ->orderBy('atasan_langsung.id')
+                    ->pluck('au.nama_lengkap')
+                    ->first();
+                if ($atasan) {
+                    $namaAtasan = ' ('.$atasan.')';
+                }
+            } catch (\Throwable) {
+                $namaAtasan = '';
+            }
+
             return response()->json(['sukses' => false,
-                'pesan' => 'Shift kerja Anda belum diatur. Pilih shift pada dasbor atau hubungi admin.']);
+                'pesan' => 'Shift kerja Anda belum diatur. Silakan menghubungi atasan langsung Anda'.$namaAtasan.' untuk mengatur jadwal shift Anda.']);
         }
 
         $izin = Izin::where('user_id', $u['id'])->where('status', 'Disetujui')
@@ -89,7 +104,7 @@ class AbsenService
                 'pesan' => 'Anda tercatat '.$izin->jenis.' hari ini ('
                          .tgl_id($izin->tanggal_mulai, false).' s.d. '
                          .tgl_id($izin->tanggal_selesai, false)
-                         .'). Bila tetap masuk kerja, hubungi admin untuk membatalkan izin tersebut.']);
+                         .'). Bila tetap masuk kerja, hubungi atasan langsung untuk membatalkan izin tersebut.']);
         }
 
         if ($isDokter) {
