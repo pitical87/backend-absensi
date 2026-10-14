@@ -224,7 +224,7 @@ class AuthController extends Controller
 
         return response()->json([
             'sukses' => true,
-            'pesan' => 'Pendaftaran berhasil. Silakan masuk dengan email dan password Anda.',
+            'pesan' => 'Pendaftaran berhasil. silahkan konfirmasi email anda ke administrator untuk mengaktifkan akun Anda.',
         ], 201);
     }
 

@@ -6,12 +6,17 @@
   <div class="stat merah"><span>Belum Hadir</span><strong>{{ $belum }}</strong></div>
 </div>
 
-@if($menunggu > 0 || $anomali > 0)
+@if($menunggu > 0 || $anomali > 0 || $NotActive > 0)
 <section class="kartu">
   <div class="aksi-baris">
     @if($menunggu > 0)
       <a class="btn btn-navy btn-kecil" href="{{ url('admin/izin') }}">
         {!! ikon('surat', 15) !!} {{ $menunggu }} pengajuan izin menunggu persetujuan</a>
+    @endif
+    
+    @if($NotActive > 0)
+      <a class="btn btn-navy btn-kecil" href="{{ url('admin/pegawai') }}">
+        {!! ikon('user', 15) !!} {{ $NotActive }} akun pegawai Belum aktif</a>
     @endif
     @if($anomali > 0)
       <a class="btn btn-garis btn-kecil" href="{{ url('admin/kehadiran?anomali=1') }}">

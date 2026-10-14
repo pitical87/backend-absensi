@@ -52,6 +52,7 @@ class DashboardController extends Controller
             ->count();
 
         $menunggu = (int) Izin::where('status', 'Menunggu')->count();
+        $NotActive = (int) User::where('status', '!=', 'aktif')->count();
 
         $belum = max(0, $totalPegawai - $hadir - $izinHariIni);
 
@@ -194,6 +195,7 @@ class DashboardController extends Controller
                 'izinHariIni'  => $izinHariIni,
                 'anomali'      => $anomali,
                 'menunggu'     => $menunggu,
+                'NotActive'     => $NotActive,
                 'terbaru'      => $terbaru,
                 'grafikBulan'  => $grafikBulan,
                 'maks'         => $maks,

@@ -154,7 +154,7 @@ class User extends Authenticatable
      *
      * @return array{pernah: bool, terakhir: ?string, umur_hari: ?int, level: string, label: string, perlu_ganti: bool}
      *
-     * @see \App\Services\PasswordService::status()
+     * @see PasswordService::status()
      */
     public function statusPassword(): array
     {

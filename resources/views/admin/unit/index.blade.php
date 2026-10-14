@@ -63,15 +63,15 @@
       <label class="teks-kecil mb-1 block">Nama unit kerja</label>
       <input type="text" name="nama" id="ubah-unit-nama" required>
       <label class="teks-kecil mt-3 mb-1 block">Atasan default unit</label>
-      @include('admin.unit.pilih_pegawai', [
-        'namaField' => 'atasan_id',
-        'idSelect' => 'ubah-unit-atasan',
-        'daftar' => $pegawaiPilihan,
-        'terpilih' => 0,
-        'labelKosong' => '— Atasan unit —',
-        'judul' => 'Atasan default unit kerja ini',
-        'opsiLengkap' => true,
-      ])
+        @include('admin.unit.pilih_pegawai', [
+          'namaField' => 'atasan_id',
+          'idSelect' => 'ubah-unit-atasan',
+          'daftar' => $pegawaiPilihan,
+          'terpilih' => 0,
+          'labelKosong' => '— Atasan unit —',
+          'judul' => 'Atasan default unit kerja ini',
+          'opsiLengkap' => true,
+        ])
       <label class="teks-kecil flex items-center gap-1.5 whitespace-nowrap mt-3">
         <input type="checkbox" name="punya_sub" value="1" id="ubah-unit-punya-sub" class="w-auto">
         Memiliki sub unit
@@ -102,384 +102,384 @@
 window.PEGAWAI_UNIT = {!! $daftarPegawaiJson !!};
 </script>
 <script>
-(function () {
-  var tabBar   = document.getElementById('tab-bar');
-  var isiTab   = document.getElementById('isi-tab');
-  var pesan    = document.getElementById('pesan-unit');
-  var csrf     = (document.querySelector('meta[name="csrf"]') || {}).content || '';
-  var urlAksi  = '{{ route('admin.unit.aksi') }}';
+  (function () {
+    var tabBar   = document.getElementById('tab-bar');
+    var isiTab   = document.getElementById('isi-tab');
+    var pesan    = document.getElementById('pesan-unit');
+    var csrf     = (document.querySelector('meta[name="csrf"]') || {}).content || '';
+    var urlAksi  = '{{ route('admin.unit.aksi') }}';
 
-  var tab = '{{ $tabAktif }}';
+    var tab = '{{ $tabAktif }}';
 
-  function tampilPesan(teks, berhasil) {
-    if (! teks) {
-      pesan.classList.add('hidden');
-      pesan.textContent = '';
-      return;
+    function tampilPesan(teks, berhasil) {
+      if (! teks) {
+        pesan.classList.add('hidden');
+        pesan.textContent = '';
+        return;
+      }
+      pesan.className = 'mb-4 px-4 py-3 rounded-xl text-sm ' + (berhasil
+        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+        : 'bg-rose-50 text-rose-700 border border-rose-200');
+      pesan.textContent = teks;
     }
-    pesan.className = 'mb-4 px-4 py-3 rounded-xl text-sm ' + (berhasil
-      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-      : 'bg-rose-50 text-rose-700 border border-rose-200');
-    pesan.textContent = teks;
-  }
 
-  function tabAktifDariTabs() {
-    var aktif = tabBar.querySelector('.tab-unit.aktif[data-tab]');
-    return aktif ? aktif.getAttribute('data-tab') : null;
-  }
+    function tabAktifDariTabs() {
+      var aktif = tabBar.querySelector('.tab-unit.aktif[data-tab]');
+      return aktif ? aktif.getAttribute('data-tab') : null;
+    }
 
-  // Semua isi tab sudah ada di halaman, jadi berpindah tab hanya perlu
-  // menampilkan/menyembunyikan panel — tidak ada lagi permintaan jaringan.
-  function aktifkanTab(kunci) {
-    kunci = String(kunci);
-    tab = kunci;
+    // Semua isi tab sudah ada di halaman, jadi berpindah tab hanya perlu
+    // menampilkan/menyembunyikan panel — tidak ada lagi permintaan jaringan.
+    function aktifkanTab(kunci) {
+      kunci = String(kunci);
+      tab = kunci;
 
-    Array.prototype.forEach.call(isiTab.querySelectorAll('.tab-panel'), function (p) {
-      p.classList.toggle('hidden', p.getAttribute('data-panel') !== kunci);
-    });
+      Array.prototype.forEach.call(isiTab.querySelectorAll('.tab-panel'), function (p) {
+        p.classList.toggle('hidden', p.getAttribute('data-panel') !== kunci);
+      });
 
-    Array.prototype.forEach.call(tabBar.querySelectorAll('.tab-unit[data-tab]'), function (a) {
-      a.classList.toggle('aktif', a.getAttribute('data-tab') === kunci);
-    });
-  }
-
-  // Bangun ulang seluruh panel dari respons server (peta kunci => HTML).
-  function renderSemuaPanel(peta) {
-    if (! peta) return;
-    var html = '';
-    Object.keys(peta).forEach(function (k) {
-      html += '<div class="tab-panel hidden" data-panel="' + k + '">' + peta[k] + '</div>';
-    });
-    isiTab.innerHTML = html;
-  }
-
-  window.unitTutup = function (id) {
-    var m = document.getElementById(id);
-    if (! m) return;
-    m.classList.add('hidden');
-    m.classList.remove('flex');
-  };
-
-  function bukaModal(id) {
-    var m = document.getElementById(id);
-    if (! m) return;
-    m.classList.remove('hidden');
-    m.classList.add('flex');
-  }
-
-  function isiModalUbah(b) {
-    document.getElementById('ubah-unit-id').value = b.getAttribute('data-unit') || '';
-    document.getElementById('ubah-unit-nama').value = b.getAttribute('data-nama') || '';
-    document.getElementById('ubah-unit-atasan').value = b.getAttribute('data-atasan') || '';
-    document.getElementById('ubah-unit-punya-sub').checked = b.getAttribute('data-punya-sub') === '1';
-    // Supaya setelah disimpan halaman tetap berada di tab unit itu, bukan
-    // lompat ke tab Semua Unit Kerja.
-    document.getElementById('ubah-unit-tab-asal').value = b.getAttribute('data-unit') || '';
-    bukaModal('modal-ubah');
-    unitSinkronPilihan(document.getElementById('ubah-unit-atasan'));
-  }
-
-  /* ── Pilih pegawai: combo box cari nama ───────────────────────────────
-     <select> asli tetap ada (fallback tanpa JS & sumber nilai form), lalu
-     disembunyikan dan digantikan kotak cari + daftar terfilter. Semua
-     perekatannya di document supaya ikut bekerja pada markup hasil fetch. */
-  // WeakMap: kunci objek tidak boleh berubah jadi string seperti [object HTMLDivElement].
-  var cariPegawai = new WeakMap();
-
-  function unitSiapkanPilihan(bungkus) {
-    if (! bungkus || ! bungkus.isConnected || bungkus.classList.contains('siap')) return;
-    var select = bungkus.querySelector('select');
-    var cari = bungkus.querySelector('.pilih-pegawai-cari');
-    var daftar = bungkus.querySelector('.pilih-pegawai-daftar');
-    if (! select || ! cari || ! daftar) return;
-
-    var nilaiAwal = select.value || '';
-    var labelKosong = select.options[0] ? select.options[0].textContent : '';
-
-    // Isi daftar <select> dari daftar pegawai global supaya pilihan atasan tetap
-    // tersimpan saat formulir dikirim (nilai select = id pegawai terpilih).
-    select.innerHTML = '';
-    var optKosong = document.createElement('option');
-    optKosong.value = '';
-    optKosong.textContent = labelKosong;
-    select.appendChild(optKosong);
-
-    var isi = [{ nilai: '', label: labelKosong, cari: '' }];
-    (window.PEGAWAI_UNIT || []).forEach(function (p) {
-      var o = document.createElement('option');
-      o.value = String(p.id);
-      o.textContent = p.nama;
-      select.appendChild(o);
-      isi.push({ nilai: String(p.id), label: p.nama, cari: p.cari || '' });
-    });
-
-    select.value = nilaiAwal;
-
-    bungkus.classList.add('siap');
-    cariPegawai.set(bungkus, { select: select, cari: cari, daftar: daftar, isi: isi, sorot: -1 });
-    unitTampilPilihan(bungkus);
-  }
-
-  function unitTampilPilihan(bungkus) {
-    var s = cariPegawai.get(bungkus);
-    if (! s) return;
-    var terpilih = s.isi.filter(function (o) { return o.nilai === s.select.value; })[0];
-    s.cari.value = terpilih ? terpilih.label : '';
-  }
-
-  window.unitSinkronPilihan = function (select) {
-    if (! select) return;
-    unitSiapkanPilihan(select.closest('[data-pilih-pegawai]'));
-    unitTampilPilihan(select.closest('[data-pilih-pegawai]'));
-  };
-
-  function unitGambarDaftar(bungkus, kata) {
-    var s = cariPegawai.get(bungkus);
-    if (! s) return;
-    var koma = (kata || '').toLowerCase().trim();
-    var cocok = s.isi.filter(function (o) { return ! koma || o.cari.indexOf(koma) !== -1; });
-
-    s.daftar.innerHTML = '';
-    if (! cocok.length) {
-      var kosong = document.createElement('li');
-      kosong.className = 'kosong';
-      kosong.textContent = 'Nama tidak ditemukan';
-      s.daftar.appendChild(kosong);
-    } else {
-      cocok.forEach(function (o) {
-        var li = document.createElement('li');
-        li.setAttribute('role', 'option');
-        li.setAttribute('data-nilai', o.nilai);
-        li.textContent = o.label;
-        s.daftar.appendChild(li);
+      Array.prototype.forEach.call(tabBar.querySelectorAll('.tab-unit[data-tab]'), function (a) {
+        a.classList.toggle('aktif', a.getAttribute('data-tab') === kunci);
       });
     }
-    s.sorot = -1;
-  }
 
-  function unitBukaDaftar(bungkus, kata) {
-    var s = cariPegawai.get(bungkus);
-    if (! s) return;
-    unitGambarDaftar(bungkus, kata);
-    s.daftar.classList.remove('hidden');
-    s.cari.setAttribute('aria-expanded', 'true');
-  }
-
-  function unitTutupDaftar(bungkus) {
-    var s = cariPegawai.get(bungkus);
-    if (! s) return;
-    s.daftar.classList.add('hidden');
-    s.cari.setAttribute('aria-expanded', 'false');
-    s.sorot = -1;
-  }
-
-  function unitSorot(bungkus, arah) {
-    var s = cariPegawai.get(bungkus);
-    if (! s) return;
-    var item = s.daftar.querySelectorAll('li[data-nilai]');
-    if (! item.length) return;
-    s.sorot = (s.sorot + arah + item.length) % item.length;
-    Array.prototype.forEach.call(item, function (li, i) { li.classList.toggle('sorot', i === s.sorot); });
-    if (item[s.sorot].scrollIntoView) item[s.sorot].scrollIntoView({ block: 'nearest' });
-  }
-
-  document.addEventListener('focusin', function (e) {
-    var bungkus = e.target.closest ? e.target.closest('[data-pilih-pegawai]') : null;
-    if (! bungkus || ! e.target.classList.contains('pilih-pegawai-cari')) return;
-    e.target.select();
-    unitBukaDaftar(bungkus, '');
-  });
-
-  document.addEventListener('input', function (e) {
-    var bungkus = e.target.closest ? e.target.closest('[data-pilih-pegawai]') : null;
-    if (! bungkus || ! e.target.classList.contains('pilih-pegawai-cari')) return;
-    unitBukaDaftar(bungkus, e.target.value);
-  });
-
-  document.addEventListener('keydown', function (e) {
-    var bungkus = e.target.closest ? e.target.closest('[data-pilih-pegawai]') : null;
-    if (! bungkus || ! e.target.classList.contains('pilih-pegawai-cari')) return;
-    var s = cariPegawai.get(bungkus);
-
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-      e.preventDefault();
-      if (s.daftar.classList.contains('hidden')) unitBukaDaftar(bungkus, s.cari.value);
-      else unitSorot(bungkus, e.key === 'ArrowDown' ? 1 : -1);
-    } else if (e.key === 'Enter') {
-      var item = s.daftar.querySelectorAll('li[data-nilai]');
-      if (item[s.sorot]) { e.preventDefault(); item[s.sorot].dispatchEvent(new MouseEvent('click', { bubbles: true })); }
-    } else if (e.key === 'Escape') {
-      unitTutupDaftar(bungkus);
+    // Bangun ulang seluruh panel dari respons server (peta kunci => HTML).
+    function renderSemuaPanel(peta) {
+      if (! peta) return;
+      var html = '';
+      Object.keys(peta).forEach(function (k) {
+        html += '<div class="tab-panel hidden" data-panel="' + k + '">' + peta[k] + '</div>';
+      });
+      isiTab.innerHTML = html;
     }
-  });
 
-  document.addEventListener('click', function (e) {
-    var bungkus = e.target.closest ? e.target.closest('[data-pilih-pegawai]') : null;
+    window.unitTutup = function (id) {
+      var m = document.getElementById(id);
+      if (! m) return;
+      m.classList.add('hidden');
+      m.classList.remove('flex');
+    };
 
-    if (! bungkus) {
-      Array.prototype.forEach.call(document.querySelectorAll('[data-pilih-pegawai]'), unitTutupDaftar);
-      return;
+    function bukaModal(id) {
+      var m = document.getElementById(id);
+      if (! m) return;
+      m.classList.remove('hidden');
+      m.classList.add('flex');
     }
-    if (! e.target.classList.contains('pilih-pegawai-cari') && ! bungkus.contains(e.target)) return;
 
-    var li = e.target.closest('li[data-nilai]');
-    if (li) {
-      var s = cariPegawai.get(bungkus);
-      s.select.value = li.getAttribute('data-nilai');
-      s.select.dispatchEvent(new Event('change', { bubbles: true }));
+    function isiModalUbah(b) {
+      document.getElementById('ubah-unit-id').value = b.getAttribute('data-unit') || '';
+      document.getElementById('ubah-unit-nama').value = b.getAttribute('data-nama') || '';
+      document.getElementById('ubah-unit-atasan').value = b.getAttribute('data-atasan') || '';
+      document.getElementById('ubah-unit-punya-sub').checked = b.getAttribute('data-punya-sub') === '1';
+      // Supaya setelah disimpan halaman tetap berada di tab unit itu, bukan
+      // lompat ke tab Semua Unit Kerja.
+      document.getElementById('ubah-unit-tab-asal').value = b.getAttribute('data-unit') || '';
+      bukaModal('modal-ubah');
+      unitSinkronPilihan(document.getElementById('ubah-unit-atasan'));
+    }
+
+    /* ── Pilih pegawai: combo box cari nama ───────────────────────────────
+      <select> asli tetap ada (fallback tanpa JS & sumber nilai form), lalu
+      disembunyikan dan digantikan kotak cari + daftar terfilter. Semua
+      perekatannya di document supaya ikut bekerja pada markup hasil fetch. */
+    // WeakMap: kunci objek tidak boleh berubah jadi string seperti [object HTMLDivElement].
+    var cariPegawai = new WeakMap();
+
+    function unitSiapkanPilihan(bungkus) {
+      if (! bungkus || ! bungkus.isConnected || bungkus.classList.contains('siap')) return;
+      var select = bungkus.querySelector('select');
+      var cari = bungkus.querySelector('.pilih-pegawai-cari');
+      var daftar = bungkus.querySelector('.pilih-pegawai-daftar');
+      if (! select || ! cari || ! daftar) return;
+
+      var nilaiAwal = select.value || '';
+      var labelKosong = select.options[0] ? select.options[0].textContent : '';
+
+      // Isi daftar <select> dari daftar pegawai global supaya pilihan atasan tetap
+      // tersimpan saat formulir dikirim (nilai select = id pegawai terpilih).
+      select.innerHTML = '';
+      var optKosong = document.createElement('option');
+      optKosong.value = '';
+      optKosong.textContent = labelKosong;
+      select.appendChild(optKosong);
+
+      var isi = [{ nilai: '', label: labelKosong, cari: '' }];
+      (window.PEGAWAI_UNIT || []).forEach(function (p) {
+        var o = document.createElement('option');
+        o.value = String(p.id);
+        o.textContent = p.nama;
+        select.appendChild(o);
+        isi.push({ nilai: String(p.id), label: p.nama, cari: p.cari || '' });
+      });
+
+      select.value = nilaiAwal;
+
+      bungkus.classList.add('siap');
+      cariPegawai.set(bungkus, { select: select, cari: cari, daftar: daftar, isi: isi, sorot: -1 });
       unitTampilPilihan(bungkus);
-      unitTutupDaftar(bungkus);
-      s.cari.blur();
-      return;
     }
 
-    if (e.target.classList.contains('pilih-pegawai-cari')) unitBukaDaftar(bungkus, e.target.value);
-  });
+    function unitTampilPilihan(bungkus) {
+      var s = cariPegawai.get(bungkus);
+      if (! s) return;
+      var terpilih = s.isi.filter(function (o) { return o.nilai === s.select.value; })[0];
+      s.cari.value = terpilih ? terpilih.label : '';
+    }
 
-  function unitSiapkanSemua() {
-    Array.prototype.forEach.call(document.querySelectorAll('[data-pilih-pegawai]'), unitSiapkanPilihan);
-  }
+    window.unitSinkronPilihan = function (select) {
+      if (! select) return;
+      unitSiapkanPilihan(select.closest('[data-pilih-pegawai]'));
+      unitTampilPilihan(select.closest('[data-pilih-pegawai]'));
+    };
 
-  if (window.MutationObserver) {
-    new MutationObserver(unitSiapkanSemua).observe(document.documentElement, { childList: true, subtree: true });
-  }
-  unitSiapkanSemua();
+    function unitGambarDaftar(bungkus, kata) {
+      var s = cariPegawai.get(bungkus);
+      if (! s) return;
+      var koma = (kata || '').toLowerCase().trim();
+      var cocok = s.isi.filter(function (o) { return ! koma || o.cari.indexOf(koma) !== -1; });
 
-  var spinner = '<svg class="w-3.5 h-3.5 inline-block align-[-2px] animate-spin" viewBox="0 0 24 24" fill="none">'
-              + '<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>'
-              + '<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>';
+      s.daftar.innerHTML = '';
+      if (! cocok.length) {
+        var kosong = document.createElement('li');
+        kosong.className = 'kosong';
+        kosong.textContent = 'Nama tidak ditemukan';
+        s.daftar.appendChild(kosong);
+      } else {
+        cocok.forEach(function (o) {
+          var li = document.createElement('li');
+          li.setAttribute('role', 'option');
+          li.setAttribute('data-nilai', o.nilai);
+          li.textContent = o.label;
+          s.daftar.appendChild(li);
+        });
+      }
+      s.sorot = -1;
+    }
 
-  // Loading per tombol: hanya tombol yang memicu disimpan + dimatikan sampai
-  // respons tiba, tombol lain tetap bisa diklik sehingga beberapa data dapat
-  // disimpan berurutan sekaligus.
-  function tandaiMemuat(tombol) {
-    if (! tombol || tombol.disabled) return;
-    tombol.dataset.teksAwal = tombol.innerHTML;
-    tombol.disabled = true;
-    tombol.classList.add('opacity-70', 'cursor-wait');
-    tombol.innerHTML = spinner + ' Menyimpan…';
-  }
+    function unitBukaDaftar(bungkus, kata) {
+      var s = cariPegawai.get(bungkus);
+      if (! s) return;
+      unitGambarDaftar(bungkus, kata);
+      s.daftar.classList.remove('hidden');
+      s.cari.setAttribute('aria-expanded', 'true');
+    }
 
-  function pulihkanTombol(tombol) {
-    if (! tombol) return;
-    if (tombol.dataset.teksAwal != null) tombol.innerHTML = tombol.dataset.teksAwal;
-    tombol.disabled = false;
-    tombol.classList.remove('opacity-70', 'cursor-wait');
-  }
+    function unitTutupDaftar(bungkus) {
+      var s = cariPegawai.get(bungkus);
+      if (! s) return;
+      s.daftar.classList.add('hidden');
+      s.cari.setAttribute('aria-expanded', 'false');
+      s.sorot = -1;
+    }
 
-  function kirim(form, tambahan, tombol) {
-    var data = new FormData(form);
-    Object.keys(tambahan || {}).forEach(function (k) { data.set(k, tambahan[k]); });
+    function unitSorot(bungkus, arah) {
+      var s = cariPegawai.get(bungkus);
+      if (! s) return;
+      var item = s.daftar.querySelectorAll('li[data-nilai]');
+      if (! item.length) return;
+      s.sorot = (s.sorot + arah + item.length) % item.length;
+      Array.prototype.forEach.call(item, function (li, i) { li.classList.toggle('sorot', i === s.sorot); });
+      if (item[s.sorot].scrollIntoView) item[s.sorot].scrollIntoView({ block: 'nearest' });
+    }
 
-    tampilPesan('Menyimpan…', true);
-    tandaiMemuat(tombol);
+    document.addEventListener('focusin', function (e) {
+      var bungkus = e.target.closest ? e.target.closest('[data-pilih-pegawai]') : null;
+      if (! bungkus || ! e.target.classList.contains('pilih-pegawai-cari')) return;
+      e.target.select();
+      unitBukaDaftar(bungkus, '');
+    });
 
-    return fetch(urlAksi, {
-      method: 'POST',
-      body: data,
-      headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' }
-    })
-      .then(function (r) { return r.json().then(function (h) { return { ok: r.ok, h: h }; }); })
-      .then(function (b) {
-        var h = b.h;
-        if (h.tabs) tabBar.innerHTML = h.tabs;
-        if (h.isiSemua) renderSemuaPanel(h.isiSemua);
-        if (h.mode === 'unit') tab = tabAktifDariTabs() || tab;
-        else if (h.mode) tab = h.mode;
-        aktifkanTab(tab);
-        unitSiapkanSemua();
+    document.addEventListener('input', function (e) {
+      var bungkus = e.target.closest ? e.target.closest('[data-pilih-pegawai]') : null;
+      if (! bungkus || ! e.target.classList.contains('pilih-pegawai-cari')) return;
+      unitBukaDaftar(bungkus, e.target.value);
+    });
 
-        tampilPesan(h.pesan, !! h.sukses);
+    document.addEventListener('keydown', function (e) {
+      var bungkus = e.target.closest ? e.target.closest('[data-pilih-pegawai]') : null;
+      if (! bungkus || ! e.target.classList.contains('pilih-pegawai-cari')) return;
+      var s = cariPegawai.get(bungkus);
 
-        if (h.sukses && form.dataset.ajax === 'tambah_unit') window.unitTutup('modal-tambah');
-        if (h.sukses && form.dataset.ajax === 'ubah_unit') window.unitTutup('modal-ubah');
-        if (h.sukses && form.isConnected) { form.reset(); unitSiapkanSemua(); }
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (s.daftar.classList.contains('hidden')) unitBukaDaftar(bungkus, s.cari.value);
+        else unitSorot(bungkus, e.key === 'ArrowDown' ? 1 : -1);
+      } else if (e.key === 'Enter') {
+        var item = s.daftar.querySelectorAll('li[data-nilai]');
+        if (item[s.sorot]) { e.preventDefault(); item[s.sorot].dispatchEvent(new MouseEvent('click', { bubbles: true })); }
+      } else if (e.key === 'Escape') {
+        unitTutupDaftar(bungkus);
+      }
+    });
+
+    document.addEventListener('click', function (e) {
+      var bungkus = e.target.closest ? e.target.closest('[data-pilih-pegawai]') : null;
+
+      if (! bungkus) {
+        Array.prototype.forEach.call(document.querySelectorAll('[data-pilih-pegawai]'), unitTutupDaftar);
+        return;
+      }
+      if (! e.target.classList.contains('pilih-pegawai-cari') && ! bungkus.contains(e.target)) return;
+
+      var li = e.target.closest('li[data-nilai]');
+      if (li) {
+        var s = cariPegawai.get(bungkus);
+        s.select.value = li.getAttribute('data-nilai');
+        s.select.dispatchEvent(new Event('change', { bubbles: true }));
+        unitTampilPilihan(bungkus);
+        unitTutupDaftar(bungkus);
+        s.cari.blur();
+        return;
+      }
+
+      if (e.target.classList.contains('pilih-pegawai-cari')) unitBukaDaftar(bungkus, e.target.value);
+    });
+
+    function unitSiapkanSemua() {
+      Array.prototype.forEach.call(document.querySelectorAll('[data-pilih-pegawai]'), unitSiapkanPilihan);
+    }
+
+    if (window.MutationObserver) {
+      new MutationObserver(unitSiapkanSemua).observe(document.documentElement, { childList: true, subtree: true });
+    }
+    unitSiapkanSemua();
+
+    var spinner = '<svg class="w-3.5 h-3.5 inline-block align-[-2px] animate-spin" viewBox="0 0 24 24" fill="none">'
+                + '<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>'
+                + '<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>';
+
+    // Loading per tombol: hanya tombol yang memicu disimpan + dimatikan sampai
+    // respons tiba, tombol lain tetap bisa diklik sehingga beberapa data dapat
+    // disimpan berurutan sekaligus.
+    function tandaiMemuat(tombol) {
+      if (! tombol || tombol.disabled) return;
+      tombol.dataset.teksAwal = tombol.innerHTML;
+      tombol.disabled = true;
+      tombol.classList.add('opacity-70', 'cursor-wait');
+      tombol.innerHTML = spinner + ' Menyimpan…';
+    }
+
+    function pulihkanTombol(tombol) {
+      if (! tombol) return;
+      if (tombol.dataset.teksAwal != null) tombol.innerHTML = tombol.dataset.teksAwal;
+      tombol.disabled = false;
+      tombol.classList.remove('opacity-70', 'cursor-wait');
+    }
+
+    function kirim(form, tambahan, tombol) {
+      var data = new FormData(form);
+      Object.keys(tambahan || {}).forEach(function (k) { data.set(k, tambahan[k]); });
+
+      tampilPesan('Menyimpan…', true);
+      tandaiMemuat(tombol);
+
+      return fetch(urlAksi, {
+        method: 'POST',
+        body: data,
+        headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' }
       })
-      .catch(function () { tampilPesan('Terjadi kesalahan jaringan.', false); })
-      .finally(function () { pulihkanTombol(tombol); });
-  }
+        .then(function (r) { return r.json().then(function (h) { return { ok: r.ok, h: h }; }); })
+        .then(function (b) {
+          var h = b.h;
+          if (h.tabs) tabBar.innerHTML = h.tabs;
+          if (h.isiSemua) renderSemuaPanel(h.isiSemua);
+          if (h.mode === 'unit') tab = tabAktifDariTabs() || tab;
+          else if (h.mode) tab = h.mode;
+          aktifkanTab(tab);
+          unitSiapkanSemua();
 
-  // Delegasi: seluruh tombol & form hasil render dinamis tertangkap di sini.
-  document.addEventListener('click', function (e) {
-    var target = e.target;
+          tampilPesan(h.pesan, !! h.sukses);
 
-    var tabKlik = target.closest('[data-tab]');
-    if (tabKlik) {
-      e.preventDefault();
-      aktifkanTab(tabKlik.getAttribute('data-tab'));
-      return;
+          if (h.sukses && form.dataset.ajax === 'tambah_unit') window.unitTutup('modal-tambah');
+          if (h.sukses && form.dataset.ajax === 'ubah_unit') window.unitTutup('modal-ubah');
+          if (h.sukses && form.isConnected) { form.reset(); unitSiapkanSemua(); }
+        })
+        .catch(function () { tampilPesan('Terjadi kesalahan jaringan.', false); })
+        .finally(function () { pulihkanTombol(tombol); });
     }
 
-    var buka = target.closest('[data-buka-modal]');
-    if (buka) {
-      e.preventDefault();
-      if (buka.getAttribute('data-buka-modal') === 'modal-ubah') isiModalUbah(buka);
-      else bukaModal(buka.getAttribute('data-buka-modal'));
-      return;
-    }
+    // Delegasi: seluruh tombol & form hasil render dinamis tertangkap di sini.
+    document.addEventListener('click', function (e) {
+      var target = e.target;
 
-    var tutup = target.closest('[data-tutup-modal]');
-    if (tutup) {
-      e.preventDefault();
-      window.unitTutup(tutup.getAttribute('data-tutup-modal'));
-      return;
-    }
+      var tabKlik = target.closest('[data-tab]');
+      if (tabKlik) {
+        e.preventDefault();
+        aktifkanTab(tabKlik.getAttribute('data-tab'));
+        return;
+      }
 
-    var aksi = target.closest('button[data-ajax]');
-    if (aksi && aksi.getAttribute('data-ajax') !== 'ubah_sub') {
+      var buka = target.closest('[data-buka-modal]');
+      if (buka) {
+        e.preventDefault();
+        if (buka.getAttribute('data-buka-modal') === 'modal-ubah') isiModalUbah(buka);
+        else bukaModal(buka.getAttribute('data-buka-modal'));
+        return;
+      }
+
+      var tutup = target.closest('[data-tutup-modal]');
+      if (tutup) {
+        e.preventDefault();
+        window.unitTutup(tutup.getAttribute('data-tutup-modal'));
+        return;
+      }
+
+      var aksi = target.closest('button[data-ajax]');
+      if (aksi && aksi.getAttribute('data-ajax') !== 'ubah_sub') {
+        e.preventDefault();
+
+        var konfirmasi = aksi.getAttribute('data-konfirmasi');
+        if (konfirmasi && ! confirm(konfirmasi)) return;
+
+        var form = document.createElement('form');
+        form.dataset.ajax = aksi.getAttribute('data-ajax');
+        kirim(form, {
+          aksi: aksi.getAttribute('data-ajax'),
+          id: aksi.getAttribute('data-id') || '',
+          nama: aksi.getAttribute('data-nama') || '',
+          unit_kerja_id: aksi.getAttribute('data-unit-kerja-id') || '',
+          tab_asal: aksi.getAttribute('data-tab-asal') || tab
+        }, aksi);
+      }
+    });
+
+    // Simpan atasan sub unit: nilai select di sebelah tombol Simpan.
+    document.addEventListener('click', function (e) {
+      var aksi = e.target.closest('button[data-ajax="ubah_sub"]');
+      if (! aksi) return;
       e.preventDefault();
 
-      var konfirmasi = aksi.getAttribute('data-konfirmasi');
-      if (konfirmasi && ! confirm(konfirmasi)) return;
+      var select = aksi.closest('td').querySelector('select[name="atasan_id"]');
 
       var form = document.createElement('form');
-      form.dataset.ajax = aksi.getAttribute('data-ajax');
+      form.dataset.ajax = 'ubah_sub';
       kirim(form, {
-        aksi: aksi.getAttribute('data-ajax'),
-        id: aksi.getAttribute('data-id') || '',
-        nama: aksi.getAttribute('data-nama') || '',
-        unit_kerja_id: aksi.getAttribute('data-unit-kerja-id') || '',
-        tab_asal: aksi.getAttribute('data-tab-asal') || tab
+        aksi: 'ubah_sub',
+        id: aksi.getAttribute('data-id'),
+        nama: aksi.getAttribute('data-nama'),
+        atasan_id: select ? select.value : '',
+        unit_kerja_id: aksi.getAttribute('data-unit-kerja-id')
       }, aksi);
-    }
-  });
-
-  // Simpan atasan sub unit: nilai select di sebelah tombol Simpan.
-  document.addEventListener('click', function (e) {
-    var aksi = e.target.closest('button[data-ajax="ubah_sub"]');
-    if (! aksi) return;
-    e.preventDefault();
-
-    var select = aksi.closest('td').querySelector('select[name="atasan_id"]');
-
-    var form = document.createElement('form');
-    form.dataset.ajax = 'ubah_sub';
-    kirim(form, {
-      aksi: 'ubah_sub',
-      id: aksi.getAttribute('data-id'),
-      nama: aksi.getAttribute('data-nama'),
-      atasan_id: select ? select.value : '',
-      unit_kerja_id: aksi.getAttribute('data-unit-kerja-id')
-    }, aksi);
-  });
-
-  document.addEventListener('submit', function (e) {
-    var form = e.target;
-    // Semua form di halaman ini AJAX: tambah unit, ubah unit, tambah sub unit.
-    if (! form.dataset || ! form.dataset.ajax) return;
-
-    e.preventDefault();
-    var tombol = e.submitter || form.querySelector('button[type="submit"]');
-    kirim(form, { unit_kerja_id: form.querySelector('[name="unit_kerja_id"]')?.value || '' }, tombol);
-  });
-
-  document.addEventListener('keydown', function (e) {
-    if (e.key !== 'Escape') return;
-    ['modal-tambah', 'modal-ubah'].forEach(function (id) {
-      var m = document.getElementById(id);
-      if (m && ! m.classList.contains('hidden')) window.unitTutup(id);
     });
-  });
-})();
+
+    document.addEventListener('submit', function (e) {
+      var form = e.target;
+      // Semua form di halaman ini AJAX: tambah unit, ubah unit, tambah sub unit.
+      if (! form.dataset || ! form.dataset.ajax) return;
+
+      e.preventDefault();
+      var tombol = e.submitter || form.querySelector('button[type="submit"]');
+      kirim(form, { unit_kerja_id: form.querySelector('[name="unit_kerja_id"]')?.value || '' }, tombol);
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      ['modal-tambah', 'modal-ubah'].forEach(function (id) {
+        var m = document.getElementById(id);
+        if (m && ! m.classList.contains('hidden')) window.unitTutup(id);
+      });
+    });
+  })();
 </script>
 @endsection
