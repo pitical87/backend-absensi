@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\DokumentasiController;
 use App\Http\Controllers\Admin\EksekutifController;
 use App\Http\Controllers\Admin\FingerController;
 use App\Http\Controllers\Admin\IzinController;
+use App\Http\Controllers\Admin\JabatanController;
 use App\Http\Controllers\Admin\JadwalController;
 use App\Http\Controllers\Admin\KehadiranController;
 use App\Http\Controllers\Admin\LemburController;
@@ -90,6 +91,8 @@ Route::prefix('admin')->middleware('admin')->group(function () {
 
     Route::get('struktur', [StrukturController::class, 'index'])->name('admin.struktur.index');
     Route::post('struktur/aksi', [StrukturController::class, 'aksi'])->name('admin.struktur.aksi');
+
+    Route::resource('jabatan', JabatanController::class)->names('admin.jabatan');
 
     Route::get('shift', [ShiftController::class, 'index'])->name('admin.shift.index');
     Route::post('shift/aksi', [ShiftController::class, 'aksi'])->name('admin.shift.aksi');
@@ -173,4 +176,3 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::get('documentation', [DokumentasiController::class, 'index'])->name('admin.documentation.index');
     Route::get('shift/data', [ShiftController::class, 'data'])->name('admin.shift.data');
 });
-

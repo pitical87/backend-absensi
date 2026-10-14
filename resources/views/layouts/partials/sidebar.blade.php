@@ -9,12 +9,13 @@ $grupMenu = [
     'id'    => 'grp-kepegawaian',
     'label' => 'Kepegawaian',
     'ikon'  => 'pegawai',
-    'items' => [
-      'pegawai'  => ['admin/pegawai',  'pegawai',  'Data Pegawai'],
-      'unit'     => ['admin/unit',     'gedung',   'Data Unit Kerja'],
-      'atasan_langsung' => ['admin/atasan_langsung', 'struktur', 'Atasan Langsung'],
-      'struktur' => ['admin/struktur', 'struktur', 'Struktur Organisasi'],
-    ],
+'items' => [
+        'pegawai'  => ['admin/pegawai',  'pegawai',  'Data Pegawai'],
+        'unit'     => ['admin/unit',     'gedung',   'Data Unit Kerja'],
+        'jabatan'  => ['admin/jabatan',  'atur',     'Master Jabatan'],
+        'atasan_langsung' => ['admin/atasan_langsung', 'struktur', 'Atasan Langsung'],
+        'struktur' => ['admin/struktur', 'struktur', 'Struktur Organisasi'],
+      ],
   ],
   [
     'id'    => 'grp-shift',
