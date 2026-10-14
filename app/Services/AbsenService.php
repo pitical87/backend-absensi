@@ -110,7 +110,7 @@ class AbsenService
             $menit = 0;
             $jenis = 'sukses';
             $pesan = 'Terima kasih sudah hadir hari ini';
-            $bintangMasuk = null;
+            $bintangMasuk = 1;
             $sesi = (Absensi::where('user_id', $u['id'])
                 ->where('tanggal', $tanggalShift)->max('sesi') ?? 0) + 1;
         } else {
@@ -336,6 +336,8 @@ class AbsenService
 
         if ($isDokter) {
             $totalMenit = null;
+            $bintangPulang = 1;
+            $bintangHarian = 1;
         } else {
             $bintang = app(BintangService::class);
             $jamMasuk = $u['shift_jam_masuk'] ?? null;
