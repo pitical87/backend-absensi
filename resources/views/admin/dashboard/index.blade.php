@@ -99,6 +99,12 @@
         wadah.innerHTML = html;
         wadah.removeAttribute('aria-busy');
         jalankanSkrip(wadah);
+        // Pastikan Chart.js resize setelah DOM siap (utk AJAX load)
+        setTimeout(function () {
+          if (window.Chart && window.Chart.instances) {
+            Object.values(window.Chart.instances).forEach(function (c) { c.resize(); });
+          }
+        }, 0);
       })
       .catch(gagal);
   }
