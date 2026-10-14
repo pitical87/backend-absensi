@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AtasanLangsung;
 use App\Models\SubUnit;
 use App\Models\UnitKerja;
 use App\Models\User;
@@ -124,8 +125,29 @@ class UnitController extends Controller
             return ['Nama sub unit wajib diisi.', false, null];
         }
 
-        SubUnit::where('id', $id)->update(['nama' => $nama, 'atasan_id' => $atasanId]);
-        catat_aktivitas('Ubah Sub Unit', $nama);
+        $sub = SubUnit::find($id);
+        if (! $sub) {
+            return ['Sub unit tidak ditemukan.', false, null];
+        }
+
+        $sub->update(['nama' => $nama, 'atasan_id' => $atasanId]);
+
+        // Update atasan_langsung for all users in this sub unit
+        if ($atasanId) {
+            $pegawaiIds = User::where('sub_unit_id', $id)
+                ->where('role', '!=', 'admin')
+                ->pluck('id')
+                ->all();
+
+            if ($pegawaiIds) {
+                AtasanLangsung::whereIn('user_id', $pegawaiIds)->delete();
+
+                $rows = array_map(fn ($uid) => ['user_id' => $uid, 'atasan_id' => $atasanId], $pegawaiIds);
+                AtasanLangsung::insert($rows);
+            }
+        }
+
+        catat_aktivitas('Ubah Sub Unit', $nama.($atasanId ? ' — atasan sinkron ke '.count($pegawaiIds ?? []).' pegawai' : ''));
 
         return ['Sub unit diperbarui.', true, null];
     }
