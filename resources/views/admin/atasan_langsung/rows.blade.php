@@ -1,6 +1,10 @@
 @forelse($rows as $p)
   @php
     $listAtasan = ($peta['relasi'][$p->id] ?? collect())->pluck('atasan_id')->all();
+    $listAtasanNama = [];
+    foreach ($listAtasan as $idA) {
+        $listAtasanNama[] = $peta['nama'][$idA] ?? '#'.$idA;
+    }
   @endphp
   <tr>
     <td class="w-[42px] tengah">
@@ -32,7 +36,8 @@
     </td>
     <td class="w-[150px]">
       <button type="button" class="btn btn-navy btn-kecil" data-atur="{{ (int) $p->id }}"
-              data-atasan="{{ implode(',', array_map('intval', $listAtasan)) }}">
+              data-atasan="{{ implode(',', array_map('intval', $listAtasan)) }}"
+              data-atasan-nama="{{ implode('||', $listAtasanNama) }}">
         Atur
       </button>
     </td>

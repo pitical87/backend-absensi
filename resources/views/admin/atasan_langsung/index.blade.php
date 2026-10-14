@@ -212,7 +212,11 @@
       b.addEventListener('click', function () {
         var id = Number(b.getAttribute('data-atur'));
         var nama = b.closest('tr').querySelector('.font-medium').textContent.trim();
-        bukaModal([{ id: id, nama: nama, atasan: (b.getAttribute('data-atasan') || '').split(',').filter(Boolean).map(Number) }]);
+        var atasanIds = (b.getAttribute('data-atasan') || '').split(',').filter(Boolean).map(Number);
+        var atasanNama = (b.getAttribute('data-atasan-nama') || '').split('||').filter(Boolean);
+        var atasanMap = {};
+        atasanIds.forEach(function (id, i) { atasanMap[id] = atasanNama[i] || ('#' + id); });
+        bukaModal([{ id: id, nama: nama, atasan: atasanIds, atasanNama: atasanMap }]);
       });
     });
   }
@@ -273,6 +277,16 @@
     // Satu pegawai mulai dari atasan yang sudah ada, mode bersama mulai dari kosong
     // supaya admin tidak sengaja menghapus relasi lama.
     dipilihAtasan = new Set(daftar.length === 1 ? (daftar[0].atasan || []) : []);
+
+    // Pre-populate namaAtasan for pre-selected atasan
+    if (daftar.length === 1 && daftar[0].atasanNama) {
+      Object.entries(daftar[0].atasanNama).forEach(function (_ref) {
+        var id = parseInt(_ref[0], 10);
+        var nama = _ref[1];
+        namaAtasan[id] = nama;
+      });
+    }
+
     document.getElementById('cari-atasan').value = '';
     document.getElementById('status-atasan').textContent = '';
 
