@@ -132,42 +132,43 @@
 </section>
 
 @section('script')
-@php
-  $pieAktif = array_values(array_filter($irisanPie, fn ($s) => $s['jml'] > 0));
-  $lewatAktif = array_values(array_filter($lewatJadwal['irisan'], fn ($s) => $s['jml'] > 0));
-  $shiftAktif = array_values(array_filter($shiftPie ?? [], fn ($s) => $s['jml'] > 0));
-  $trenData = [
-      'labels' => array_map(fn ($g) => (int) substr($g['tgl'], 8, 2), $grafikGaris),
-      'hadir'  => array_column($grafikGaris, 'hadir'),
-      'tepat'  => array_column($grafikGaris, 'tepat'),
-      'telat'  => array_column($grafikGaris, 'telat'),
-      'tidak'  => array_column($grafikGaris, 'tidak'),
-      'maks'   => $maksGaris,
-  ];
-@endphp
-<script>
-(function () {
-  'use strict';
+  @php
+    $pieAktif = array_values(array_filter($irisanPie, fn ($s) => $s['jml'] > 0));
+    $lewatAktif = array_values(array_filter($lewatJadwal['irisan'], fn ($s) => $s['jml'] > 0));
+    $shiftAktif = array_values(array_filter($shiftPie ?? [], fn ($s) => $s['jml'] > 0));
+    $trenData = [
+        'labels' => array_map(fn ($g) => (int) substr($g['tgl'], 8, 2), $grafikGaris),
+        'hadir'  => array_column($grafikGaris, 'hadir'),
+        'tepat'  => array_column($grafikGaris, 'tepat'),
+        'telat'  => array_column($grafikGaris, 'telat'),
+        'tidak'  => array_column($grafikGaris, 'tidak'),
+        'maks'   => $maksGaris,
+    ];
+  @endphp
+  <script>
+    (function () {
+      'use strict';
 
-  var KETAATAN = @json($pieAktif);
-  var LEWAT = @json($lewatAktif);
-  var SHIFT = @json($shiftAktif);
-  var TREN = @json($trenData);
+      var KETAATAN = @json($pieAktif);
+      var LEWAT = @json($lewatAktif);
+      var SHIFT = @json($shiftAktif);
+      var TREN = @json($trenData);
 
-  function palet() {
-    var gelap = document.documentElement.classList.contains('dark');
-    return {
-      tick: gelap ? '#8CA1C0' : '#5C7189',
-      grid: gelap ? '#22304A' : '#E4EEF7'
-    };
-  }
+      function palet() {
+        var gelap = document.documentElement.classList.contains('dark');
+        return {
+          tick: gelap ? '#8CA1C0' : '#5C7189',
+          grid: gelap ? '#22304A' : '#E4EEF7'
+        };
+      }
 
-  // Diagram lingkaran untuk kartu ketaatan absen & kartu lewat jadwal
+      // Diagram lingkaran untuk kartu ketaatan absen & kartu lewat jadwal
   function donat(el, data) {
     if (!el || !window.Chart || !data.length) {
       return null;
     }
-    return new Chart(el, {
+    var ctx = el.getContext('2d');
+    return new Chart(ctx, {
       type: 'doughnut',
       data: {
         labels: data.map(function (s) { return s.label; }),
@@ -195,103 +196,103 @@
     });
   }
 
-  function init() {
-    donat(document.getElementById('grafik-ketaatan'), KETAATAN);
-    donat(document.getElementById('grafik-lewat-jadwal'), LEWAT);
-    donat(document.getElementById('grafik-shift'), SHIFT);
+      function init() {
+        donat(document.getElementById('grafik-ketaatan'), KETAATAN);
+        donat(document.getElementById('grafik-lewat-jadwal'), LEWAT);
+        donat(document.getElementById('grafik-shift'), SHIFT);
 
-    var grafikTren = null;
-    var elTren = document.getElementById('grafik-tren');
-    if (elTren && window.Chart && TREN.labels.length > 1) {
-      // Garis rincian status (digambar di atas bar)
-      function garis(label, data, warna, extra) {
-        return Object.assign({
-          type: 'line',
-          label: label,
-          data: data,
-          borderColor: warna,
-          backgroundColor: warna,
-          borderWidth: 2,
-          tension: 0,
-          pointRadius: 0,
-          pointHoverRadius: 5,
-          spanGaps: true,
-          order: 1
-        }, extra || {});
-      }
+        var grafikTren = null;
+        var elTren = document.getElementById('grafik-tren');
+        if (elTren && window.Chart && TREN.labels.length > 1) {
+          // Garis rincian status (digambar di atas bar)
+          function garis(label, data, warna, extra) {
+            return Object.assign({
+              type: 'line',
+              label: label,
+              data: data,
+              borderColor: warna,
+              backgroundColor: warna,
+              borderWidth: 2,
+              tension: 0,
+              pointRadius: 0,
+              pointHoverRadius: 5,
+              spanGaps: true,
+              order: 1
+            }, extra || {});
+          }
 
-      grafikTren = new Chart(elTren, {
-        type: 'bar',
-        data: {
-          labels: TREN.labels,
-          datasets: [
-            garis('Terlambat',   TREN.telat, '#D97706'),
-            garis('Tidak Absen', TREN.tidak, '#DC2626', { borderDash: [6, 4] }),
-            {
-              type: 'bar',
-              label: 'Tepat Waktu',
-              data: TREN.tepat,
-              backgroundColor: 'rgba(5, 150, 105, .30)',
-              hoverBackgroundColor: 'rgba(5, 150, 105, .55)',
-              borderColor: '#059669',
-              borderWidth: 1.5,
-              borderRadius: 6,
-              maxBarThickness: 20,
-              order: 2
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          interaction: { mode: 'index', intersect: false },
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              callbacks: {
-                title: function (items) { return 'Tanggal ' + items[0].label + ' {{ BULAN_ID[(int) now()->format("n")] }}'; },
-                label: function (c) { return c.dataset.label + ': ' + c.parsed.y + ' pegawai'; }
+          grafikTren = new Chart(elTren, {
+            type: 'bar',
+            data: {
+              labels: TREN.labels,
+              datasets: [
+                garis('Terlambat',   TREN.telat, '#D97706'),
+                garis('Tidak Absen', TREN.tidak, '#DC2626', { borderDash: [6, 4] }),
+                {
+                  type: 'bar',
+                  label: 'Tepat Waktu',
+                  data: TREN.tepat,
+                  backgroundColor: 'rgba(5, 150, 105, .30)',
+                  hoverBackgroundColor: 'rgba(5, 150, 105, .55)',
+                  borderColor: '#059669',
+                  borderWidth: 1.5,
+                  borderRadius: 6,
+                  maxBarThickness: 20,
+                  order: 2
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              interaction: { mode: 'index', intersect: false },
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  callbacks: {
+                    title: function (items) { return 'Tanggal ' + items[0].label + ' {{ BULAN_ID[(int) now()->format("n")] }}'; },
+                    label: function (c) { return c.dataset.label + ': ' + c.parsed.y + ' pegawai'; }
+                  }
+                }
+              },
+              scales: {
+                x: {
+                  grid: { display: false },
+                  ticks: { color: palet().tick, font: { size: 11 }, maxRotation: 0, autoSkipPadding: 14 }
+                },
+                y: {
+                  beginAtZero: true,
+                  suggestedMax: TREN.maks,
+                  ticks: { color: palet().tick, precision: 0 },
+                  grid: { color: palet().grid }
+                }
               }
             }
-          },
-          scales: {
-            x: {
-              grid: { display: false },
-              ticks: { color: palet().tick, font: { size: 11 }, maxRotation: 0, autoSkipPadding: 14 }
-            },
-            y: {
-              beginAtZero: true,
-              suggestedMax: TREN.maks,
-              ticks: { color: palet().tick, precision: 0 },
-              grid: { color: palet().grid }
-            }
+          });
+
+          // Ikut berganti tema saat toggle dark/light diklik
+          var tombolMode = document.getElementById('tombol-mode');
+          if (tombolMode) {
+            tombolMode.addEventListener('click', function () {
+              setTimeout(function () {
+                var p = palet();
+                if (grafikTren) {
+                  grafikTren.options.scales.x.ticks.color = p.tick;
+                  grafikTren.options.scales.y.ticks.color = p.tick;
+                  grafikTren.options.scales.y.grid.color = p.grid;
+                  grafikTren.update();
+                }
+              }, 0);
+            });
           }
         }
-      });
-
-      // Ikut berganti tema saat toggle dark/light diklik
-      var tombolMode = document.getElementById('tombol-mode');
-      if (tombolMode) {
-        tombolMode.addEventListener('click', function () {
-          setTimeout(function () {
-            var p = palet();
-            if (grafikTren) {
-              grafikTren.options.scales.x.ticks.color = p.tick;
-              grafikTren.options.scales.y.ticks.color = p.tick;
-              grafikTren.options.scales.y.grid.color = p.grid;
-              grafikTren.update();
-            }
-          }, 0);
-        });
       }
-    }
-  }
 
-  if (window.Chart) {
-    init();
-  } else {
-    document.addEventListener('DOMContentLoaded', init);
-  }
-})();
-</script>
+      if (window.Chart) {
+        init();
+      } else {
+        document.addEventListener('DOMContentLoaded', init);
+      }
+    })();
+  </script>
 @endsection
