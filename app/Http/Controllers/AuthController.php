@@ -155,6 +155,7 @@ class AuthController extends Controller
         app(PeringatanLoginService::class)->bersihkanCooldown($email);
 
         session()->regenerate(true);
+        $remember = $request->boolean('remember');
         session()->put([
             'uid'    => (int) $u->id,
             'role'   => $u->role,
@@ -162,6 +163,9 @@ class AuthController extends Controller
             'posisi' => $u->posisi ?? 'Staf',
             'email'  => $u->email,
         ]);
+        if ($remember) {
+            session()->put('remember_login_until', now()->addDay()->timestamp);
+        }
         catat_aktivitas('Masuk', $u->nama_lengkap . ' (' . $u->role . ') masuk ke sistem');
 
         return redirect($u->role === 'admin' ? 'admin' : 'dashboard');

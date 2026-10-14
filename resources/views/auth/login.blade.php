@@ -177,12 +177,18 @@
                 </button>
               </div>
 
-              {{-- Forgot Password Link --}}
-              <div class="flex justify-end mt-1.5">
-                <a href="{{ route('lupa-password') }}" class="text-xs text-blue-500 hover:text-blue-600 hover:underline transition font-normal">
-                  Forgot Password
-                </a>
-              </div>
+            {{-- Remember Me Checkbox --}}
+            <div class="flex items-center justify-between">
+              <label class="flex items-center gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  id="remember"
+                  name="remember"
+                  class="w-4 h-4 rounded border-slate-300 text-[#007afc] focus:ring-2 focus:ring-blue-100"
+                >
+                <span class="text-xs sm:text-sm text-slate-700">Ingat saya selama 1 hari</span>
+              </label>
+            </div>
             </div>
 
             {{-- CAPTCHA Field --}}
