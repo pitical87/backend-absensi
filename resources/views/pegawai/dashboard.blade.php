@@ -159,7 +159,7 @@ $warna = ['tepat' => '#178A50', 'telat' => '#D9930D', 'jalan' => '#2F87DE',
 <!-- ============ MODAL KAMERA SELFIE ============ -->
 <div class="modal-tirai" id="modal-kamera">
   <div class="modal-kamera">
-    <header>{!! ikon('kamera', 19) !!} Foto Selfie Absensi</header>
+    <header class="text-black">{!! ikon('kamera', 19) !!} Foto Selfie Absensi</header>
     <div class="isi">
       <div class="bingkai-kamera">
         <video id="kamera-video" autoplay playsinline muted></video>

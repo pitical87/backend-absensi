@@ -125,7 +125,7 @@
 <!-- MODAL SELFIE ABSEN LEMBUR -->
 <div class="modal-tirai" id="modal-kamera-lembur">
   <div class="modal-kamera">
-    <header>{!! ikon('kamera', 19) !!} Foto Selfie Absen Lembur</header>
+    <header class="text-black">{!! ikon('kamera', 19) !!} Foto Selfie Absen Lembur</header>
     <div class="isi">
       <div class="bingkai-kamera">
         <video id="kamera-video-lembur" autoplay playsinline muted></video>

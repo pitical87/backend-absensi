@@ -15,7 +15,7 @@
     @endif
 
     @if($NotActive > 0)
-      <a class="btn btn-garis " href="{{ url('admin/pegawai') }}">
+      <a class="btn btn-garis " href="{{ url('admin/users') }}">
         {!! ikon('user', 15) !!} {{ $NotActive }} akun pegawai Belum aktif</a>
     @endif
     @if($anomali > 0)

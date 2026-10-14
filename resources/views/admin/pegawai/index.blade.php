@@ -107,13 +107,13 @@
 
 <div id="modal-ganti-password" class="modal-tirai">
   <div class="modal-kamera max-w-md w-full">
-    <header class="flex items-center justify-between">
+    <header class="flex items-center justify-between text-black">
       <span class="flex items-center gap-2">
         <svg class="w-4 h-4 text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
         </svg> Ganti Password Pegawai
       </span>
-      <button type="button" class="btn-tutup-modal text-white/80 hover:text-white bg-transparent border-0 cursor-pointer text-lg leading-none">&times;</button>
+      <button type="button" class="btn-tutup-modal btn btn-garis btn-kecil">&times;</button>
     </header>
     <div class="isi">
       <p class="teks-kecil teks-redup mt-0 mb-3" id="label-ganti-password"></p>
@@ -131,6 +131,33 @@
         <div class="pt-2 flex items-center justify-end gap-2">
           <button type="button" class="btn btn-garis btn-kecil btn-tutup-modal">Batal</button>
           <button type="submit" class="btn btn-primer btn-kecil">Simpan Password</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div id="modal-hapus-pegawai" class="modal-tirai">
+  <div class="modal-kamera max-w-md w-full">
+    <header class="flex items-center justify-between text-black">
+      <span class="flex items-center gap-2">{!! ikon('hapus', 16) !!} Hapus Pegawai</span>
+      <button type="button" class="btn-tutup-modal btn btn-garis btn-kecil">&times;</button>
+    </header>
+    <div class="isi">
+      <p class="teks-kecil teks-redup mt-0 mb-3" id="label-hapus-pegawai"></p>
+      <form method="post" action="{{ url('admin/pegawai/hapus') }}" class="space-y-3.5">
+        @csrf
+        <input type="hidden" name="id" id="input-hapus-pegawai-id">
+        <div class="form-grup mb-0">
+          <label class="wajib">Catatan Penghapusan</label>
+          <textarea name="catatan" id="input-hapus-pegawai-catatan" rows="3" required
+                    placeholder="Contoh: pegawai keluar, meninggal, pensiun…"></textarea>
+          <div class="petunjuk">Riwayat absen & data lain tetap tersimpan. Pegawai dipindah ke
+            menu Users tab Deletes dan dapat dipulihkan.</div>
+        </div>
+        <div class="pt-2 flex items-center justify-end gap-2">
+          <button type="button" class="btn btn-garis btn-kecil btn-tutup-modal">Batal</button>
+          <button type="submit" class="btn btn-bahaya btn-kecil">Hapus Pegawai</button>
         </div>
       </form>
     </div>
@@ -263,6 +290,9 @@
   tbody.addEventListener('click', function (e) {
     const btn = e.target.closest('.btn-ganti-password');
     if (btn) bukaGanti(btn.getAttribute('data-id'), btn.getAttribute('data-nama'));
+
+    const btnHapus = e.target.closest('.btn-hapus-pegawai');
+    if (btnHapus) bukaHapusPegawai(btnHapus.getAttribute('data-id'), btnHapus.getAttribute('data-nama'));
   });
 
   if (modalGanti) {
@@ -274,8 +304,34 @@
     });
   }
 
+  const modalHapus    = document.getElementById('modal-hapus-pegawai');
+  const inputHapusId  = document.getElementById('input-hapus-pegawai-id');
+  const inputHapusNote = document.getElementById('input-hapus-pegawai-catatan');
+  const labelHapus    = document.getElementById('label-hapus-pegawai');
+
+  function bukaHapusPegawai(id, nama) {
+    inputHapusId.value = id;
+    inputHapusNote.value = '';
+    labelHapus.textContent = 'Catatan untuk menghapus: ' + nama;
+    modalHapus.classList.add('terbuka');
+    inputHapusNote.focus();
+  }
+
+  function tutupHapusPegawai() {
+    modalHapus.classList.remove('terbuka');
+  }
+
+  if (modalHapus) {
+    modalHapus.querySelectorAll('.btn-tutup-modal').forEach(function (b) {
+      b.addEventListener('click', tutupHapusPegawai);
+    });
+    modalHapus.addEventListener('click', function (e) {
+      if (e.target === modalHapus) tutupHapusPegawai();
+    });
+  }
+
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') tutupGanti();
+    if (e.key === 'Escape') { tutupGanti(); tutupHapusPegawai(); }
   });
 
   isiSubBidang();

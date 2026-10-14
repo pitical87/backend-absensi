@@ -30,6 +30,7 @@ use App\Http\Controllers\Admin\ShiftController;
 use App\Http\Controllers\Admin\SimrsController;
 use App\Http\Controllers\Admin\StrukturController;
 use App\Http\Controllers\Admin\UnitController;
+use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\UserLoginController;
 use Illuminate\Support\Facades\Route;
 
@@ -110,6 +111,7 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::get('kehadiran/percobaan', [KehadiranController::class, 'percobaan'])->name('admin.kehadiran.percobaan');
     Route::post('kehadiran/simpan', [KehadiranController::class, 'simpan'])->name('admin.kehadiran.simpan');
     Route::post('kehadiran/hapus', [KehadiranController::class, 'hapus'])->name('admin.kehadiran.hapus');
+    Route::get('kehadiran/mencurigakan', [KehadiranController::class, 'mencurigakan'])->name('admin.kehadiran.mencurigakan');
 
     Route::get('finger', [FingerController::class, 'index'])->name('admin.finger');
     Route::post('finger/mapping', [FingerController::class, 'simpanMapping'])->name('admin.finger.mapping.simpan');
@@ -166,6 +168,16 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::get('login-gagal', [LoginGagalController::class, 'index'])->name('admin.login_gagal.index');
     Route::get('login-gagal/data', [LoginGagalController::class, 'data'])->name('admin.login_gagal.data');
     Route::post('login-gagal/status', [LoginGagalController::class, 'alihkanStatus'])->name('admin.login_gagal.status');
+
+    Route::get('users', [UserController::class, 'index'])->name('admin.users.index');
+    Route::get('users/data', [UserController::class, 'data'])->name('admin.users.data');
+    Route::get('users/form/{id}', [UserController::class, 'form'])->whereNumber('id')->name('admin.users.form');
+    Route::post('users/simpan', [UserController::class, 'simpan'])->name('admin.users.simpan');
+    Route::post('users/password', [UserController::class, 'gantiPassword'])->name('admin.users.password');
+    Route::post('users/status', [UserController::class, 'status'])->name('admin.users.status');
+    Route::post('users/hapus', [UserController::class, 'hapus'])->name('admin.users.hapus');
+    Route::post('users/pulihkan', [UserController::class, 'pulihkan'])->name('admin.users.pulihkan');
+    Route::post('users/hapus-permanen', [UserController::class, 'hapusPermanen'])->name('admin.users.hapus_permanen');
 
     Route::get('user-login', [UserLoginController::class, 'index'])->name('admin.user_login.index');
     Route::get('user-login/data', [UserLoginController::class, 'data'])->name('admin.user_login.data');

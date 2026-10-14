@@ -75,6 +75,7 @@ $grupMenu = [
     'ikon'  => 'atur',
     'items' => [
       'aktivitas'  => ['admin/aktivitas',  'log',  'Log Aktivitas'],
+      'users'      => ['admin/users',      'pegawai', 'Users'],
       'user_login' => ['admin/user-login', 'kunci', 'User Login'],
       'login_gagal' => ['admin/login-gagal', 'peringatan', 'Login Gagal'],
       'pengaturan' => ['admin/pengaturan', 'atur', 'Pengaturan'],
@@ -111,7 +112,7 @@ $grupMenu = [
         placeholder="Cari menu…"
         autocomplete="off"
         class="w-full bg-blue-500 border border-white/12 text-white text-xs placeholder-white/35
-               rounded-xl py-2 pl-2 pr-3 focus:outline-none focus:border-[#007afc] focus:bg-white/12
+               rounded-md py-2 pl-2 pr-3 focus:outline-none focus:border-[#007afc] focus:bg-white/12
                transition-all duration-150 shadow-none ring-0 text-center placeholder:text-center" 
       >
       <button type="button" id="sidebar-search-clear"

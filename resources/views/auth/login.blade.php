@@ -178,7 +178,7 @@
               </div>
 
             {{-- Remember Me Checkbox --}}
-            <div class="flex items-center justify-between">
+            <div class="flex items-center justify-between mt-3">
               <label class="flex items-center gap-2.5 cursor-pointer">
                 <input
                   type="checkbox"
@@ -186,7 +186,7 @@
                   name="remember"
                   class="w-4 h-4 rounded border-slate-300 text-[#007afc] focus:ring-2 focus:ring-blue-100"
                 >
-                <span class="text-xs sm:text-sm text-slate-700">Ingat saya selama 1 hari</span>
+                <span class="text-xs sm:text-sm text-slate-700">Ingat saya</span>
               </label>
             </div>
             </div>

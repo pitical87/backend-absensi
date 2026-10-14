@@ -8,11 +8,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 
 class User extends Authenticatable
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'users';
 
@@ -116,6 +117,11 @@ class User extends Authenticatable
     public function aktivitasLog(): HasMany
     {
         return $this->hasMany(AktivitasLog::class);
+    }
+
+    public function noteDeleted(): HasMany
+    {
+        return $this->hasMany(NoteDeleted::class, 'user_id');
     }
 
     public function rekapBulanan(): HasMany

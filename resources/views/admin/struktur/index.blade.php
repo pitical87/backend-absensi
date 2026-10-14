@@ -42,7 +42,7 @@
 <!-- Modal sederhana ubah nama jabatan -->
 <div class="modal-tirai" id="modal-jabatan">
   <div class="modal-kamera">
-    <header>{!! ikon('atur', 19) !!} Ubah Jabatan</header>
+    <header class="text-black">{!! ikon('atur', 19) !!} Ubah Jabatan</header>
     <div class="isi">
       <form method="post" action="{{ url('admin/struktur/aksi') }}">
         @csrf

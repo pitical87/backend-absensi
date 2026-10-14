@@ -26,6 +26,12 @@ class KehadiranController extends Controller
     /** Batas titik yang digambar di peta sebaran (peta tetap utuh lintas halaman). */
     private const BATAS_TITIK = 500;
 
+    /** Absen mencurigakan: jam sama diulang lebih dari sekian hari dalam sebulan. */
+    private const AMBANG_JAM_SAMA = 3;
+
+    /** Absen mencurigakan: koordinat sama diulang lebih dari sekian kali dalam sebulan. */
+    private const AMBANG_KOORDINAT_SAMA = 5;
+
     public function index(Request $request)
     {
         $filter = $this->filter($request);
@@ -47,6 +53,37 @@ class KehadiranController extends Controller
             'rsLng' => (float) pengaturan('lokasi_lng', 0),
             'radius' => (float) pengaturan('radius_meter', 100),
             'hariLiburSet' => $this->daftarLibur(),
+            'tahunList' => $this->daftarTahun(),
+        ]);
+    }
+
+    /**
+     * Endpoint asinkron: daftar absen mencurigakan pada satu bulan. Deteksi
+     * dilakukan di PHP (bukan GROUP BY SQL) supaya tetap portabel lintas driver
+     * database (SQLite/MySQL) dan mudah ditelusuri.
+     */
+    public function mencurigakan(Request $request)
+    {
+        if (! $request->expectsJson()) {
+            return back();
+        }
+
+        $bulan = (int) $request->get('bulan', now()->month);
+        $tahun = (int) $request->get('tahun', now()->year);
+        if ($bulan < 1 || $bulan > 12) {
+            $bulan = (int) now()->month;
+        }
+        if ($tahun < 2000 || $tahun > 2100) {
+            $tahun = (int) now()->year;
+        }
+
+        $rows = $this->penggunaMencurigakan($bulan, $tahun);
+
+        return response()->json([
+            'sukses' => true,
+            'total' => count($rows),
+            'label' => BULAN_ID[$bulan].' '.$tahun,
+            'html' => view('admin.kehadiran.mencurigakan_rows', ['rows' => $rows])->render(),
         ]);
     }
 
@@ -470,8 +507,7 @@ class KehadiranController extends Controller
     }
 
     private function bangunData(int $userId, string $tanggal, string $jamMasuk, string $jamPulang): array
-    {
-        $waktuMasuk = new DateTime($tanggal.' '.$jamMasuk);
+    {        $waktuMasuk = new DateTime($tanggal.' '.$jamMasuk);
         $waktuPulang = $jamPulang !== '' ? new DateTime($tanggal.' '.$jamPulang) : null;
 
         $isDokter = User::find($userId)?->profesi?->nama === 'Dokter';
@@ -530,5 +566,135 @@ class KehadiranController extends Controller
             'bintang_pulang' => $bintangPulang,
             'bintang_harian' => $bintangHarian,
         ];
+    }
+
+    private function daftarTahun(): array
+    {
+        $min = Absensi::min('tanggal');
+        $max = Absensi::max('tanggal');
+
+        $thMin = $min ? (int) date('Y', strtotime((string) $min)) : (int) now()->year;
+        $thMax = $max ? (int) date('Y', strtotime((string) $max)) : (int) now()->year;
+
+        if ($thMin < 2000) {
+            $thMin = 2000;
+        }
+        if ($thMax > 2100) {
+            $thMax = 2100;
+        }
+        if ($thMin > $thMax) {
+            $thMin = $thMax;
+        }
+
+        $list = [];
+        for ($y = $thMax; $y >= $thMin; $y--) {
+            $list[] = $y;
+            if (count($list) >= 6) {
+                break;
+            }
+        }
+        if ($list === []) {
+            $list[] = (int) now()->year;
+        }
+
+        return array_reverse($list);
+    }
+
+    private function polaUlang(array $hitungan, int $ambang): ?array
+    {
+        if ($hitungan === []) {
+            return null;
+        }
+        arsort($hitungan, SORT_NUMERIC);
+        $nilai = array_key_first($hitungan);
+        $jml = (int) $hitungan[$nilai];
+
+        return $jml > $ambang ? ['nilai' => $nilai, 'jumlah' => $jml] : null;
+    }
+
+    private function penggunaMencurigakan(int $bulan, int $tahun): array
+    {
+        $awal  = sprintf('%04d-%02d-01', $tahun, $bulan);
+        $akhir = date('Y-m-t', strtotime($awal));
+
+        $rows = Absensi::query()
+            ->whereBetween('absensi.tanggal', [$awal, $akhir])
+            ->whereHas('user', fn ($u) => $u->where('role', '!=', 'admin')->where('status', 'aktif'))
+            ->with('user:id,nama_lengkap,email')
+            ->get([
+                'user_id', 'tanggal', 'waktu_masuk', 'waktu_pulang',
+                'lat_masuk', 'lng_masuk', 'lat_pulang', 'lng_pulang',
+            ]);
+
+        $perUser = [];
+        foreach ($rows as $r) {
+            $uid = (int) $r->user_id;
+            if (! isset($perUser[$uid])) {
+                $perUser[$uid] = [
+                    'user' => $r->user,
+                    'masuk' => [],
+                    'pulang' => [],
+                    'koord' => [],
+                ];
+            }
+
+            if ($r->waktu_masuk) {
+                $jam = $r->waktu_masuk->format('H:i');
+                $perUser[$uid]['masuk'][$jam] = ($perUser[$uid]['masuk'][$jam] ?? 0) + 1;
+            }
+            if ($r->waktu_pulang) {
+                $jam = $r->waktu_pulang->format('H:i');
+                $perUser[$uid]['pulang'][$jam] = ($perUser[$uid]['pulang'][$jam] ?? 0) + 1;
+            }
+
+            foreach ([['lat_masuk', 'lng_masuk'], ['lat_pulang', 'lng_pulang']] as [$la, $ln]) {
+                if ($r->$la !== null && $r->$ln !== null) {
+                    $kunci = round((float) $r->$la, 6).','.round((float) $r->$ln, 6);
+                    $perUser[$uid]['koord'][$kunci] = ($perUser[$uid]['koord'][$kunci] ?? 0) + 1;
+                }
+            }
+        }
+
+        $hasil = [];
+        foreach ($perUser as $uid => $d) {
+            $masuk  = $this->polaUlang($d['masuk'], self::AMBANG_JAM_SAMA);
+            $pulang = $this->polaUlang($d['pulang'], self::AMBANG_JAM_SAMA);
+            $koord  = $this->polaUlang($d['koord'], self::AMBANG_KOORDINAT_SAMA);
+
+            if ($masuk === null && $pulang === null && $koord === null) {
+                continue;
+            }
+
+            $hasil[] = [
+                'nama' => $d['user']?->nama_lengkap,
+                'email' => $d['user']?->email,
+                'masuk' => $masuk,
+                'pulang' => $pulang,
+                'koord' => $koord,
+            ];
+        }
+
+        usort($hasil, function ($a, $b) {
+            $sa = (($a['koord'] !== null) ? 3 : 0)
+                + (($a['masuk'] !== null) ? 1 : 0)
+                + (($a['pulang'] !== null) ? 1 : 0)
+                + ($a['koord']['jumlah'] ?? 0);
+            $sb = (($b['koord'] !== null) ? 3 : 0)
+                + (($b['masuk'] !== null) ? 1 : 0)
+                + (($b['pulang'] !== null) ? 1 : 0)
+                + ($b['koord']['jumlah'] ?? 0);
+            if ($sb !== $sa) {
+                return $sb <=> $sa;
+            }
+            $an = strtolower((string) $a['nama']);
+            $bn = strtolower((string) $b['nama']);
+            if ($an !== $bn) {
+                return $an <=> $bn;
+            }
+
+            return 0;
+        });
+
+        return $hasil;
     }
 }

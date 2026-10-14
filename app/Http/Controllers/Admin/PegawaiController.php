@@ -8,6 +8,7 @@ use App\Models\JadwalShift;
 use App\Models\AtasanLangsung;
 use App\Models\Jabatan;
 use App\Models\LoginAttempt;
+use App\Models\NoteDeleted;
 use App\Models\Profesi;
 use App\Models\Shift;
 use App\Models\SubUnit;
@@ -605,12 +606,21 @@ class PegawaiController extends Controller
                 ->with('error', 'Anda tidak dapat menghapus akun sendiri.');
         }
         $u = User::find($id);
-        if ($u) {
-            $u->delete();
-            catat_aktivitas('Hapus Pegawai', $u->nama_lengkap.' ('.$u->email.') beserta seluruh data absensinya');
+        if (! $u) {
+            return redirect('admin/pegawai')->with('error', 'Pegawai tidak ditemukan.');
         }
 
+        $catatan = trim((string) $request->input('catatan'));
+        if ($catatan === '') {
+            return redirect('admin/pegawai')
+                ->with('error', 'Catatan penghapusan wajib diisi (contoh: pegawai keluar, meninggal).');
+        }
+
+        NoteDeleted::catat($u, $catatan);
+        $u->delete();
+        catat_aktivitas('Hapus Pegawai', $u->nama_lengkap.' ('.$u->email.') dipindah ke Deletes — '.$catatan);
+
         return redirect('admin/pegawai')
-            ->with('success', 'Pegawai beserta seluruh data absensinya telah dihapus.');
+            ->with('success', 'Pegawai dipindahkan ke Deletes. Riwayat absen dan datanya tetap tersimpan.');
     }
 }

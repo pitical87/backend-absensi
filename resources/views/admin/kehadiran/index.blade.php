@@ -9,6 +9,9 @@
   <button type="button" role="tab" aria-controls="panel-percobaan"
           class="tab-kehadiran rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors cursor-pointer text-slate-500"
           data-tab="percobaan">Data Percobaan Absen Ditolak</button>
+  <button type="button" role="tab" aria-controls="panel-mencurigakan"
+          class="tab-kehadiran rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors cursor-pointer text-slate-500"
+          data-tab="mencurigakan">Absen Mencurigakan</button>
 </div>
 
 <section class="kartu" id="panel-kehadiran" role="tabpanel">
@@ -46,6 +49,8 @@
 
   <div id="pesan-kehadiran" class="hidden mb-3 px-4 py-3 rounded-xl text-sm"></div>
 
+
+
   <div class="tabel-bungkus">
     <table class="tabel">
       <thead>
@@ -80,6 +85,8 @@
     <span class="badge badge-merah"><span id="total-percobaan">…</span> percobaan</span>
   </div>
 
+
+
   <div class="tabel-bungkus">
     <table class="tabel">
       <thead>
@@ -95,6 +102,47 @@
             <td><div class="skel h-3.5 w-28"></div></td>
           </tr>
         @endfor
+      </tbody>
+    </table>
+  </div>
+</section>
+
+
+<section class="kartu hidden" id="panel-mencurigakan" role="tabpanel">
+  <div class="kartu-kepala">
+    <h2>{!! ikon('peringatan') !!} Absen Mencurigakan</h2>
+    <span class="badge badge-amber"><span id="total-mencurigakan">0</span> pegawai</span>
+  </div>
+  <form class="bilah-alat" id="form-mencurigakan">
+    <select id="input-bulan-mencurigakan">
+      @foreach(BULAN_ID as $no => $nama)
+        <option value="{{ $no }}" @selected($no === (int) date('n'))>{{ $nama }}</option>
+      @endforeach
+    </select>
+    <select id="input-tahun-mencurigakan">
+      @foreach($tahunList as $th)
+        <option value="{{ $th }}" @selected($th === (int) date('Y'))>{{ $th }}</option>
+      @endforeach
+    </select>
+    <button type="button" id="tombol-scan-mencurigakan" class="btn btn-navy btn-kecil">{!! ikon('filter',14) !!} Scan</button>
+  </form>
+  <div id="aksi-mencurigakan" class="hidden flex items-center gap-2 mb-3">
+    <span class="teks-kecil teks-redup"><span id="jumlah-terpilih">0</span> terpilih</span>
+    <button type="button" id="btn-kirim-notifikasi" class="btn btn-navy btn-kecil">{!! ikon('info',14) !!} Kirim Notifikasi</button>
+    <button type="button" id="btn-kirim-email" class="btn btn-garis btn-kecil">{!! ikon('surat',14) !!} Kirim Email</button>
+  </div>
+
+  <div class="tabel-bungkus">
+    <table class="tabel">
+      <thead><tr>
+        <th style="width:40px" class="tengah"><input type="checkbox" id="checkbox-semua-mencurigakan"></th>
+        <th>Nama Pegawai</th>
+        <th>Absen Masuk Sama</th>
+        <th>Absen Keluar Sama</th>
+        <th>Koordinat Sama</th>
+      </tr></thead>
+      <tbody id="tbody-mencurigakan">
+        <tr><td colspan="5" class="tengah teks-redup">Pilih bulan & tahun lalu klik Scan.</td></tr>
       </tbody>
     </table>
   </div>
@@ -252,7 +300,8 @@
   var tabButtons   = document.querySelectorAll('.tab-kehadiran');
 
   var KUNCI_TAB = 'tabKehadiran';
-  var tabAktif  = localStorage.getItem(KUNCI_TAB) === 'percobaan' ? 'percobaan' : 'kehadiran';
+  var tabMsk = localStorage.getItem(KUNCI_TAB);
+  var tabAktif  = (tabMsk === 'percobaan' || tabMsk === 'mencurigakan') ? tabMsk : 'kehadiran';
   var titikPeta = titikAwal;
   var jedaCari  = null;
   var halKehadiran = 1;
@@ -271,6 +320,8 @@
 
     document.getElementById('panel-kehadiran').classList.toggle('hidden', tabAktif !== 'kehadiran');
     document.getElementById('panel-percobaan').classList.toggle('hidden', tabAktif !== 'percobaan');
+    var panelMenc = document.getElementById('panel-mencurigakan');
+    if (panelMenc) panelMenc.classList.toggle('hidden', tabAktif !== 'mencurigakan');
   }
 
   Array.prototype.forEach.call(tabButtons, function (tombol) {
@@ -279,6 +330,8 @@
       localStorage.setItem(KUNCI_TAB, tabAktif);
       pasangTab();
       if (tabAktif === 'percobaan') muatPercobaan();
+  if (tabAktif === 'mencurigakan') muatMencurigakan();
+      if (tabAktif === 'mencurigakan') muatMencurigakan();
     });
   });
 
@@ -369,11 +422,44 @@
       })
       .catch(function () { /* panel sekunder: biarkan tabel terakhir tetap tampil */ });
   }
+  var urlMencurigakan = @json(route('admin.kehadiran.mencurigakan'));
+  var btnScanMenc = document.getElementById('tombol-scan-mencurigakan');
+  var selBulanMenc = document.getElementById('input-bulan-mencurigakan');
+  var selTahunMenc = document.getElementById('input-tahun-mencurigakan');
+  var tbodyMenc = document.getElementById('tbody-mencurigakan');
+  var totalMenc = document.getElementById('total-mencurigakan');
+
+  function muatMencurigakan() {
+    if (! urlMencurigakan) return;
+    if (! tbodyMenc) return;
+    tbodyMenc.setAttribute('aria-busy', 'true');
+    tbodyMenc.innerHTML = '<tr><td colspan="4" class="tengah teks-redup">Memindai...</td></tr>';
+    var params = new URLSearchParams({ bulan: selBulanMenc ? selBulanMenc.value : (new Date()).getMonth()+1, tahun: selTahunMenc ? selTahunMenc.value : (new Date()).getFullYear() });
+    fetch(urlMencurigakan + '?' + params.toString(), { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (h) {
+        if (! h.sukses) { tbodyMenc.innerHTML = '<tr><td colspan="4" class="tengah teks-redup">Gagal memindai.</td></tr>'; tbodyMenc.removeAttribute('aria-busy'); return; }
+        tbodyMenc.innerHTML = h.html || '<tr><td colspan="4" class="tengah teks-redup">Tidak ada data.</td></tr>';
+        tbodyMenc.removeAttribute('aria-busy');
+        if (totalMenc) totalMenc.textContent = h.total;
+      })
+      .catch(function () {
+        tbodyMenc.removeAttribute('aria-busy');
+        tbodyMenc.innerHTML = '<tr><td colspan="4" class="tengah teks-redup">Terjadi kesalahan jaringan.</td></tr>';
+      });
+  }
+
+  if (btnScanMenc) {
+    btnScanMenc.addEventListener('click', muatMencurigakan);
+  }
+
 
   function muatSemua() {
     halKehadiran = 1;
     muatKehadiran();
     if (tabAktif === 'percobaan') muatPercobaan();
+  if (tabAktif === 'mencurigakan') muatMencurigakan();
+      if (tabAktif === 'mencurigakan') muatMencurigakan();
   }
 
   formFilter.addEventListener('submit', function (e) {
@@ -664,6 +750,60 @@
   pasangTab();
   muatKehadiran();
   if (tabAktif === 'percobaan') muatPercobaan();
+  if (tabAktif === 'mencurigakan') muatMencurigakan();
+      if (tabAktif === 'mencurigakan') muatMencurigakan();
+
+  function updatePilihanMencurigakan() {
+    var cb = tbodyMenc.querySelectorAll('.checkbox-pilih:checked');
+    var jml = cb.length;
+    var aksi = document.getElementById('aksi-mencurigakan');
+    if (aksi) aksi.classList.toggle('hidden', jml === 0);
+    var hitung = document.getElementById('jumlah-terpilih');
+    if (hitung) hitung.textContent = jml;
+  }
+
+  if (tbodyMenc) {
+    tbodyMenc.addEventListener('change', function (e) {
+      if (e.target && e.target.classList.contains('checkbox-pilih')) {
+        updatePilihanMencurigakan();
+      }
+    });
+  }
+  var cbSemua = document.getElementById('checkbox-semua-mencurigakan');
+  if (cbSemua) {
+    cbSemua.addEventListener('change', function () {
+      if (! tbodyMenc) return;
+      tbodyMenc.querySelectorAll('.checkbox-pilih').forEach(function (c) { c.checked = cbSemua.checked; });
+      updatePilihanMencurigakan();
+    });
+  }
+
+  function dataTerpilih() {
+    var list = [];
+    if (! tbodyMenc) return list;
+    tbodyMenc.querySelectorAll('.checkbox-pilih:checked').forEach(function (c) {
+      list.push({ email: c.getAttribute('data-email'), nama: c.getAttribute('data-nama'), user_id: c.getAttribute('data-user') });
+    });
+    return list;
+  }
+
+  var btnNotif = document.getElementById('btn-kirim-notifikasi');
+  var btnEmail = document.getElementById('btn-kirim-email');
+  if (btnNotif) {
+    btnNotif.addEventListener('click', function () {
+      var d = dataTerpilih();
+      if (d.length === 0) return alert('Tidak ada data terpilih.');
+      alert('Fitur "Kirim Notifikasi" akan dikirim ke ' + d.length + ' pegawai.');
+    });
+  }
+  if (btnEmail) {
+    btnEmail.addEventListener('click', function () {
+      var d = dataTerpilih();
+      if (d.length === 0) return alert('Tidak ada data terpilih.');
+      alert('Fitur "Kirim Email" akan dikirim ke ' + d.length + ' pegawai.');
+    });
+  }
+
 })();
 </script>
 @endsection

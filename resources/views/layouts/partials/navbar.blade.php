@@ -229,10 +229,10 @@
 <div id="modal-profil" class="modal-tirai">
   <div class="modal-kamera max-w-md w-full">
     <header class="flex items-center justify-between">
-      <span class="flex items-center gap-2">
+      <span class="flex items-center text-black gap-2">
         {!! ikon('pegawai', 18) !!} Profil Pengguna
       </span>
-      <button type="button" class="btn-tutup-modal text-white/80 hover:text-white bg-transparent border-0 cursor-pointer text-lg leading-none">&times;</button>
+      <button type="button" class="btn-tutup-modal btn btn-garis btn-kecil">&times;</button>
     </header>
     <div class="isi space-y-4">
       <div class="flex items-center gap-3.5 pb-3 border-b border-slate-100">
@@ -276,12 +276,12 @@
 <div id="modal-ubah-password" class="modal-tirai">
   <div class="modal-kamera max-w-md w-full">
     <header class="flex items-center justify-between">
-      <span class="flex items-center gap-2">
+      <span class="flex items-center text-black gap-2">
         <svg class="w-4 h-4 text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
         </svg> Ubah Password Akun
       </span>
-      <button type="button" class="btn-tutup-modal text-white/80 hover:text-white bg-transparent border-0 cursor-pointer text-lg leading-none">&times;</button>
+      <button type="button" class="btn-tutup-modal btn btn-garis btn-kecil">&times;</button>
     </header>
     <div class="isi">
       <form action="{{ route('admin.ubah-password') }}" method="POST" class="space-y-3.5">

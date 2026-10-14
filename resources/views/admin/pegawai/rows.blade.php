@@ -68,16 +68,11 @@
                 </button>
             </form>
 
-            <form method="post"
-                  action="{{ url('admin/pegawai/hapus') }}"
-                  onsubmit="return confirm('Hapus permanen {{ $p->nama_lengkap }}?\nSeluruh data absensinya ikut terhapus dan tidak dapat dikembalikan.');">
-                @csrf
-                <input type="hidden" name="id" value="{{ (int) $p->id }}">
-
-                <button type="submit" class="btn btn-bahaya btn-kecil">
-                    Hapus
-                </button>
-            </form>
+            <button type="button" class="btn btn-bahaya btn-kecil btn-hapus-pegawai"
+                    data-id="{{ (int) $p->id }}"
+                    data-nama="{{ $p->nama_lengkap }}">
+                Hapus
+            </button>
 
         @endif
     </div>
