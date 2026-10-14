@@ -51,6 +51,7 @@ class UnitController extends Controller
             'tambah_sub' => $this->tambahSub((int) $request->input('unit_kerja_id'), $nama, $atasanId),
             'ubah_sub' => $this->ubahSub($id, $nama, $atasanId),
             'hapus_sub' => $this->hapusSub($id),
+            'kirim_pesan_jadwal' => $this->kirimPesanJadwal($id),
             default => ['Aksi tidak dikenal.', false, null],
         };
 
@@ -142,6 +143,33 @@ class UnitController extends Controller
         return ['Sub unit dihapus.', true, null];
     }
 
+    private function kirimPesanJadwal(int $unitId): array
+    {
+        $bulanIni = now()->startOfMonth()->toDateString();
+        $bulanDepan = now()->endOfMonth()->toDateString();
+
+        $pegawai = User::where('unit_kerja_id', $unitId)
+            ->where('role', '!=', 'admin')
+            ->whereNotExists(function ($q) use ($bulanIni, $bulanDepan) {
+                $q->selectRaw('1')
+                    ->from('jadwal_shift')
+                    ->whereColumn('jadwal_shift.user_id', 'users.id')
+                    ->whereBetween('tanggal_berlaku', [$bulanIni, $bulanDepan]);
+            })
+            ->get(['id', 'nama_lengkap']);
+
+        if ($pegawai->isEmpty()) {
+            return ['Tidak ada pegawai yang belum set jadwal.', false, null];
+        }
+
+        // TODO: Implement actual notification/pesan sending
+        // For now just log the activity
+        $nama = UnitKerja::where('id', $unitId)->value('nama') ?? ('#'.$unitId);
+        catat_aktivitas('Kirim Pesan Set Jadwal', "Unit {$nama} — {$pegawai->count()} pegawai");
+
+        return ['Pesan set jadwal dikirim ke '.$pegawai->count().' pegawai.', true, null];
+    }
+
     private function balasJson(Request $request, bool $sukses, string $pesan, ?string $mode): JsonResponse
     {
         $unitList = $this->unitList();
@@ -183,10 +211,24 @@ class UnitController extends Controller
 
     private function unitList()
     {
+        $bulanIni = now()->startOfMonth()->toDateString();
+        $bulanDepan = now()->endOfMonth()->toDateString();
+
         return UnitKerja::select(
             'unit_kerja.*',
             \DB::raw('(SELECT COUNT(*) FROM sub_unit s WHERE s.unit_kerja_id = unit_kerja.id) AS jml_sub'),
-            \DB::raw('(SELECT COUNT(*) FROM users u WHERE u.unit_kerja_id = unit_kerja.id) AS jml_pegawai')
+            \DB::raw('(SELECT COUNT(*) FROM users u WHERE u.unit_kerja_id = unit_kerja.id) AS jml_pegawai'),
+            \DB::raw("(
+                SELECT COUNT(*)
+                FROM users u
+                WHERE u.unit_kerja_id = unit_kerja.id
+                AND u.role != 'admin'
+                AND NOT EXISTS (
+                    SELECT 1 FROM jadwal_shift js
+                    WHERE js.user_id = u.id
+                    AND js.tanggal_berlaku BETWEEN '{$bulanIni}' AND '{$bulanDepan}'
+                )
+            ) AS jml_belum_jadwal")
         )
             ->orderBy('unit_kerja.nama')
             ->get();

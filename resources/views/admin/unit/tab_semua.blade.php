@@ -16,8 +16,9 @@
             <th>Unit Kerja</th>
             <th class="tengah">Sub Unit</th>
             <th class="tengah">Pegawai</th>
+            <th class="tengah">Belum Set Jadwal</th>
             <th>Atasan Default</th>
-            <th class="w-[240px]">Aksi</th>
+            <th class="w-[280px]">Aksi</th>
           </tr>
         </thead>
         <tbody>
@@ -31,6 +32,14 @@
               </td>
               <td class="tengah angka">{{ (int) $uk->jml_sub }}</td>
               <td class="tengah angka">{{ (int) $uk->jml_pegawai }}</td>
+              <td class="tengah">
+                @php $blm = (int) ($uk->jml_belum_jadwal ?? 0); @endphp
+                @if($blm > 0)
+                  <span class="badge badge-amber">{{ $blm }}</span>
+                @else
+                  <span class="badge badge-hijau">0</span>
+                @endif
+              </td>
               <td class="teks-kecil">
                 {{ $pegawaiPilihan->firstWhere('id', (int) $uk->atasan_id)->nama_lengkap ?? '— belum diatur —' }}
               </td>
@@ -46,6 +55,14 @@
                           data-atasan="{{ (int) $uk->atasan_id }}">
                     Ubah
                   </button>
+                  @if($blm > 0)
+                  <button type="button" class="btn btn-primer btn-kecil"
+                          data-ajax="kirim_pesan_jadwal" data-id="{{ (int) $uk->id }}"
+                          data-tab-asal="semua"
+                          data-konfirmasi="Kirim pesan ke {{ $blm }} pegawai yang belum set jadwal?">
+                    Kirim Pesan Set Jadwal ({{ $blm }})
+                  </button>
+                  @endif
                   <button type="button" class="btn btn-bahaya btn-kecil"
                           data-ajax="hapus_unit" data-id="{{ (int) $uk->id }}"
                           data-tab-asal="semua"
