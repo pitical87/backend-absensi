@@ -5,7 +5,7 @@ namespace App\Services;
 use App\Models\Absensi;
 use App\Models\HariLibur;
 use App\Models\Izin;
-use App\Models\Pengaturan;
+use App\Models\JadwalShift;
 use App\Models\User;
 use Carbon\Carbon;
 
@@ -33,8 +33,6 @@ class RekapService
         foreach (HariLibur::where('tanggal', '>=', $awal)->where('tanggal', '<=', $akhir)->get() as $r) {
             $liburMap[$r->tanggal->format('Y-m-d')] = $r->keterangan ?: 'Hari libur';
         }
-        $mingguLibur = Pengaturan::ambil('minggu_libur', '0') === '1';
-
         $izinMap = [];
         foreach (Izin::where('user_id', $userId)
             ->where('status', 'Disetujui')
@@ -46,6 +44,14 @@ class RekapService
             for ($d = $t; $d <= $u; $d += 86400) {
                 $izinMap[date('Y-m-d', $d)] = $iz->jenis;
             }
+        }
+
+        $jadwalSet = [];
+        foreach (JadwalShift::where('user_id', $userId)
+            ->where('tanggal_berlaku', '>=', $awal)
+            ->where('tanggal_berlaku', '<=', $akhir)
+            ->pluck('tanggal_berlaku') as $tglJadwal) {
+            $jadwalSet[substr((string) $tglJadwal, 0, 10)] = true;
         }
 
         $isDokter = User::find($userId)?->profesi?->nama === 'Dokter';
@@ -126,6 +132,9 @@ class RekapService
                 } else {
                     $status = ! $rec->waktu_pulang ? 'Belum Pulang' : 'Hadir';
                 }
+            } elseif (isset($liburMap[$tgl]) || ! isset($jadwalSet[$tgl])) {
+                $status = 'Libur';
+                $c['libur']++;
             } elseif (isset($izinMap[$tgl])) {
                 $status = $izinMap[$tgl];
                 match ($status) {
@@ -135,9 +144,6 @@ class RekapService
                     'Dinas Luar' => $c['dinas_luar']++,
                     default => null,
                 };
-            } elseif (isset($liburMap[$tgl]) || ($mingguLibur && (int) Carbon::parse($tgl)->format('w') === 0)) {
-                $status = 'Libur';
-                $c['libur']++;
             } else {
                 $status = 'Alpa';
                 $c['alpa']++;

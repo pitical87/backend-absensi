@@ -411,6 +411,17 @@ if (! function_exists('hari_libur_tetap')) {
 if (! function_exists('pastikan_libur_tetap')) {
     function pastikan_libur_tetap(int $tahun): void
     {
+        // Memo per permintaan (aman untuk Octane): permintaan berbeda punya objek
+        // Request berbeda, sehingga penulisan tidak diulang untuk tiap pegawai.
+        $request = app()->bound('request') ? app('request') : null;
+        $kunci = 'libur_tetap_'.$tahun;
+        if ($request && $request->attributes->has($kunci)) {
+            return;
+        }
+        if ($request) {
+            $request->attributes->set($kunci, true);
+        }
+
         try {
             foreach (hari_libur_tetap($tahun) as $tgl => $ket) {
                 HariLibur::updateOrCreate(['tanggal' => $tgl], ['keterangan' => $ket]);

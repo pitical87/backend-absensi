@@ -139,6 +139,7 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::post('libur/aksi', [LiburController::class, 'aksi'])->name('admin.libur.aksi');
 
     Route::get('rekap', [RekapController::class, 'index'])->name('admin.rekap.index');
+    Route::get('rekap/data', [RekapController::class, 'data'])->name('admin.rekap.data');
     Route::get('rekap_keterlambatan', [RekapKeterlambatanController::class, 'index'])->name('admin.rekap_keterlambatan.index');
     Route::get('pegawai_teladan', [PegawaiTeladanController::class, 'index'])->name('admin.pegawai_teladan');
     Route::get('rekap_logbook', [RekapLogbookController::class, 'index'])->name('admin.rekap_logbook.index');

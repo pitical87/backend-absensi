@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\DaftarAjax;
 use App\Http\Controllers\Controller;
 use App\Models\Absensi;
 use App\Models\Jabatan;
@@ -16,6 +17,8 @@ use Illuminate\Support\Facades\DB;
 
 class RekapController extends Controller
 {
+    use DaftarAjax;
+
     private function ambilParam(Request $request): array
     {
         $sumber = $request->isMethod('POST') ? 'input' : 'query';
@@ -29,6 +32,9 @@ class RekapController extends Controller
             'njab' => (int) $request->$sumber('njab'),
             'org' => (int) $request->$sumber('org'),
             'prof' => (int) $request->$sumber('prof'),
+            'q' => mb_substr(trim((string) $request->$sumber('q')), 0, 60),
+            'hal' => max(1, (int) $request->$sumber('hal', 1)),
+            'perHalaman' => $this->perHalamanAjax(),
         ];
     }
 
@@ -38,7 +44,7 @@ class RekapController extends Controller
             'bulan' => $f['bulan'], 'tahun' => $f['tahun'],
             'unit' => $f['unit'] ?: null, 'jab' => $f['jab'] ?: null,
             'njab' => $f['njab'] ?: null, 'org' => $f['org'] ?: null,
-            'prof' => $f['prof'] ?: null,
+            'prof' => $f['prof'] ?: null, 'q' => $f['q'] ?: null,
         ]));
     }
 
@@ -76,7 +82,7 @@ class RekapController extends Controller
         return $bagian ? implode(' · ', $bagian) : 'Seluruh Pegawai';
     }
 
-    private function daftarPegawai(array $f): array
+    private function queryPegawai(array $f)
     {
         $b = User::select('users.id', 'users.nama_lengkap', 'users.nip', 'users.jabatan_kategori',
             'uk.nama AS unit_nama', 'su.nama AS sub_nama', 'p.nama AS profesi_nama',
@@ -102,8 +108,24 @@ class RekapController extends Controller
         if ($f['prof']) {
             $b->where('users.profesi_id', $f['prof']);
         }
+        if ($f['q'] !== '') {
+            $b->where(function ($sub) use ($f) {
+                $sub->where('users.nama_lengkap', 'like', "%{$f['q']}%")
+                    ->orWhere('users.nip', 'like', "%{$f['q']}%");
+            });
+        }
 
-        return $b->orderBy('uk.id')->orderBy('users.nama_lengkap')->get()->all();
+        return $b->orderBy('uk.id')->orderBy('users.nama_lengkap');
+    }
+
+    private function daftarPegawai(array $f)
+    {
+        return $this->paginateAjax($this->queryPegawai($f), $f);
+    }
+
+    private function semuaPegawai(array $f): array
+    {
+        return $this->queryPegawai($f)->get()->all();
     }
 
     private function hitungSemua(array $pegawai, int $bulan, int $tahun): array
@@ -130,8 +152,9 @@ class RekapController extends Controller
             'bulan' => $f['bulan'],
             'tahun' => $f['tahun'],
             'fUnit' => $f['unit'],
+            'q' => $f['q'],
             'pegawai' => $pegawai,
-            'rekapPer' => $this->hitungSemua($pegawai, $f['bulan'], $f['tahun']),
+            'rekapPer' => $this->hitungSemua($pegawai->items(), $f['bulan'], $f['tahun']),
             'unitList' => UnitKerja::orderBy('id')->get()->all(),
             'profList' => Profesi::orderBy('id')->get()->all(),
             'jabPilihan' => $lib->pilihan(),
@@ -141,10 +164,29 @@ class RekapController extends Controller
         ]);
     }
 
-    public function generate(Request $request)
+    public function data(Request $request)
     {
         $f = $this->ambilParam($request);
         $pegawai = $this->daftarPegawai($f);
+
+        return $this->balasAjax(view('admin.rekap.tabel', [
+            'pegawai' => $pegawai,
+            'rekapPer' => $this->hitungSemua($pegawai->items(), $f['bulan'], $f['tahun']),
+            'bulan' => $f['bulan'],
+            'tahun' => $f['tahun'],
+            'q' => $f['q'],
+        ])->render(), [
+            'q' => $f['q'],
+            'hal' => $pegawai->currentPage(),
+            'total' => $pegawai->total(),
+            'totalHal' => $pegawai->lastPage(),
+        ]);
+    }
+
+    public function generate(Request $request)
+    {
+        $f = $this->ambilParam($request);
+        $pegawai = $this->semuaPegawai($f);
         $rekapPer = $this->hitungSemua($pegawai, $f['bulan'], $f['tahun']);
         [$bulan, $tahun] = [$f['bulan'], $f['tahun']];
 
@@ -187,7 +229,7 @@ class RekapController extends Controller
     public function cetak(Request $request)
     {
         $f = $this->ambilParam($request);
-        $pegawai = $this->daftarPegawai($f);
+        $pegawai = $this->semuaPegawai($f);
         $label = $this->labelFilter($f);
         $blnNama = BULAN_ID[$f['bulan']] ?? $f['bulan'];
         catat_aktivitas('Cetak Laporan', $blnNama.' '.$f['tahun'].' ('.$label.')');
@@ -214,7 +256,7 @@ class RekapController extends Controller
             .' ('.$this->labelFilter($f).')');
 
         if ($mode === 'rekap') {
-            $pegawai = $this->daftarPegawai($f);
+            $pegawai = $this->semuaPegawai($f);
             $isi = view('admin.excel.rekap', [
                 'bulan' => $bulan, 'tahun' => $tahun,
                 'pegawai' => $pegawai,

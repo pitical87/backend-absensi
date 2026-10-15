@@ -2,37 +2,37 @@
 
 @section('content')
 
-<section class="kartu">
+<section class="kartu" data-ajax-tabel data-url-data="{{ route('admin.rekap.data') }}">
   <div class="kartu-kepala">
     <h2>{!! ikon('grafik') !!} Rekap Kehadiran Bulan {{ BULAN_ID[$bulan] . ' ' . $tahun }}</h2>
-    <span class="badge badge-biru">{{ count($pegawai) }} pegawai</span>
+    <span class="badge badge-biru">{{ number_format($pegawai->total(), 0, ',', '.') }} pegawai</span>
   </div>
 
-  <form method="get" action="{{ url('admin/rekap') }}" class="bilah-alat">
-    <select name="bulan">
+  <form method="get" action="{{ url('admin/rekap') }}" id="form-filter-rekap" class="bilah-alat">
+    <select name="bulan" data-kategori="bulan">
       @foreach(BULAN_ID as $i => $nb)
         <option value="{{ $i }}" {{ $i === $bulan ? 'selected' : '' }}>{{ $nb }}</option>
       @endforeach
     </select>
-    <select name="tahun">
+    <select name="tahun" data-kategori="tahun">
       @for($t = (int) date('Y') + 1; $t >= 2024; $t--)
-        <option {{ $t === $tahun ? 'selected' : '' }}>{{ $t }}</option>
+        <option value="{{ $t }}" {{ $t === $tahun ? 'selected' : '' }}>{{ $t }}</option>
       @endfor
     </select>
-    <select name="unit">
+    <select name="unit" data-kategori="unit">
       <option value="">Semua Unit Kerja</option>
       @foreach($unitList as $uk)
         <option value="{{ (int) $uk->id }}" {{ $fUnit === (int) $uk->id ? 'selected' : '' }}>
           {{ $uk->nama }}</option>
       @endforeach
     </select>
-    <select name="jab" title="Kategori jabatan">
+    <select name="jab" data-kategori="jab" title="Kategori jabatan">
       <option value="">Semua Jabatan</option>
       @foreach($kategoriJab as $k)
-        <option {{ $f['jab'] === $k ? 'selected' : '' }}>{{ $k }}</option>
+        <option value="{{ $k }}" {{ $f['jab'] === $k ? 'selected' : '' }}>{{ $k }}</option>
       @endforeach
     </select>
-    <select name="njab" title="Nama jabatan tertentu">
+    <select name="njab" data-kategori="njab" title="Nama jabatan tertentu">
       <option value="">Semua Nama Jabatan</option>
       @foreach($jabPilihan as $kat => $daftar)
         <optgroup label="{{ $kat }}">
@@ -43,28 +43,25 @@
         </optgroup>
       @endforeach
     </select>
-    <select name="org" title="Bidang / Bagian pada struktur organisasi">
+    <select name="org" data-kategori="org" title="Bidang / Bagian pada struktur organisasi">
       <option value="">Semua Bidang/Bagian</option>
       @foreach($orgList as $o)
         <option value="{{ (int) $o['id'] }}" {{ $f['org'] === (int) $o['id'] ? 'selected' : '' }}>
           {{ $o['unit_label'] }}</option>
       @endforeach
     </select>
-    <select name="prof">
+    <select name="prof" data-kategori="prof">
       <option value="">Semua Profesi</option>
       @foreach($profList as $pr)
         <option value="{{ (int) $pr->id }}" {{ $f['prof'] === (int) $pr->id ? 'selected' : '' }}>
           {{ $pr->nama }}</option>
       @endforeach
     </select>
-    <button type="submit" class="btn btn-navy btn-kecil">Tampilkan</button>
   </form>
-  {{-- <p class="petunjuk">Filter Bidang/Bagian mencakup pejabat struktural di dalamnya (Kabid/Kabag
-    beserta Kasi/Kasubag bawahannya). Filter dapat digabung dan ikut terbawa ke Cetak PDF
-    maupun Export Excel.</p> --}}
+  
 
-  <div class="aksi-baris mb-3.5">
-    <form method="post" action="{{ url('admin/rekap/generate') }}">
+  <div class="aksi-baris mb-3.5 gap-2 justify-center">
+    <form method="post" action="{{ url('admin/rekap/generate') }}" id="form-generate-rekap">
       @csrf
       <input type="hidden" name="bulan" value="{{ $bulan }}">
       <input type="hidden" name="tahun" value="{{ $tahun }}">
@@ -73,71 +70,59 @@
       <input type="hidden" name="njab" value="{{ $f['njab'] }}">
       <input type="hidden" name="org" value="{{ $f['org'] }}">
       <input type="hidden" name="prof" value="{{ $f['prof'] }}">
+      <input type="hidden" name="q" value="{{ $q }}">
       <button type="submit" class="btn btn-primer btn-kecil">{!! ikon('centang', 15) !!} Generate &amp; Simpan Rekap</button>
     </form>
-    <a class="btn btn-navy btn-kecil" target="_blank"
+    <a class="btn btn-navy btn-kecil" target="_blank" data-ekspor="{{ url('admin/rekap/cetak') }}"
        href="{{ url('admin/rekap/cetak?' . $qs) }}">{!! ikon('cetak', 15) !!} Cetak Laporan (PDF)</a>
-    <a class="btn btn-garis btn-kecil"
+    <a class="btn btn-garis btn-kecil" data-ekspor="{{ url('admin/rekap/excel') }}" data-mode="rekap"
        href="{{ url('admin/rekap/excel?' . $qs . '&mode=rekap') }}">{!! ikon('unduh', 15) !!} Export Excel (Rekap)</a>
-    <a class="btn btn-garis btn-kecil"
+    <a class="btn btn-garis btn-kecil" data-ekspor="{{ url('admin/rekap/excel') }}" data-mode="detail"
        href="{{ url('admin/rekap/excel?' . $qs . '&mode=detail') }}">{!! ikon('unduh', 15) !!} Export Excel (Detail Harian)</a>
   </div>
-
-  <div class="tabel-bungkus">
-    <table class="tabel">
-      <thead>
-        <tr>
-          <th>Nama Pegawai</th><th>Unit</th><th>Hari Efektif</th><th>Hadir</th>
-          <th>Tepat</th><th>Telat</th><th>Alpa</th><th>Izin</th><th>Sakit</th>
-          <th>Cuti</th><th>Dinas</th><th>Total Jam</th><th>%</th><th title="Rata-rata bintang ketepatan waktu (pegawai teladan = bintang 5)">Bintang</th>
-        </tr>
-      </thead>
-      <tbody>
-        @foreach($pegawai as $p) @php $r = $rekapPer[(int) $p->id]; @endphp
-        <tr>
-          <td><strong>{{ $p->nama_lengkap }}</strong><br>
-              <span class="teks-kecil teks-redup">{{ $p->jabatan_nama
-                    ?? ($p->jabatan_kategori ?? '') }}@if(
-                    $p->profesi_nama) · {{ $p->profesi_nama }}@endif</span></td>
-          <td>{{ $p->unit_nama ?? '—' }}@if($p->sub_nama) — {{ $p->sub_nama }}@endif</td>
-          <td class="angka">{{ $r['hari_efektif'] }}</td>
-          <td class="angka">{{ $r['hadir'] }}</td>
-          <td class="angka"><span class="badge badge-hijau">{{ $r['tepat'] }}</span></td>
-          <td class="angka"><span class="badge badge-amber">{{ $r['terlambat'] }}</span></td>
-          <td class="angka"><span class="badge badge-merah">{{ $r['alpa'] }}</span></td>
-          <td class="angka">{{ $r['izin'] }}</td>
-          <td class="angka">{{ $r['sakit'] }}</td>
-          <td class="angka">{{ $r['cuti'] }}</td>
-          <td class="angka">{{ $r['dinas_luar'] }}</td>
-          <td class="angka">{{ menit_ke_teks($r['total_menit']) }}</td>
-          <td class="angka"><strong>{{ $r['persen'] }}%</strong></td>
-          <td class="angka">
-            @if($r['bintang_bulanan'] === null)
-              <span class="teks-redup">—</span>
-            @else
-              @php $bi = app(\App\Services\BintangService::class); @endphp
-              <span title="{{ number_format((float) $r['bintang_bulanan'], 1) }} dari 5"
-                    class="{{ (float) $r['bintang_bulanan'] >= 4.5 ? 'teks-bintang' : 'teks-redup' }}">
-                {{ $bi->simbol((int) round((float) $r['bintang_bulanan'], 0, PHP_ROUND_HALF_UP)) }}
-              </span>
-              @if((float) $r['bintang_bulanan'] >= 4.5)
-                <span class="badge badge-emas">Teladan</span>
-              @endif
-            @endif
-          </td>
-        </tr>
-        @endforeach
-        @if(! $pegawai)
-        <tr><td colspan="14" class="tengah teks-redup">Tidak ada pegawai pada filter ini.</td></tr>
-        @endif
-      </tbody>
-    </table>
+<div class="d-flex mb-3 gap-2">
+    <input type="text" name="q" class="form-control form-control-kecil" value="{{ $q }}" placeholder="Cari nama / NIP…" data-cari autocomplete="off">
   </div>
-  {{-- <p class="petunjuk">Angka dihitung langsung dari data absensi, izin yang disetujui, dan kalender
-    hari libur. <strong>Bintang</strong> = rata-rata bintang harian {{ '(bintang masuk + bintang pulang) / 2' }}
-    bulan ini (alpa = 0 bintang); rata-rata ≥ 4.5 diberi tanda <span class="badge badge-emas">Teladan</span>.
-    <em>Generate &amp; Simpan Rekap</em> menyimpan salinan ke tabel arsip
-    <code>rekap_bulanan</code> — juga tersedia bagi SIMRS melalui API.</p> --}}
+  <div data-tabel>
+    @include('admin.rekap.tabel', ['pegawai' => $pegawai, 'rekapPer' => $rekapPer, 'bulan' => $bulan, 'tahun' => $tahun, 'q' => $q])
+  </div>
 </section>
+
+<script>
+(function () {
+  var filter = document.getElementById('form-filter-rekap');
+  var generate = document.getElementById('form-generate-rekap');
+  if (! filter) return;
+
+  function filterSaatIni() {
+    var params = new URLSearchParams();
+    filter.querySelectorAll('select[name], input[name]').forEach(function (el) {
+      if (el.value !== '') params.set(el.name, el.value);
+    });
+    return params;
+  }
+
+  function sinkronkan() {
+    var params = filterSaatIni();
+
+    if (generate) {
+      generate.querySelectorAll('input[name]').forEach(function (inp) {
+        inp.value = params.has(inp.name) ? params.get(inp.name) : '';
+      });
+    }
+
+    document.querySelectorAll('[data-ekspor]').forEach(function (a) {
+      var p = new URLSearchParams(params);
+      if (a.dataset.mode) p.set('mode', a.dataset.mode);
+      var qs = p.toString();
+      a.href = a.dataset.ekspor + (qs ? '?' + qs : '');
+    });
+  }
+
+  filter.addEventListener('change', sinkronkan);
+  filter.addEventListener('input', sinkronkan);
+  sinkronkan();
+})();
+</script>
 
 @endsection
