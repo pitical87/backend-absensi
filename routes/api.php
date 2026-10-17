@@ -15,35 +15,39 @@ use App\Http\Controllers\Api\V1Controller;
 use App\Http\Controllers\Api\VerifikasiEmailController;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('mobile')->group(function (){
+Route::prefix('mobile')->group(function () {
     // Auth
-    Route::post('login',[AuthController::class, 'login']);
-    Route::post('login/google',[GoogleAuthController::class, 'login']);
-    Route::get('register/master',[AuthController::class, 'registerDataMaster']);
-    Route::post('register',[AuthController::class, 'register']);
-    Route::post('lupa-password',[AuthController::class, 'lupaPassword']);
-    Route::middleware('mobile.auth')->group(function(){
-        Route::get('me',[AuthController::class, 'me']);
-        Route::post('logout',[AuthController::class, 'logout']);
+    Route::post('login', [AuthController::class, 'login']);
+    Route::post('login/google', [GoogleAuthController::class, 'login']);
+    Route::get('register/master', [AuthController::class, 'registerDataMaster']);
+    Route::post('register', [AuthController::class, 'register']);
+    Route::post('lupa-password', [AuthController::class, 'lupaPassword']);
+    Route::middleware('mobile.auth')->group(function () {
+        Route::get('me', [AuthController::class, 'me']);
+        Route::post('logout', [AuthController::class, 'logout']);
 
         // Profil
-        Route::post('profil',[ProfilController::class, 'update']);
+        Route::post('profil', [ProfilController::class, 'update']);
 
         // Verifikasi email
-        Route::get('verifikasi-email',[VerifikasiEmailController::class, 'status']);
-        Route::post('verifikasi-email',[VerifikasiEmailController::class, 'kirim']);
+        Route::get('verifikasi-email', [VerifikasiEmailController::class, 'status']);
+        Route::post('verifikasi-email', [VerifikasiEmailController::class, 'kirim']);
 
         // Notifikasi (tarik per user dari sesi login)
-        Route::get('notifikasi',[NotifikasiController::class, 'daftar']);
-        Route::get('notifikasi/total',[NotifikasiController::class, 'total']);
-        Route::post('notifikasi/baca-semua',[NotifikasiController::class, 'tandaiSemuaDibaca']);
-        Route::post('notifikasi/{id}/baca',[NotifikasiController::class, 'tandaiDibaca']);
-        Route::delete('notifikasi/{id}',[NotifikasiController::class, 'hapus']);
+        Route::get('notifikasi', [NotifikasiController::class, 'daftar']);
+        Route::get('notifikasi/total', [NotifikasiController::class, 'total']);
+        Route::post('notifikasi/baca-semua', [NotifikasiController::class, 'tandaiSemuaDibaca']);
+        Route::post('notifikasi/{id}/baca', [NotifikasiController::class, 'tandaiDibaca']);
+        Route::delete('notifikasi/{id}', [NotifikasiController::class, 'hapus']);
+        // Web Push
+        Route::get('notifikasi/push/kunci', [NotifikasiController::class, 'kunciPush']);
+        Route::post('notifikasi/push/langganan', [NotifikasiController::class, 'langgananPush']);
+        Route::delete('notifikasi/push/langganan', [NotifikasiController::class, 'batalkanLanggananPush']);
 
         // Absensi
-        Route::post('absen',[AbsenController::class, 'absen']);
-        Route::get('status',[AbsenController::class,'status']);
-        Route::get('riwayat',[AbsenController::class,'riwayatAbsensi']);
+        Route::post('absen', [AbsenController::class, 'absen']);
+        Route::get('status', [AbsenController::class, 'status']);
+        Route::get('riwayat', [AbsenController::class, 'riwayatAbsensi']);
 
         // Rekap & statistik
         Route::get('statistik', [RekapController::class, 'statistik']);
@@ -64,14 +68,14 @@ Route::prefix('mobile')->group(function (){
         Route::post('jadwal/import', [JadwalController::class, 'impor']);
 
         // Izin / cuti / sakit
-        Route::get('izin',[IzinController::class,"riwayatIzin"]);
-        Route::post('izin',[IzinController::class,"pengajuanIzin"]);
-        Route::delete('izin/{id}',[IzinController::class,"deleteIzin"]);
-        Route::get('izin/today',[IzinController::class,"getTodayIzin"]);
-        Route::get('izin/total',[IzinController::class,"getIzinMenungguTotal"]);
-        Route::get('izin/detail',[IzinController::class,"getDetailIzinMenunggu"]);
-        Route::post('izin/proses',[IzinController::class,"prosesIzinMenunggu"]);
-        Route::get('izin/riwayat-persetujuan',[IzinController::class,"getRiwayatPersetujuan"]);
+        Route::get('izin', [IzinController::class, "riwayatIzin"]);
+        Route::post('izin', [IzinController::class, "pengajuanIzin"]);
+        Route::delete('izin/{id}', [IzinController::class, "deleteIzin"]);
+        Route::get('izin/today', [IzinController::class, "getTodayIzin"]);
+        Route::get('izin/total', [IzinController::class, "getIzinMenungguTotal"]);
+        Route::get('izin/detail', [IzinController::class, "getDetailIzinMenunggu"]);
+        Route::post('izin/proses', [IzinController::class, "prosesIzinMenunggu"]);
+        Route::get('izin/riwayat-persetujuan', [IzinController::class, "getRiwayatPersetujuan"]);
 
         // Pengajuan perubahan jadwal shift
         Route::get('perubahan-jadwal', [PerubahanJadwalController::class, 'daftar']);
@@ -96,21 +100,21 @@ Route::prefix('mobile')->group(function (){
         Route::get('absen-lembur/status', [LemburController::class, 'statusLembur']);
 
         // Logbook & template
-        Route::get('logbook/simrs',[LogbookController::class,"logbookSimrs"]);
-        Route::get('logbook/simrs/{jenis}',[LogbookController::class,"logbookSimrs"]);
-        Route::get('logbook',[LogbookController::class,"logbookData"]);
-        Route::post('logbook/simpan',[LogbookController::class,"logbookSimpan"]);
-        Route::post('logbook/simpan-bulk',[LogbookController::class,"logbookSimpanBulk"]);
-        Route::post('logbook/ubah',[LogbookController::class,"logbookUbah"]);
-        Route::get('logbook/template',[LogbookController::class,"templateData"]);
-        Route::delete('logbook/template/{id}',[LogbookController::class,"templateHapus"]);
-        Route::post('logbook/template',[LogbookController::class,"templateSimpan"]);
-        Route::post('logbook/template/ubah',[LogbookController::class,"templateUbah"]);
+        Route::get('logbook/simrs', [LogbookController::class, "logbookSimrs"]);
+        Route::get('logbook/simrs/{jenis}', [LogbookController::class, "logbookSimrs"]);
+        Route::get('logbook', [LogbookController::class, "logbookData"]);
+        Route::post('logbook/simpan', [LogbookController::class, "logbookSimpan"]);
+        Route::post('logbook/simpan-bulk', [LogbookController::class, "logbookSimpanBulk"]);
+        Route::post('logbook/ubah', [LogbookController::class, "logbookUbah"]);
+        Route::get('logbook/template', [LogbookController::class, "templateData"]);
+        Route::delete('logbook/template/{id}', [LogbookController::class, "templateHapus"]);
+        Route::post('logbook/template', [LogbookController::class, "templateSimpan"]);
+        Route::post('logbook/template/ubah', [LogbookController::class, "templateUbah"]);
         // Verifikasi logbook oleh atasan langsung (relasi atasan_langsung)
-        Route::get('logbook/bawahan',[LogbookController::class,"bawahan"]);
-        Route::get('logbook/bawahan/{user_id}',[LogbookController::class,"bawahanDetail"]);
-        Route::post('logbook/verifikasi',[LogbookController::class,"verifikasi"]);
-        Route::delete('logbook/{id}',[LogbookController::class,"logbookHapus"]);
+        Route::get('logbook/bawahan', [LogbookController::class, "bawahan"]);
+        Route::get('logbook/bawahan/{user_id}', [LogbookController::class, "bawahanDetail"]);
+        Route::post('logbook/verifikasi', [LogbookController::class, "verifikasi"]);
+        Route::delete('logbook/{id}', [LogbookController::class, "logbookHapus"]);
     });
 });
 
