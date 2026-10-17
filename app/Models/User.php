@@ -10,10 +10,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use NotificationChannels\WebPush\HasPushSubscriptions;
 
 class User extends Authenticatable
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, Notifiable, HasPushSubscriptions;
 
     protected $table = 'users';
 
@@ -100,7 +102,7 @@ class User extends Authenticatable
 
             $jadwal = (clone $query)->where('tanggal_berlaku', $hariIni)->first();
 
-            if (! $jadwal && (int) now()->format('G') < 12) {
+            if (!$jadwal && (int) now()->format('G') < 12) {
                 $jadwal = (clone $query)
                     ->where('tanggal_berlaku', now()->subDay()->toDateString())->first();
             }
@@ -170,7 +172,7 @@ class User extends Authenticatable
     protected function jabatanUnit(): Attribute
     {
         return Attribute::get(
-            fn () => $this->jabatan?->unit_label
+            fn() => $this->jabatan?->unit_label
                 ?? $this->jabatan?->induk?->unit_label
         );
     }

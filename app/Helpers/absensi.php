@@ -3,90 +3,111 @@
 use App\Models\HariLibur;
 use App\Models\Notifikasi;
 use App\Models\Pengaturan;
+use App\Notifications\WebPushNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Request;
 
 const HARI_ID = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-const BULAN_ID = [1 => 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-                  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+const BULAN_ID = [
+    1 => 'Januari',
+    'Februari',
+    'Maret',
+    'April',
+    'Mei',
+    'Juni',
+    'Juli',
+    'Agustus',
+    'September',
+    'Oktober',
+    'November',
+    'Desember'
+];
 
-if (! function_exists('tgl_id')) {
+if (!function_exists('tgl_id')) {
     function tgl_id($tanggal, bool $dgnHari = true): string
     {
         $ts = is_numeric($tanggal) ? (int) $tanggal : strtotime((string) $tanggal);
-        if (! $ts) return '—';
+        if (!$ts)
+            return '—';
         $t = date('j', $ts) . ' ' . BULAN_ID[(int) date('n', $ts)] . ' ' . date('Y', $ts);
         return $dgnHari ? HARI_ID[(int) date('w', $ts)] . ', ' . $t : $t;
     }
 }
 
-if (! function_exists('jam_id')) {
+if (!function_exists('jam_id')) {
     function jam_id($waktu): string
     {
-        if (! $waktu) return '—';
+        if (!$waktu)
+            return '—';
         $ts = is_numeric($waktu) ? (int) $waktu : strtotime((string) $waktu);
         return $ts ? date('H.i', $ts) : '—';
     }
 }
 
-if (! function_exists('jam_singkat')) {
+if (!function_exists('jam_singkat')) {
     function jam_singkat(string|DateTimeInterface|null $time): string
     {
-        if ($time instanceof DateTimeInterface) return $time->format('H.i');
-        if (! $time) return '—';
+        if ($time instanceof DateTimeInterface)
+            return $time->format('H.i');
+        if (!$time)
+            return '—';
         return substr(str_replace(':', '.', $time), 0, 5);
     }
 }
 
-if (! function_exists('menit_ke_teks')) {
+if (!function_exists('menit_ke_teks')) {
     function menit_ke_teks($menit): string
     {
         $menit = (int) $menit;
-        if ($menit <= 0) return '0 menit';
+        if ($menit <= 0)
+            return '0 menit';
         $j = intdiv($menit, 60);
         $m = $menit % 60;
         $s = [];
-        if ($j > 0) $s[] = $j . ' jam';
-        if ($m > 0) $s[] = $m . ' menit';
+        if ($j > 0)
+            $s[] = $j . ' jam';
+        if ($m > 0)
+            $s[] = $m . ' menit';
         return implode(' ', $s);
     }
 }
 
-if (! function_exists('label_shift')) {
+if (!function_exists('label_shift')) {
     function label_shift(?object $s): string
     {
-        if (! $s || empty($s->kategori)) return 'Belum diatur';
+        if (!$s || empty($s->kategori))
+            return 'Belum diatur';
         return $s->kategori . ' (' . jam_singkat($s->jam_masuk) . ' - ' . jam_singkat($s->jam_pulang) . ')';
     }
 }
 
-if (! function_exists('hitung_jarak')) {
+if (!function_exists('hitung_jarak')) {
     function hitung_jarak(float $lat1, float $lng1, float $lat2, float $lng2): float
     {
         $r = 6371000;
         $dLat = deg2rad($lat2 - $lat1);
         $dLng = deg2rad($lng2 - $lng1);
         $a = sin($dLat / 2) ** 2
-              + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLng / 2) ** 2;
+            + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLng / 2) ** 2;
         return $r * 2 * atan2(sqrt($a), sqrt(1 - $a));
     }
 }
 
-if (! function_exists('pengaturan')) {
+if (!function_exists('pengaturan')) {
     function pengaturan(string $kunci, mixed $default = null): mixed
     {
         return Pengaturan::ambil($kunci, $default);
     }
 }
 
-if (! function_exists('simpan_pengaturan')) {
+if (!function_exists('simpan_pengaturan')) {
     function simpan_pengaturan(string $kunci, mixed $nilai): void
     {
         Pengaturan::simpan($kunci, $nilai);
     }
 }
 
-if (! function_exists('catat_aktivitas')) {
+if (!function_exists('catat_aktivitas')) {
     function catat_aktivitas(string $aksi, ?string $detail = null, ?int $userId = null): void
     {
         try {
@@ -103,7 +124,7 @@ if (! function_exists('catat_aktivitas')) {
     }
 }
 
-if (! function_exists('buat_notifikasi')) {
+if (!function_exists('buat_notifikasi')) {
     /**
      * Simpan satu notifikasi in-app untuk seorang pengguna.
      *
@@ -136,6 +157,14 @@ if (! function_exists('buat_notifikasi')) {
                 'kategori' => $kategori,
             ]);
 
+            // Kirim Web Push (non-fatal, berjalan via queue)
+            try {
+                $baris->loadMissing('user');
+                $baris->user?->notify(new WebPushNotification($baris));
+            } catch (\Throwable $e) {
+                report($e);
+            }
+
             return (int) $baris->id;
         } catch (\Throwable $e) {
             report($e);
@@ -145,7 +174,7 @@ if (! function_exists('buat_notifikasi')) {
     }
 }
 
-if (! function_exists('buat_notifikasi_banyak')) {
+if (!function_exists('buat_notifikasi_banyak')) {
     /**
      * Kirim notifikasi yang sama ke banyak pengguna sekaligus, mis. ke semua
      * administrator. Mengembalikan jumlah yang benar-benar tersimpan.
@@ -170,12 +199,12 @@ if (! function_exists('buat_notifikasi_banyak')) {
     }
 }
 
-if (! function_exists('jumlah_notifikasi_belum_dibaca')) {
+if (!function_exists('jumlah_notifikasi_belum_dibaca')) {
     /** Jumlah notifikasi belum dibaca seorang pengguna, untuk badge lonceng. */
     function jumlah_notifikasi_belum_dibaca(?int $userId): int
     {
         $userId = $userId ?: (session('uid') ?: null);
-        if (! $userId) {
+        if (!$userId) {
             return 0;
         }
 
@@ -187,16 +216,17 @@ if (! function_exists('jumlah_notifikasi_belum_dibaca')) {
     }
 }
 
-if (! function_exists('tempat_tugas')) {
+if (!function_exists('tempat_tugas')) {
     function tempat_tugas(object $u): string
     {
         $t = $u->unit_nama ?? null;
-        if (! $t) return 'Belum diatur';
-        return $t . (! empty($u->sub_unit_nama) ? ' — ' . $u->sub_unit_nama : '');
+        if (!$t)
+            return 'Belum diatur';
+        return $t . (!empty($u->sub_unit_nama) ? ' — ' . $u->sub_unit_nama : '');
     }
 }
 
-if (! function_exists('ikon')) {
+if (!function_exists('ikon')) {
     function ikon(string $nama, int $ukuran = 18): string
     {
         $paths = [
@@ -234,12 +264,12 @@ if (! function_exists('ikon')) {
         ];
         $p = $paths[$nama] ?? $paths['info'];
         return '<svg class="ikon" width="' . $ukuran . '" height="' . $ukuran . '" viewBox="0 0 24 24" fill="none"'
-             . ' stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"'
-             . ' aria-hidden="true">' . $p . '</svg>';
+            . ' stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"'
+            . ' aria-hidden="true">' . $p . '</svg>';
     }
 }
 
-if (! function_exists('aset_admin')) {
+if (!function_exists('aset_admin')) {
     /**
      * URL aset admin lewat route admin.asset (public/assets/*) dengan versi
      * berbasis waktu ubah berkas, agar cache browser aman saat berkas berubah.
@@ -259,15 +289,15 @@ if (! function_exists('aset_admin')) {
     }
 }
 
-if (! function_exists('badge_status')) {
+if (!function_exists('badge_status')) {
     function badge_status(?string $status, int $menitTerlambat = 0): string
     {
         return match (true) {
             $status === null || $status === 'Alpa'
-                => '<span class="badge badge-merah">Tidak Hadir</span>',
+            => '<span class="badge badge-merah">Tidak Hadir</span>',
             $status === 'Belum Pulang' => '<span class="badge badge-biru">Belum Pulang</span>',
             $status === 'Terlambat' => '<span class="badge badge-amber">Terlambat '
-                                      . $menitTerlambat . ' mnt</span>',
+                . $menitTerlambat . ' mnt</span>',
             $status === 'Tepat Waktu' => '<span class="badge badge-hijau">Tepat Waktu</span>',
             $status === 'Libur' => '<span class="badge badge-abu">Libur</span>',
             $status === 'Izin' => '<span class="badge badge-ungu">Izin</span>',
@@ -279,7 +309,7 @@ if (! function_exists('badge_status')) {
     }
 }
 
-if (! function_exists('badge_izin')) {
+if (!function_exists('badge_izin')) {
     function badge_izin(string $status): string
     {
         return match ($status) {
@@ -290,32 +320,38 @@ if (! function_exists('badge_izin')) {
     }
 }
 
-if (! function_exists('label_jabatan')) {
+if (!function_exists('label_jabatan')) {
     function label_jabatan(object $u): string
     {
-        if (! empty($u->jabatan_nama)) {
+        if (!empty($u->jabatan_nama)) {
             return $u->jabatan_nama;
         }
         return $u->jabatan_kategori ?? 'Staf/Pelaksana';
     }
 }
 
-if (! function_exists('unit_organisasi')) {
+if (!function_exists('unit_organisasi')) {
     function unit_organisasi(object $u): string
     {
         return $u->jabatan_unit ?? $u->unit_nama ?? '—';
     }
 }
 
-if (! function_exists('kategori_jabatan_list')) {
+if (!function_exists('kategori_jabatan_list')) {
     function kategori_jabatan_list(): array
     {
-        return ['Direktur', 'Kepala Bidang', 'Kepala Bagian',
-                'Kepala Seksi', 'Kepala Sub Bagian', 'Staf/Pelaksana'];
+        return [
+            'Direktur',
+            'Kepala Bidang',
+            'Kepala Bagian',
+            'Kepala Seksi',
+            'Kepala Sub Bagian',
+            'Staf/Pelaksana'
+        ];
     }
 }
 
-if (! function_exists('posisi_list')) {
+if (!function_exists('posisi_list')) {
     function posisi_list(): array
     {
         return [
@@ -329,7 +365,7 @@ if (! function_exists('posisi_list')) {
     }
 }
 
-if (! function_exists('posisi_index')) {
+if (!function_exists('posisi_index')) {
     function posisi_index(string $posisi): int
     {
         $i = array_search($posisi, posisi_list(), true);
@@ -337,22 +373,28 @@ if (! function_exists('posisi_index')) {
     }
 }
 
-if (! function_exists('jenis_cuti_list')) {
+if (!function_exists('jenis_cuti_list')) {
     function jenis_cuti_list(): array
     {
-        return ['Cuti Tahunan', 'Cuti Sakit', 'Cuti Melahirkan',
-                'Cuti Karena Alasan Penting', 'Cuti Besar', 'Cuti di Luar Tanggungan Negara'];
+        return [
+            'Cuti Tahunan',
+            'Cuti Sakit',
+            'Cuti Melahirkan',
+            'Cuti Karena Alasan Penting',
+            'Cuti Besar',
+            'Cuti di Luar Tanggungan Negara'
+        ];
     }
 }
 
-if (! function_exists('is_pns')) {
+if (!function_exists('is_pns')) {
     function is_pns(object $u): bool
     {
         return ($u->status_pegawai ?? 'Non-PNS') === 'PNS';
     }
 }
 
-if (! function_exists('label_tahap_izin')) {
+if (!function_exists('label_tahap_izin')) {
     function label_tahap_izin(int $tahap): string
     {
         return match ($tahap) {
@@ -365,7 +407,7 @@ if (! function_exists('label_tahap_izin')) {
     }
 }
 
-if (! function_exists('badge_tahap')) {
+if (!function_exists('badge_tahap')) {
     function badge_tahap(string $status): string
     {
         return match ($status) {
@@ -377,7 +419,7 @@ if (! function_exists('badge_tahap')) {
     }
 }
 
-if (! function_exists('hari_kerja_antara')) {
+if (!function_exists('hari_kerja_antara')) {
     function hari_kerja_antara(string $mulai, string $selesai, array $liburSet, bool $mingguLibur): int
     {
         $jml = 0;
@@ -386,7 +428,7 @@ if (! function_exists('hari_kerja_antara')) {
         while ($t <= $ahr) {
             $tgl = date('Y-m-d', $t);
             $minggu = $mingguLibur && date('N', $t) == 7;
-            if (! $minggu && ! isset($liburSet[$tgl])) {
+            if (!$minggu && !isset($liburSet[$tgl])) {
                 $jml++;
             }
             $t = strtotime('+1 day', $t);
@@ -395,7 +437,7 @@ if (! function_exists('hari_kerja_antara')) {
     }
 }
 
-if (! function_exists('hari_libur_tetap')) {
+if (!function_exists('hari_libur_tetap')) {
     function hari_libur_tetap(int $tahun): array
     {
         return [
@@ -408,13 +450,13 @@ if (! function_exists('hari_libur_tetap')) {
     }
 }
 
-if (! function_exists('pastikan_libur_tetap')) {
+if (!function_exists('pastikan_libur_tetap')) {
     function pastikan_libur_tetap(int $tahun): void
     {
         // Memo per permintaan (aman untuk Octane): permintaan berbeda punya objek
         // Request berbeda, sehingga penulisan tidak diulang untuk tiap pegawai.
         $request = app()->bound('request') ? app('request') : null;
-        $kunci = 'libur_tetap_'.$tahun;
+        $kunci = 'libur_tetap_' . $tahun;
         if ($request && $request->attributes->has($kunci)) {
             return;
         }

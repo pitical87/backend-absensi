@@ -10,7 +10,7 @@ use Illuminate\Http\Request;
 /**
  * Endpoint notifikasi per pengguna untuk aplikasi mobile.
  *
- * Semua query wajib dibatasi ke $req->get('user') — inilah satu-satunya batas
+ * Semua query wajib dibatasi ke $req->get('user') - inilah satu-satunya batas
  * aksesnya, jadi jangan pernah menerima user_id dari parameter permintaan.
  */
 class NotifikasiController extends Controller
@@ -21,7 +21,7 @@ class NotifikasiController extends Controller
         $user = $req->get('user');
         $kategori = trim((string) ($req->query('kategori') ?? ''));
 
-        if ($kategori !== '' && ! array_key_exists($kategori, Notifikasi::KATEGORI)) {
+        if ($kategori !== '' && !array_key_exists($kategori, Notifikasi::KATEGORI)) {
             return response()->json([
                 'sukses' => false,
                 'pesan' => 'Kategori notifikasi tidak dikenal.',
@@ -33,13 +33,13 @@ class NotifikasiController extends Controller
 
         $daftar = Notifikasi::where('user_id', $user->id)
             ->kategori($kategori === '' ? null : $kategori)
-            ->when($req->boolean('belum_dibaca'), fn ($q) => $q->belumDibaca())
+            ->when($req->boolean('belum_dibaca'), fn($q) => $q->belumDibaca())
             ->orderByDesc('id')
             ->paginate($perPage);
 
         return response()->json([
             'sukses' => true,
-            'notifikasi' => collect($daftar->items())->map(fn (Notifikasi $n) => $this->ringkas($n)),
+            'notifikasi' => collect($daftar->items())->map(fn(Notifikasi $n) => $this->ringkas($n)),
             'total' => $daftar->total(),
             'halaman' => $daftar->currentPage(),
             'halaman_total' => $daftar->lastPage(),
@@ -48,7 +48,7 @@ class NotifikasiController extends Controller
         ]);
     }
 
-    /** Jumlah notifikasi belum dibaca — dipanggil ringan untuk badge lonceng. */
+    /** Jumlah notifikasi belum dibaca - dipanggil ringan untuk badge lonceng. */
     public function total(Request $req): JsonResponse
     {
         $user = $req->get('user');
@@ -65,7 +65,7 @@ class NotifikasiController extends Controller
         $user = $req->get('user');
 
         $notifikasi = Notifikasi::where('user_id', $user->id)->find($id);
-        if (! $notifikasi) {
+        if (!$notifikasi) {
             return response()->json([
                 'sukses' => false,
                 'pesan' => 'Notifikasi tidak ditemukan.',
@@ -93,7 +93,7 @@ class NotifikasiController extends Controller
         return response()->json([
             'sukses' => true,
             'pesan' => $jumlah > 0
-                ? $jumlah.' notifikasi ditandai sudah dibaca.'
+                ? $jumlah . ' notifikasi ditandai sudah dibaca.'
                 : 'Tidak ada notifikasi yang belum dibaca.',
             'ditandai' => $jumlah,
             'belum_dibaca' => 0,
@@ -106,7 +106,7 @@ class NotifikasiController extends Controller
         $user = $req->get('user');
 
         $notifikasi = Notifikasi::where('user_id', $user->id)->find($id);
-        if (! $notifikasi) {
+        if (!$notifikasi) {
             return response()->json([
                 'sukses' => false,
                 'pesan' => 'Notifikasi tidak ditemukan.',
@@ -142,5 +142,58 @@ class NotifikasiController extends Controller
             'is_read' => (bool) $notifikasi->is_read,
             'dibuat_pada' => $notifikasi->created_at?->toIso8601String(),
         ];
+    }
+
+    /** Ambil kunci publik VAPID untuk subscribe push. */
+    public function kunciPush(Request $req): JsonResponse
+    {
+        $user = $req->get('user');
+
+        return response()->json([
+            'sukses' => true,
+            'kunci_publik' => config('webpush.vapid.public_key'),
+        ]);
+    }
+
+    /** Simpan/update langganan push untuk user yang login. */
+    public function langgananPush(Request $req): JsonResponse
+    {
+        $user = $req->get('user');
+
+        $data = $req->validate([
+            'endpoint' => ['required', 'string'],
+            'keys.p256dh' => ['required', 'string'],
+            'keys.auth' => ['required', 'string'],
+            'contentEncoding' => ['nullable', 'string'],
+        ]);
+
+        $user->updatePushSubscription(
+            $data['endpoint'],
+            $data['keys']['p256dh'],
+            $data['keys']['auth'],
+            $data['contentEncoding'] ?? null,
+        );
+
+        return response()->json([
+            'sukses' => true,
+            'pesan' => 'Langganan push disimpan.',
+        ]);
+    }
+
+    /** Hapus langganan push berdasarkan endpoint. */
+    public function batalkanLanggananPush(Request $req): JsonResponse
+    {
+        $user = $req->get('user');
+
+        $data = $req->validate([
+            'endpoint' => ['required', 'string'],
+        ]);
+
+        $user->deletePushSubscription($data['endpoint']);
+
+        return response()->json([
+            'sukses' => true,
+            'pesan' => 'Langganan push dihapus.',
+        ]);
     }
 }
