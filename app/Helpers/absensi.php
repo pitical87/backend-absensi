@@ -3,6 +3,7 @@
 use App\Models\HariLibur;
 use App\Models\Notifikasi;
 use App\Models\Pengaturan;
+use App\Notifications\WebPushNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Request;
 
@@ -135,6 +136,14 @@ if (! function_exists('buat_notifikasi')) {
                 'tipe' => in_array($tipe, Notifikasi::TIPE, true) ? $tipe : 'info',
                 'kategori' => $kategori,
             ]);
+
+            // Kirim Web Push (non-fatal, berjalan via queue)
+            try {
+                $baris->loadMissing('user');
+                $baris->user?->notify(new WebPushNotification($baris));
+            } catch (\Throwable $e) {
+                report($e);
+            }
 
             return (int) $baris->id;
         } catch (\Throwable $e) {

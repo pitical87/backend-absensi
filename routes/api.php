@@ -39,6 +39,10 @@ Route::prefix('mobile')->group(function (){
         Route::post('notifikasi/baca-semua',[NotifikasiController::class, 'tandaiSemuaDibaca']);
         Route::post('notifikasi/{id}/baca',[NotifikasiController::class, 'tandaiDibaca']);
         Route::delete('notifikasi/{id}',[NotifikasiController::class, 'hapus']);
+        // Web Push
+        Route::get('notifikasi/push/kunci', [NotifikasiController::class, 'kunciPush']);
+        Route::post('notifikasi/push/langganan', [NotifikasiController::class, 'langgananPush']);
+        Route::delete('notifikasi/push/langganan', [NotifikasiController::class, 'batalkanLanggananPush']);
 
         // Absensi
         Route::post('absen',[AbsenController::class, 'absen']);
