@@ -26,6 +26,13 @@
           {{ $uk->nama }}</option>
       @endforeach
     </select>
+    <select name="sub" data-kategori="sub">
+      <option value="">Semua Sub Unit</option>
+      @foreach($subUnitList as $su)
+        <option value="{{ (int) $su->id }}" {{ $f['sub'] === (int) $su->id ? 'selected' : '' }}>
+          {{ $su->unitKerja->nama ?? 'Tanpa Unit' }} — {{ $su->nama }}</option>
+      @endforeach
+    </select>
     <select name="jab" data-kategori="jab" title="Kategori jabatan">
       <option value="">Semua Jabatan</option>
       @foreach($kategoriJab as $k)
@@ -66,6 +73,7 @@
       <input type="hidden" name="bulan" value="{{ $bulan }}">
       <input type="hidden" name="tahun" value="{{ $tahun }}">
       <input type="hidden" name="unit" value="{{ $fUnit }}">
+      <input type="hidden" name="sub" value="{{ $f['sub'] }}">
       <input type="hidden" name="jab" value="{{ $f['jab'] }}">
       <input type="hidden" name="njab" value="{{ $f['njab'] }}">
       <input type="hidden" name="org" value="{{ $f['org'] }}">

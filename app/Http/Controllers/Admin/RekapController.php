@@ -8,6 +8,8 @@ use App\Models\Absensi;
 use App\Models\Jabatan;
 use App\Models\Profesi;
 use App\Models\RekapBulanan;
+use App\Models\Shift;
+use App\Models\SubUnit;
 use App\Models\UnitKerja;
 use App\Models\User;
 use App\Services\RekapService;
@@ -28,6 +30,7 @@ class RekapController extends Controller
             'bulan' => min(12, max(1, (int) ($request->$sumber('bulan') ?: now()->format('n')))),
             'tahun' => min(2100, max(2024, (int) ($request->$sumber('tahun') ?: now()->format('Y')))),
             'unit' => (int) $request->$sumber('unit'),
+            'sub' => (int) $request->$sumber('sub'),
             'jab' => in_array($jab, kategori_jabatan_list(), true) ? $jab : '',
             'njab' => (int) $request->$sumber('njab'),
             'org' => (int) $request->$sumber('org'),
@@ -42,7 +45,8 @@ class RekapController extends Controller
     {
         return http_build_query(array_filter([
             'bulan' => $f['bulan'], 'tahun' => $f['tahun'],
-            'unit' => $f['unit'] ?: null, 'jab' => $f['jab'] ?: null,
+            'unit' => $f['unit'] ?: null, 'sub' => $f['sub'] ?: null,
+            'jab' => $f['jab'] ?: null,
             'njab' => $f['njab'] ?: null, 'org' => $f['org'] ?: null,
             'prof' => $f['prof'] ?: null, 'q' => $f['q'] ?: null,
         ]));
@@ -55,6 +59,12 @@ class RekapController extends Controller
             $u = UnitKerja::find($f['unit']);
             if ($u) {
                 $bagian[] = 'Unit '.$u->nama;
+            }
+        }
+        if ($f['sub']) {
+            $sub = SubUnit::find($f['sub']);
+            if ($sub) {
+                $bagian[] = 'Sub Unit '.$sub->nama;
             }
         }
         if ($f['jab']) {
@@ -95,6 +105,9 @@ class RekapController extends Controller
 
         if ($f['unit']) {
             $b->where('users.unit_kerja_id', $f['unit']);
+        }
+        if ($f['sub']) {
+            $b->where('users.sub_unit_id', $f['sub']);
         }
         if ($f['jab']) {
             $b->where('users.jabatan_kategori', $f['jab']);
@@ -156,6 +169,8 @@ class RekapController extends Controller
             'pegawai' => $pegawai,
             'rekapPer' => $this->hitungSemua($pegawai->items(), $f['bulan'], $f['tahun']),
             'unitList' => UnitKerja::orderBy('id')->get()->all(),
+            'subUnitList' => SubUnit::with('unitKerja:id,nama')
+                ->orderBy('unit_kerja_id')->orderBy('nama')->get()->all(),
             'profList' => Profesi::orderBy('id')->get()->all(),
             'jabPilihan' => $lib->pilihan(),
             'orgList' => $lib->unitOrganisasi(),
@@ -277,6 +292,9 @@ class RekapController extends Controller
             if ($f['unit']) {
                 $b->where('u.unit_kerja_id', $f['unit']);
             }
+            if ($f['sub']) {
+                $b->where('u.sub_unit_id', $f['sub']);
+            }
             if ($f['jab']) {
                 $b->where('u.jabatan_kategori', $f['jab']);
             }
@@ -289,9 +307,32 @@ class RekapController extends Controller
             if ($f['prof']) {
                 $b->where('u.profesi_id', $f['prof']);
             }
+            $rows = $b->orderBy('absensi.tanggal')->orderBy('u.nama_lengkap')->get();
+            if ($rows->isNotEmpty()) {
+                $users = User::whereIn('id', $rows->pluck('user_id')->unique())
+                    ->get(['id', 'sub_unit_id']);
+                $jadwalEfektif = app(\App\Services\JadwalEfektifService::class)
+                    ->petaUntukBanyakPegawai($users, $rows->min('tanggal'), $rows->max('tanggal'));
+                $shiftIds = collect($jadwalEfektif)->flatten()->unique();
+                $shiftById = Shift::whereIn('id', $shiftIds)->get()->keyBy('id');
+
+                foreach ($rows as $row) {
+                    if ($row->shift_kategori) {
+                        continue;
+                    }
+                    $tanggal = \Carbon\Carbon::parse($row->tanggal)->toDateString();
+                    $shift = $shiftById->get($jadwalEfektif[$row->user_id][$tanggal] ?? null);
+                    if ($shift) {
+                        $row->shift_kategori = $shift->kategori;
+                        $row->shift_masuk = $shift->jam_masuk->format('H:i:s');
+                        $row->shift_pulang = $shift->jam_pulang->format('H:i:s');
+                    }
+                }
+            }
+
             $isi = view('admin.excel.detail', [
                 'bulan' => $bulan, 'tahun' => $tahun,
-                'rows' => $b->orderBy('absensi.tanggal')->orderBy('u.nama_lengkap')->get()->all(),
+                'rows' => $rows->all(),
             ])->render();
         }
 
