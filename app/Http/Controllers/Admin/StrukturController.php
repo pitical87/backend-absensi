@@ -30,19 +30,19 @@ class StrukturController extends Controller
 
         return view('admin.struktur.index', [
             'judulHalaman' => 'Struktur Organisasi',
-            'menuAktif'    => 'struktur',
-            'pohon'        => $lib->pohon(),
-            'semua'        => $lib->semua(),
-            'kategoriJab'  => array_slice(kategori_jabatan_list(), 0, 5),
-            'perKategori'  => $perKategori,
-            'perUnit'      => $perUnit,
+            'menuAktif' => 'struktur',
+            'pohon' => $lib->pohon(),
+            'semua' => $lib->semua(),
+            'kategoriJab' => kategori_jabatan_struktur_list(),
+            'perKategori' => $perKategori,
+            'perUnit' => $perUnit,
         ]);
     }
 
     public function aksi(Request $request)
     {
         $aksi = (string) $request->input('aksi');
-        $id   = (int) $request->input('id');
+        $id = (int) $request->input('id');
         $nama = trim((string) $request->input('nama'));
 
         if ($aksi === 'tambah') {
@@ -63,10 +63,10 @@ class StrukturController extends Controller
     private function handleTambah(Request $request, string $nama)
     {
         $kategori = (string) $request->input('kategori');
-        $induk    = (int) $request->input('induk_id') ?: null;
-        $unit     = trim((string) $request->input('unit_label')) ?: null;
+        $induk = (int) $request->input('induk_id') ?: null;
+        $unit = trim((string) $request->input('unit_label')) ?: null;
 
-        if ($nama === '' || ! in_array($kategori, array_slice(kategori_jabatan_list(), 0, 5), true)) {
+        if ($nama === '' || ! in_array($kategori, kategori_jabatan_struktur_list(), true)) {
             return redirect('admin/struktur')
                 ->with('error', 'Nama dan kategori jabatan wajib diisi.');
         }
@@ -76,14 +76,14 @@ class StrukturController extends Controller
         }
 
         Jabatan::create([
-            'nama'       => $nama,
-            'kategori'   => $kategori,
-            'induk_id'   => $induk,
+            'nama' => $nama,
+            'kategori' => $kategori,
+            'induk_id' => $induk,
             'unit_label' => $unit,
-            'urutan'     => 99,
+            'urutan' => 99,
         ]);
 
-        catat_aktivitas('Tambah Jabatan', $nama . ' (' . $kategori . ')');
+        catat_aktivitas('Tambah Jabatan', $nama.' ('.$kategori.')');
 
         return redirect('admin/struktur')->with('success', 'Jabatan baru ditambahkan ke struktur.');
     }
@@ -107,7 +107,7 @@ class StrukturController extends Controller
 
         $jabatan->update($data);
 
-        catat_aktivitas('Ubah Jabatan', '#' . $id . ' → ' . $nama);
+        catat_aktivitas('Ubah Jabatan', '#'.$id.' → '.$nama);
 
         return redirect('admin/struktur')->with('success', 'Jabatan diperbarui.');
     }
@@ -120,13 +120,13 @@ class StrukturController extends Controller
         }
 
         $punyaAnak = $jabatan->anak()->exists();
-        $dipegang  = $jabatan->users()->exists();
+        $dipegang = $jabatan->users()->exists();
 
         if ($punyaAnak || $dipegang) {
             return redirect('admin/struktur')->with('error',
                 'Jabatan tidak dapat dihapus karena masih memiliki '
-                . ($punyaAnak ? 'jabatan bawahan' : 'pemegang jabatan')
-                . '. Pindahkan terlebih dahulu.');
+                .($punyaAnak ? 'jabatan bawahan' : 'pemegang jabatan')
+                .'. Pindahkan terlebih dahulu.');
         }
 
         $jabatan->delete();

@@ -22,6 +22,8 @@ use App\Http\Controllers\Admin\PegawaiController;
 use App\Http\Controllers\Admin\PegawaiTeladanController;
 use App\Http\Controllers\Admin\PengajuanJadwalController;
 use App\Http\Controllers\Admin\PengaturanController;
+use App\Http\Controllers\Admin\ProfesiController;
+use App\Http\Controllers\Admin\ReferensiController;
 use App\Http\Controllers\Admin\RekapController;
 use App\Http\Controllers\Admin\RekapKeterlambatanController;
 use App\Http\Controllers\Admin\RekapLemburController;
@@ -95,13 +97,32 @@ Route::prefix('admin')->middleware('admin')->group(function () {
 
     Route::resource('jabatan', JabatanController::class)->names('admin.jabatan');
 
+    // Master Kategori Jabatan & Posisi (daftar asinkron + aksi modal)
+    Route::get('jabatan-posisi', [ReferensiController::class, 'index'])->name('admin.referensi.index');
+    Route::get('jabatan-posisi/{jenis}/data', [ReferensiController::class, 'data'])
+        ->where('jenis', 'kategori|posisi')->name('admin.referensi.data');
+    Route::post('jabatan-posisi/{jenis}/aksi', [ReferensiController::class, 'aksi'])
+        ->where('jenis', 'kategori|posisi')->name('admin.referensi.aksi');
+
+    // Master Profesi
+    Route::get('profesi', [ProfesiController::class, 'index'])->name('admin.profesi.index');
+    Route::get('profesi/data', [ProfesiController::class, 'data'])->name('admin.profesi.data');
+    Route::post('profesi/aksi', [ProfesiController::class, 'aksi'])->name('admin.profesi.aksi');
+
     Route::get('shift', [ShiftController::class, 'index'])->name('admin.shift.index');
     Route::post('shift/aksi', [ShiftController::class, 'aksi'])->name('admin.shift.aksi');
 
     Route::get('jadwal', [JadwalController::class, 'index'])->name('admin.jadwal.index');
+    Route::get('jadwal/template-mingguan', [JadwalController::class, 'templateMingguan'])
+        ->name('admin.jadwal.template-mingguan.index');
+    Route::get('jadwal/template-mingguan/data', [JadwalController::class, 'dataTemplateMingguan'])
+        ->name('admin.jadwal.template-mingguan.data');
+    Route::post('jadwal/template-mingguan/hapus', [JadwalController::class, 'hapusTemplateMingguan'])
+        ->name('admin.jadwal.template-mingguan.hapus');
     Route::get('jadwal/data', [JadwalController::class, 'dataPegawai'])->name('admin.jadwal.data');
     Route::get('jadwal/pegawai-jadwal', [JadwalController::class, 'jadwalPegawai'])->name('admin.jadwal.pegawai-jadwal');
     Route::post('jadwal/aksi', [JadwalController::class, 'aksi'])->name('admin.jadwal.aksi');
+    Route::post('jadwal/template-mingguan', [JadwalController::class, 'simpanTemplateMingguan'])->name('admin.jadwal.template-mingguan');
     Route::post('jadwal/aksi-pegawai', [JadwalController::class, 'aksiPegawai'])->name('admin.jadwal.pegawai');
     Route::get('jadwal/template', [JadwalController::class, 'template'])->name('admin.jadwal.template');
     Route::post('jadwal/import', [JadwalController::class, 'impor'])->name('admin.jadwal.import');

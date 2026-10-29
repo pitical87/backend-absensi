@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Absensi;
 use App\Models\HariLibur;
-use App\Models\JadwalShift;
 use App\Models\LogLokasi;
 use App\Models\UnitKerja;
 use App\Models\User;
@@ -216,17 +215,12 @@ class KehadiranController extends Controller
             ])
             ->paginate(self::PER_HALAMAN, ['*'], 'hal', $hal);
 
-        // Satu jadwal shift per pegawai; simpan per baris supaya label_shift()
-        // pada view menerima objek shift, bukan seluruh collection.
+        // Resolve jadwal tersimpan atau template mingguan untuk tiap pegawai.
         $items = $rows->getCollection();
-        $shift = JadwalShift::query()
-            ->whereIn('user_id', $items->pluck('user_id')->unique())
-            ->whereDate('tanggal_berlaku', $filter['tanggal'])
-            ->with('shift:id,kategori,jam_masuk,jam_pulang')
-            ->get()
-            ->keyBy('user_id');
+        $shift = app(\App\Services\JadwalEfektifService::class)
+            ->shiftsUntukPegawai($items->map(fn ($r) => $r->user), $filter['tanggal']);
         foreach ($items as $r) {
-            $r->setRelation('shiftHariIni', $shift->get($r->user_id)?->shift);
+            $r->setRelation('shiftHariIni', $shift[$r->user_id] ?? null);
         }
 
         return $rows;
@@ -512,8 +506,10 @@ class KehadiranController extends Controller
 
         $isDokter = User::find($userId)?->profesi?->nama === 'Dokter';
 
-        $js = JadwalShift::where('user_id', $userId)->where('tanggal_berlaku', $tanggal)->first();
-        $shift = $js?->shift;
+        $user = User::find($userId);
+        $shift = $user
+            ? app(\App\Services\JadwalEfektifService::class)->shiftUntukTanggal($user, $tanggal)
+            : null;
 
         $toleransi = (int) pengaturan('toleransi_menit', 5);
         $statusMasuk = null;

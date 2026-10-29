@@ -89,14 +89,18 @@ function pasangAjaxTabel(konteks) {
   }
 
   let jeda = null;
-  cari.addEventListener('input', function () {
+  function cariDitunda() {
     window.clearTimeout(jeda);
     jeda = window.setTimeout(function () {
-      state.q = (cari.value || '').trim();
+      const q = (cari.value || '').trim();
+      if (q === state.q) return;
+      state.q = q;
       state.hal = 1;
       muat();
     }, 350);
-  });
+  }
+  cari.addEventListener('input', cariDitunda);
+  cari.addEventListener('change', cariDitunda);
 
   konteks.querySelectorAll('[data-kategori]').forEach((el) => {
     el.addEventListener('change', function () {

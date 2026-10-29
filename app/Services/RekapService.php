@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Absensi;
 use App\Models\HariLibur;
 use App\Models\Izin;
-use App\Models\JadwalShift;
 use App\Models\User;
 use Carbon\Carbon;
 
@@ -46,15 +45,11 @@ class RekapService
             }
         }
 
-        $jadwalSet = [];
-        foreach (JadwalShift::where('user_id', $userId)
-            ->where('tanggal_berlaku', '>=', $awal)
-            ->where('tanggal_berlaku', '<=', $akhir)
-            ->pluck('tanggal_berlaku') as $tglJadwal) {
-            $jadwalSet[substr((string) $tglJadwal, 0, 10)] = true;
-        }
-
-        $isDokter = User::find($userId)?->profesi?->nama === 'Dokter';
+        $user = User::with('profesi')->find($userId);
+        $jadwalSet = $user
+            ? app(JadwalEfektifService::class)->petaUntukPegawai($user, $awal, $akhir)
+            : [];
+        $isDokter = $user?->profesi?->nama === 'Dokter';
 
         $absCollection = Absensi::where('user_id', $userId)
             ->where('tanggal', '>=', $awal)

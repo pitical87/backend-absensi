@@ -4,6 +4,7 @@
 
 @php
 $badgeMetode = ['GET' => 'badge-hijau', 'POST' => 'badge-biru', 'PUT' => 'badge-kuning', 'DELETE' => 'badge-merah'];
+$badgePerubahan = ['NEW' => 'badge-biru', 'UPDATE' => 'badge-amber'];
 
 $grupApi = [
   [
@@ -773,8 +774,8 @@ JSON,
     'id' => 'jadwal', 'judul' => 'Jadwal Shift', 'ikon' => 'kalender',
     'endpoints' => [
       [
-        'metode' => 'GET', 'jalur' => '/jadwal', 'akses' => 'Token',
-        'deskripsi' => 'Shift efektif hari ini (dari jadwal shift bila ada, fallback shift profil) dan flag boleh memilih shift sendiri.',
+        'metode' => 'GET', 'jalur' => '/jadwal', 'akses' => 'Token', 'perubahan' => 'UPDATE',
+        'deskripsi' => 'Shift efektif hari ini: jadwal per tanggal mengalahkan template mingguan sub unit. Hari libur tidak memakai template. Mengembalikan juga flag boleh memilih shift sendiri.',
                 'body' => <<<'JSON'
 curl 'https://rsud-merauke.id/api/mobile/jadwal'
   -H 'Accept: application/json'
@@ -788,8 +789,8 @@ JSON,
 JSON,
       ],
       [
-        'metode' => 'GET', 'jalur' => '/jadwal/hari-ini', 'akses' => 'Token',
-        'deskripsi' => 'Jadwal shift hari ini dari jadwal shift yang dipasangkan (tanpa fallback profil).',
+        'metode' => 'GET', 'jalur' => '/jadwal/hari-ini', 'akses' => 'Token', 'perubahan' => 'UPDATE',
+        'deskripsi' => 'Jadwal shift efektif hari ini. Jadwal override per tanggal diutamakan; bila tidak ada, template mingguan sub unit digunakan kecuali tanggal tersebut adalah hari libur.',
                 'body' => <<<'JSON'
 curl 'https://rsud-merauke.id/api/mobile/jadwal/hari-ini'
   -H 'Accept: application/json'
@@ -802,8 +803,8 @@ JSON,
 JSON,
       ],
       [
-        'metode' => 'GET', 'jalur' => '/jadwal/mingguan?mulai=', 'akses' => 'Token',
-        'deskripsi' => 'Jadwal 7 hari. Default mulai Senin minggu berjalan; isi mulai=YYYY-MM-DD untuk minggu lain. Hari tanpa jadwal bernilai null.',
+        'metode' => 'GET', 'jalur' => '/jadwal/mingguan?mulai=', 'akses' => 'Token', 'perubahan' => 'UPDATE',
+        'deskripsi' => 'Jadwal efektif 7 hari. Default mulai Senin minggu berjalan; isi mulai=YYYY-MM-DD untuk minggu lain. Template mingguan sub unit diterapkan jika tidak ada override dan hari bukan hari libur; hari tanpa jadwal efektif bernilai null.',
         'parameter' => [
           ['mulai', 'query', 'YYYY-MM-DD', false, 'Default Senin minggu ini.'],
         ],
@@ -824,8 +825,8 @@ JSON,
 JSON,
       ],
       [
-        'metode' => 'GET', 'jalur' => '/jadwal/bulanan?bulan=&tahun=', 'akses' => 'Token',
-        'deskripsi' => 'Jadwal seluruh hari dalam satu bulan + tahun.',
+        'metode' => 'GET', 'jalur' => '/jadwal/bulanan?bulan=&tahun=', 'akses' => 'Token', 'perubahan' => 'UPDATE',
+        'deskripsi' => 'Jadwal efektif seluruh hari dalam satu bulan + tahun, termasuk shift dari template mingguan sub unit jika tidak ada override per tanggal dan bukan hari libur.',
         'parameter' => [
           ['bulan', 'query', 'int 1-12', false, 'Default bulan berjalan.'],
           ['tahun', 'query', 'int', false, 'Default tahun berjalan.'],
@@ -844,8 +845,8 @@ JSON,
 JSON,
       ],
       [
-        'metode' => 'GET', 'jalur' => '/jadwal/kelola?sub_unit=&bulan=&tahun=', 'akses' => 'Token',
-        'deskripsi' => 'Rekapitulasi pengaturan jadwal shift pegawai — serupa halaman admin <code>jadwal/index</code>. Mengembalikan daftar sub unit + unit, shift aktif, pegawai per sub unit beserta grid jadwal bulanan, seluruh pegawai aktif, dan pegawai yang sudah punya jadwal tersimpan pada periode terpilih. <code>sub_unit</code> kosong → daftar pegawai &amp; grid jadwal sub unit bernilai kosong, namun <code>semua_pegawai</code>, <code>jadwal_pegawai</code>, dan <code>pegawai_bertugas</code> tetap memuat seluruh pegawai aktif.',
+        'metode' => 'GET', 'jalur' => '/jadwal/kelola?sub_unit=&bulan=&tahun=', 'akses' => 'Token', 'perubahan' => 'UPDATE',
+        'deskripsi' => 'Rekapitulasi pengaturan jadwal shift pegawai — serupa halaman admin <code>jadwal/index</code>. Mengembalikan daftar sub unit + unit, shift aktif, pegawai per sub unit beserta grid jadwal bulanan, template mingguan sub unit, seluruh pegawai aktif, dan pegawai yang sudah punya jadwal tersimpan pada periode terpilih. <code>template_mingguan</code> adalah peta hari ISO (Senin=1 sampai Minggu=7) ke ID shift. <code>jadwal</code> dan <code>jadwal_pegawai</code> tetap memuat jadwal tersimpan eksplisit, bukan hasil gabungan template. <code>sub_unit</code> kosong → data pegawai, grid, dan template sub unit bernilai kosong, namun <code>semua_pegawai</code>, <code>jadwal_pegawai</code>, dan <code>pegawai_bertugas</code> tetap memuat pegawai aktif sesuai jadwal tersimpan.',
         'parameter' => [
           ['sub_unit', 'query', 'int', false, 'ID sub unit (opsional). Kosongkan untuk memuat semua pegawai aktif.'],
           ['bulan', 'query', 'int 1-12', false, 'Default bulan berjalan.'],
@@ -864,6 +865,7 @@ JSON,
   "sub_units": [{ "id": 5, "nama": "Farmasi", "unit_nama": "Instalasi Rawat Jalan" }],
   "shift": [{ "id": 2, "kategori": "Siang", "jam_masuk": "14:00", "jam_pulang": "21:00" }],
   "pegawai": [{ "id": 2, "nama_lengkap": "Budi Santoso" }],
+  "template_mingguan": { "1": 1, "2": 1, "3": 2 },
   "jadwal": { "2": { "2026-08-23": 2 } },
   "semua_pegawai": [{ "id": 2, "nama_lengkap": "Budi Santoso", "unit_nama": "Instalasi Rawat Jalan", "sub_unit_nama": "Farmasi" }],
   "jadwal_pegawai": { "2": { "2026-08-23": 2 } },
@@ -872,8 +874,34 @@ JSON,
 JSON,
       ],
       [
-        'metode' => 'POST', 'jalur' => '/jadwal/kelola/unit', 'akses' => 'Token',
-        'deskripsi' => 'Simpan/replace jadwal shift satu sub unit untuk satu bulan — serupa tab <strong>Per Unit</strong> pada admin <code>jadwal/index</code>. Jadwal lama milik semua pegawai non-admin di sub unit tsb pada bulan terpilih dihapus lalu diganti dengan <code>grid</code>. Hanya baris dengan <code>shift_id</code> tidak kosong &amp; tanggal berformat <code>YYYY-MM-DD</code> yang disimpan (sel kosong = libur/jadi kosong).',
+        'metode' => 'POST', 'jalur' => '/jadwal/kelola/template-mingguan', 'akses' => 'Admin (Token)', 'perubahan' => 'NEW',
+        'deskripsi' => 'Buat atau ganti template shift mingguan permanen untuk satu sub unit. Hari yang tidak dikirim atau bernilai kosong dianggap libur. Template diterapkan pada tanggal tanpa override langsung dan tidak diterapkan pada tanggal di menu Hari Libur.',
+        'parameter' => [
+          ['sub_unit_id', 'body', 'int', true, 'ID sub unit yang akan diberi template.'],
+          ['jadwal', 'body', 'object', false, 'Peta hari ISO ke ID shift, contoh jadwal[1]=1 untuk Senin. Hanya shift aktif yang diterima; kosongkan hari untuk libur.'],
+        ],
+        'status' => '200 sukses · 403 bukan admin · 422 sub unit/hari/shift tidak valid',
+                'body' => <<<'JSON'
+curl -X POST 'https://rsud-merauke.id/api/mobile/jadwal/kelola/template-mingguan'
+  -H 'Accept: application/json'
+  -H 'Content-Type: application/json'
+  -d '{
+    "sub_unit_id": 5,
+    "jadwal": { "1": 1, "2": 1, "3": 2, "4": 2, "5": 1 }
+  }'
+JSON,
+'respons' => <<<'JSON'
+{
+  "sukses": true,
+  "pesan": "Template jadwal mingguan untuk Farmasi berhasil disimpan.",
+  "sub_unit_id": 5,
+  "template_mingguan": { "1": 1, "2": 1, "3": 2, "4": 2, "5": 1 }
+}
+JSON,
+      ],
+      [
+        'metode' => 'POST', 'jalur' => '/jadwal/kelola/unit', 'akses' => 'Token', 'perubahan' => 'UPDATE',
+        'deskripsi' => 'Simpan/replace jadwal shift satu sub unit untuk satu bulan — serupa tab <strong>Per Unit</strong> pada admin <code>jadwal/index</code>. Jadwal lama milik semua pegawai non-admin di sub unit tsb pada bulan terpilih dihapus lalu diganti dengan <code>grid</code>. Hanya shift yang tidak kosong &amp; tanggal berformat <code>YYYY-MM-DD</code> yang disimpan sebagai override per tanggal. Sel kosong menghapus override dan mengikuti template mingguan sub unit jika tersedia; jika tidak, hari tersebut libur.',
         'parameter' => [
           ['sub_unit_id', 'body', 'int', true, 'ID sub unit.'],
           ['bulan', 'body', 'int 1-12', false, 'Default bulan berjalan.'],
@@ -908,8 +936,8 @@ JSON,
 JSON,
       ],
       [
-        'metode' => 'POST', 'jalur' => '/jadwal/kelola/pegawai', 'akses' => 'Token',
-        'deskripsi' => 'Simpan jadwal bulanan untuk beberapa pegawai terpilih sekaligus — serupa tab <strong>Per Pegawai</strong> pada admin <code>jadwal/index</code>. Jadwal lama milik pegawai terpilih pada bulan tsb dihapus lalu diganti dengan <code>grid</code>. Pegawai admin diabaikan otomatis.',
+        'metode' => 'POST', 'jalur' => '/jadwal/kelola/pegawai', 'akses' => 'Token', 'perubahan' => 'UPDATE',
+        'deskripsi' => 'Simpan jadwal bulanan untuk beberapa pegawai terpilih sekaligus — serupa tab <strong>Per Pegawai</strong> pada admin <code>jadwal/index</code>. Jadwal lama milik pegawai terpilih pada bulan tsb dihapus lalu diganti dengan <code>grid</code>. Sel kosong tidak membuat override sehingga mengikuti template mingguan sub unit jika tersedia; jika tidak, hari tersebut libur. Pegawai admin diabaikan otomatis.',
         'parameter' => [
           ['users', 'body', 'int[]', true, 'ID pegawai yang diatur. Minimal satu.'],
           ['bulan', 'body', 'int 1-12', false, 'Default bulan berjalan.'],
@@ -939,6 +967,62 @@ JSON,
   "tahun": 2026,
   "pegawai": 2,
   "disimpan": 4
+}
+JSON,
+      ],
+    ],
+  ],
+  [
+    'id' => 'api-v1-pegawai', 'judul' => 'API V1 Pegawai', 'ikon' => 'pegawai',
+    'info' => 'Base URL: <code>/api/v1</code>. Autentikasi memakai header <code>X-API-KEY</code> (atau query <code>api_key</code>). Nilai shift pada endpoint pegawai sekarang mencerminkan jadwal efektif hari ini, termasuk template mingguan sub unit.',
+    'endpoints' => [
+      [
+        'metode' => 'GET', 'jalur' => '/api/v1/pegawai', 'akses' => 'API Key', 'perubahan' => 'UPDATE',
+        'deskripsi' => 'Daftar pegawai. Field <code>shift_kategori</code>, <code>shift_jam_masuk</code>, dan <code>shift_jam_pulang</code> berisi shift efektif hari ini: override per tanggal diutamakan, lalu template mingguan sub unit jika bukan hari libur. Nilai field shift bisa <code>null</code> jika tidak ada jadwal efektif. Field respons lainnya tidak berubah.',
+        'status' => '200 sukses · 401 kunci API tidak valid · 503 API belum dikonfigurasi',
+        'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/v1/pegawai'
+  -H 'X-API-KEY: API_KEY_ANDA'
+  -H 'Accept: application/json'
+JSON,
+        'respons' => <<<'JSON'
+{
+  "sukses": true,
+  "jumlah": 1,
+  "data": [{
+    "id": 2,
+    "nama_lengkap": "Budi Santoso",
+    "unit_kerja": "Instalasi Rawat Jalan",
+    "sub_unit": "Farmasi",
+    "shift_kategori": "Pagi",
+    "shift_jam_masuk": "08:00:00",
+    "shift_jam_pulang": "14:00:00"
+  }]
+}
+JSON,
+      ],
+      [
+        'metode' => 'GET', 'jalur' => '/api/v1/pegawai/{id}', 'akses' => 'API Key', 'perubahan' => 'UPDATE',
+        'deskripsi' => 'Detail satu pegawai. Field shift menggunakan resolusi efektif yang sama dengan endpoint daftar pegawai, termasuk template mingguan sub unit. Field lainnya tidak berubah.',
+        'parameter' => [
+          ['id', 'path', 'int', true, 'ID pegawai.'],
+        ],
+        'status' => '200 sukses · 401 kunci API tidak valid · 404 pegawai tidak ditemukan · 503 API belum dikonfigurasi',
+        'body' => <<<'JSON'
+curl 'https://rsud-merauke.id/api/v1/pegawai/2'
+  -H 'X-API-KEY: API_KEY_ANDA'
+  -H 'Accept: application/json'
+JSON,
+        'respons' => <<<'JSON'
+{
+  "sukses": true,
+  "data": {
+    "id": 2,
+    "nama_lengkap": "Budi Santoso",
+    "shift_kategori": "Pagi",
+    "shift_jam_masuk": "08:00:00",
+    "shift_jam_pulang": "14:00:00"
+  }
 }
 JSON,
       ],
@@ -1814,6 +1898,7 @@ JSON,
   </div>
   <div class="p-4 text-sm flex flex-col gap-2">
     <p><strong>Base URL:</strong> <code class="px-1.5 py-0.5 rounded bg-slate-100 font-semibold">{{ url('api/mobile') }}</code></p>
+    <p><span class="badge badge-biru">NEW</span> endpoint baru · <span class="badge badge-amber">UPDATE</span> perilaku atau respons endpoint diperbarui.</p>
     <p>Semua respons berformat JSON dengan field <code class="px-1 py-0.5 rounded bg-slate-100">sukses</code> (boolean). Endpoint berlabel <em>Token</em> membutuhkan cookie <code class="px-1 py-0.5 rounded bg-slate-100">auth_token</code> hasil login (httpOnly, berlaku 7 hari).</p>
     <p class="teks-redup">Bila token tidak valid, middleware mengembalikan <strong>401</strong> dengan salah satu pesan:
     <code class="text-xs">{ "sukses": false, "pesan": "Token tidak ditemukan" }</code> ·
@@ -1839,6 +1924,9 @@ JSON,
           <header class="flex flex-wrap items-center gap-2 px-3 py-2 bg-slate-50 border-b border-slate-200">
             <span class="badge {{ $badgeMetode[$e['metode']] }} font-mono">{{ $e['metode'] }}</span>
             <code class="text-xs font-bold text-navy break-all">{{ $e['jalur'] }}</code>
+            @if(! empty($e['perubahan']))
+              <span class="badge {{ $badgePerubahan[$e['perubahan']] }}">{{ $e['perubahan'] }}</span>
+            @endif
             <span class="ms-auto teks-redup teks-kecil">{{ $e['akses'] }}</span>
           </header>
 

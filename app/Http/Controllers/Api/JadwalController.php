@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\JadwalShift;
+use App\Models\JadwalTemplateMingguan;
 use App\Models\Shift;
 use App\Models\SubUnit;
 use App\Models\User;
@@ -12,6 +13,8 @@ use App\Services\JadwalTemplateService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class JadwalController extends Controller
 {
@@ -33,33 +36,33 @@ class JadwalController extends Controller
         ]);
     }
 
-    private function barisJadwal(string $tgl, ?JadwalShift $jadwal): array
+    private function barisJadwal(string $tgl, ?Shift $shift): array
     {
         return [
             'tanggal' => $tgl,
             'hari' => Carbon::parse($tgl)->locale('id')->translatedFormat('l'),
-            'shift' => $jadwal?->shift ? [
-                'id' => $jadwal->shift->id,
-                'kategori' => $jadwal->shift->kategori,
-                'jam_masuk' => Carbon::parse($jadwal->shift->jam_masuk)->format('H:i'),
-                'jam_pulang' => Carbon::parse($jadwal->shift->jam_pulang)->format('H:i'),
+            'shift' => $shift ? [
+                'id' => $shift->id,
+                'kategori' => $shift->kategori,
+                'jam_masuk' => Carbon::parse($shift->jam_masuk)->format('H:i'),
+                'jam_pulang' => Carbon::parse($shift->jam_pulang)->format('H:i'),
             ] : null,
         ];
     }
 
     private function jadwalRentang(User $user, string $mulai, string $sampai): array
     {
-        $peta = JadwalShift::with('shift:id,kategori,jam_masuk,jam_pulang')
-            ->where('user_id', $user->id)
-            ->whereBetween('tanggal_berlaku', [$mulai, $sampai])
-            ->orderBy('tanggal_berlaku')
+        $peta = app(\App\Services\JadwalEfektifService::class)
+            ->petaUntukPegawai($user, $mulai, $sampai);
+        $shiftById = Shift::whereIn('id', array_values($peta))
             ->get()
-            ->keyBy('tanggal_berlaku');
+            ->keyBy('id');
 
         $hasil = [];
         for ($t = strtotime($mulai); $t <= strtotime($sampai); $t += 86400) {
             $tgl = date('Y-m-d', $t);
-            $hasil[] = $this->barisJadwal($tgl, $peta[$tgl] ?? null);
+            $shift = isset($peta[$tgl]) ? $shiftById->get($peta[$tgl]) : null;
+            $hasil[] = $this->barisJadwal($tgl, $shift);
         }
 
         return $hasil;
@@ -153,6 +156,7 @@ class JadwalController extends Controller
 
         $pegawai = collect();
         $jadwal = [];
+        $templateMingguan = [];
 
         if ($subUnitId) {
             $pegawai = User::where('sub_unit_id', $subUnitId)
@@ -178,6 +182,11 @@ class JadwalController extends Controller
                 ->each(function ($j) use (&$jadwal) {
                     $jadwal[(string) $j->user_id][(string) $j->tanggal_berlaku] = (int) $j->shift_id;
                 });
+
+            $templateMingguan = JadwalTemplateMingguan::where('sub_unit_id', $subUnitId)
+                ->pluck('shift_id', 'hari')
+                ->map(fn ($shiftId) => (int) $shiftId)
+                ->all();
         }
 
         $shiftList = Shift::where('aktif', 1)->orderBy('jam_masuk')->get()
@@ -247,6 +256,7 @@ class JadwalController extends Controller
             'shift' => $shiftList,
             'pegawai' => $pegawai,
             'jadwal' => $jadwal,
+            'template_mingguan' => $templateMingguan,
             'semua_pegawai' => $semuaPegawai,
             'jadwal_pegawai' => $jadwalPegawai,
             'pegawai_bertugas' => $pegawaiBertugas,
@@ -270,6 +280,7 @@ class JadwalController extends Controller
         if (! $subUnitId) {
             return response()->json(['sukses' => false, 'pesan' => 'Parameter sub_unit_id wajib diisi.'], 422);
         }
+
         if ($bulan < 1 || $bulan > 12 || $tahun < 2000 || $tahun > (int) now()->year + 1) {
             return response()->json(['sukses' => false, 'pesan' => 'Parameter bulan/tahun tidak valid.'], 422);
         }
@@ -320,6 +331,63 @@ class JadwalController extends Controller
             'tahun' => $tahun,
             'terhapus' => $terhapus,
             'disimpan' => count($rows),
+        ]);
+    }
+
+    public function simpanTemplateMingguan(Request $req): JsonResponse
+    {
+        $user = $req->get('user');
+        if (! $user || $user->role !== 'admin') {
+            return response()->json([
+                'sukses' => false,
+                'pesan' => 'Hanya admin yang dapat mengubah template jadwal mingguan.',
+            ], 403);
+        }
+
+        $data = $req->validate([
+            'sub_unit_id' => ['required', 'integer', 'exists:sub_unit,id'],
+            'jadwal' => ['nullable', 'array'],
+            'jadwal.*' => ['nullable', 'integer', 'exists:shift,id'],
+        ]);
+
+        $jadwal = collect($data['jadwal'] ?? [])
+            ->filter(fn ($shiftId) => $shiftId !== null && $shiftId !== '')
+            ->map(fn ($shiftId, $hari) => [
+                'hari' => (int) $hari,
+                'shift_id' => (int) $shiftId,
+            ])
+            ->values();
+
+        if ($jadwal->contains(fn ($baris) => $baris['hari'] < 1 || $baris['hari'] > 7)
+            || Shift::whereIn('id', $jadwal->pluck('shift_id'))
+                ->where('aktif', false)
+                ->exists()) {
+            throw ValidationException::withMessages([
+                'jadwal' => 'Pilih hari dan shift yang aktif untuk template mingguan.',
+            ]);
+        }
+
+        $subUnitId = (int) $data['sub_unit_id'];
+        DB::transaction(function () use ($subUnitId, $jadwal) {
+            JadwalTemplateMingguan::where('sub_unit_id', $subUnitId)->delete();
+            foreach ($jadwal as $baris) {
+                JadwalTemplateMingguan::create([
+                    'sub_unit_id' => $subUnitId,
+                    'hari' => $baris['hari'],
+                    'shift_id' => $baris['shift_id'],
+                ]);
+            }
+        });
+
+        $nama = SubUnit::find($subUnitId)?->nama ?? '#'.$subUnitId;
+        catat_aktivitas('Atur Template Jadwal Mingguan (Mobile)',
+            $user->nama_lengkap." · Sub Unit $nama", (int) $user->id);
+
+        return response()->json([
+            'sukses' => true,
+            'pesan' => "Template jadwal mingguan untuk $nama berhasil disimpan.",
+            'sub_unit_id' => $subUnitId,
+            'template_mingguan' => $jadwal->keyBy('hari')->map(fn ($baris) => $baris['shift_id']),
         ]);
     }
 
@@ -416,6 +484,7 @@ class JadwalController extends Controller
      * Multipart: file (xlsx/xls/csv), bulan, tahun. Format grid:
      * NIP | Email | Nama Lengkap | 01 | 02 | ... . Satu baris = satu pegawai,
      * jadwal bulan tujuan untuk pegawai tersebut diganti penuh oleh isi file.
+     * Sel kosong tidak membuat override, sehingga template mingguan tetap berlaku.
      */
     public function impor(Request $req, JadwalImportService $import): JsonResponse
     {

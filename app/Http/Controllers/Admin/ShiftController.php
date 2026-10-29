@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\JadwalShift;
+use App\Models\JadwalTemplateMingguan;
 use App\Models\Shift;
 use App\Models\UnitKerja;
 use App\Models\User;
@@ -149,8 +150,9 @@ class ShiftController extends Controller
                         return response()->json(array_merge(['sukses' => true, 'pesan' => 'Status shift diperbarui.'], $this->daftarShift($request)));
 
                     case 'hapus_shift':
-                        $dipakai = JadwalShift::where('shift_id', $id)->count();
-                        if ($dipakai > 0) {
+                        $dipakai = JadwalShift::where('shift_id', $id)->exists()
+                            || JadwalTemplateMingguan::where('shift_id', $id)->exists();
+                        if ($dipakai) {
                             return response()->json(['sukses' => false, 'pesan' => 'Shift tidak dapat dihapus karena masih dipakai pegawai.'], 422);
                         }
                         $s = Shift::find($id);
@@ -217,8 +219,9 @@ class ShiftController extends Controller
                 return redirect($ke)->with('success', 'Status shift diperbarui.');
 
             case 'hapus_shift':
-                $dipakai = JadwalShift::where('shift_id', $id)->count();
-                if ($dipakai > 0) {
+                $dipakai = JadwalShift::where('shift_id', $id)->exists()
+                    || JadwalTemplateMingguan::where('shift_id', $id)->exists();
+                if ($dipakai) {
                     return redirect($ke)->with('error',
                         'Shift tidak dapat dihapus karena masih dipakai pegawai. Gunakan Nonaktifkan.');
                 }

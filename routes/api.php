@@ -63,6 +63,7 @@ Route::prefix('mobile')->group(function (){
         Route::get('jadwal/bulanan', [JadwalController::class, 'jadwalBulanan']);
         Route::get('jadwal/kelola', [JadwalController::class, 'kelola']);
         Route::post('jadwal/kelola/unit', [JadwalController::class, 'simpanUnit']);
+        Route::post('jadwal/kelola/template-mingguan', [JadwalController::class, 'simpanTemplateMingguan']);
         Route::post('jadwal/kelola/pegawai', [JadwalController::class, 'simpanPegawai']);
         Route::get('jadwal/template', [JadwalController::class, 'template']);
         Route::post('jadwal/import', [JadwalController::class, 'impor']);

@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\Absensi;
 use App\Models\FingerPegawai;
-use App\Models\JadwalShift;
 use App\Models\User;
 use DateTime;
 use Illuminate\Support\Facades\Http;
@@ -394,8 +393,7 @@ class FingerImportService
     private function bangunData(User $user, string $tanggal, ?string $waktuMasuk, ?string $waktuPulang): array
     {
         $isDokter = $user->profesi?->nama === 'Dokter';
-        $js = JadwalShift::where('user_id', $user->id)->whereDate('tanggal_berlaku', $tanggal)->first();
-        $shift = $js?->shift;
+        $shift = app(JadwalEfektifService::class)->shiftUntukTanggal($user, $tanggal);
 
         $waktuMasukDt = $waktuMasuk ? new DateTime($tanggal.' '.$waktuMasuk) : null;
         $waktuPulangDt = $waktuPulang ? new DateTime($tanggal.' '.$waktuPulang) : null;

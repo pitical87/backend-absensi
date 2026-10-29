@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\AtasanLangsung;
-use App\Models\JadwalShift;
 use App\Models\PengajuanLembur;
 use App\Models\User;
 use Carbon\Carbon;
@@ -121,24 +120,21 @@ class PengajuanLemburService
     {
         $mulai   = Carbon::createFromFormat('Y-m-d H:i:s', "$tanggal $jamMulai");
         $selesai = Carbon::createFromFormat('Y-m-d H:i:s', "$tanggal $jamSelesai");
+        $user = User::find($userId);
+        $shift = $user
+            ? app(JadwalEfektifService::class)->shiftUntukTanggal($user, $tanggal)
+            : null;
 
-        return JadwalShift::with('shift:id,jam_masuk,jam_pulang')
-            ->where('user_id', $userId)
-            ->where('tanggal_berlaku', $tanggal)
-            ->get()
-            ->contains(function ($j) use ($mulai, $selesai) {
-                $shift = $j->shift;
-                if (! $shift || ! $shift->jam_masuk || ! $shift->jam_pulang) {
-                    return false;
-                }
-                $sMasuk   = Carbon::parse($j->tanggal_berlaku)->setTimeFrom(Carbon::parse($shift->jam_masuk));
-                $sPulang  = Carbon::parse($j->tanggal_berlaku)->setTimeFrom(Carbon::parse($shift->jam_pulang));
-                if ($sPulang->lte($sMasuk)) {
-                    $sPulang->addDay();
-                }
+        if (! $shift || ! $shift->jam_masuk || ! $shift->jam_pulang) {
+            return false;
+        }
+        $sMasuk = Carbon::parse($tanggal)->setTimeFrom(Carbon::parse($shift->jam_masuk));
+        $sPulang = Carbon::parse($tanggal)->setTimeFrom(Carbon::parse($shift->jam_pulang));
+        if ($sPulang->lte($sMasuk)) {
+            $sPulang->addDay();
+        }
 
-                return $mulai->lt($sPulang) && $selesai->gt($sMasuk);
-            }) || false;
+        return $mulai->lt($sPulang) && $selesai->gt($sMasuk);
     }
 
     /**

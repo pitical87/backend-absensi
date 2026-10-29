@@ -5,10 +5,11 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Jabatan;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class JabatanController extends Controller
 {
-public function index()
+    public function index()
     {
         $jabatans = Jabatan::with(['induk', 'users'])
             ->orderBy('kategori')
@@ -16,12 +17,12 @@ public function index()
             ->orderBy('nama')
             ->paginate(20);
 
-        $kategoriList = array_slice(kategori_jabatan_list(), 0, 5);
+        $kategoriList = kategori_jabatan_struktur_list();
 
         return view('admin.jabatan.index', [
             'judulHalaman' => 'Master Jabatan',
-            'menuAktif'    => 'jabatan',
-            'jabatans'     => $jabatans,
+            'menuAktif' => 'jabatan',
+            'jabatans' => $jabatans,
             'kategoriList' => $kategoriList,
         ]);
     }
@@ -29,7 +30,7 @@ public function index()
     public function create()
     {
         $jabatans = Jabatan::orderBy('kategori')->orderBy('urutan')->orderBy('nama')->get();
-        $kategoriList = array_slice(kategori_jabatan_list(), 0, 5);
+        $kategoriList = kategori_jabatan_struktur_list();
 
         return view('admin.jabatan.create', [
             'judulHalaman' => 'Tambah Jabatan',
@@ -43,7 +44,7 @@ public function index()
     {
         $data = $request->validate([
             'nama' => 'required|string|max:100',
-            'kategori' => 'required|in:'.implode(',', array_slice(kategori_jabatan_list(), 0, 5)),
+            'kategori' => ['required', Rule::in(kategori_jabatan_struktur_list())],
             'induk_id' => 'nullable|integer|exists:jabatan,id',
             'unit_label' => 'nullable|string|max:100',
             'urutan' => 'nullable|integer|min:0',
@@ -61,7 +62,7 @@ public function index()
     {
         $jabatans = Jabatan::where('id', '!=', $jabatan->id)
             ->orderBy('kategori')->orderBy('urutan')->orderBy('nama')->get();
-        $kategoriList = array_slice(kategori_jabatan_list(), 0, 5);
+        $kategoriList = kategori_jabatan_struktur_list();
 
         return view('admin.jabatan.edit', [
             'judulHalaman' => 'Ubah Jabatan',
@@ -76,7 +77,7 @@ public function index()
     {
         $data = $request->validate([
             'nama' => 'required|string|max:100',
-            'kategori' => 'required|in:'.implode(',', array_slice(kategori_jabatan_list(), 0, 5)),
+            'kategori' => ['required', Rule::in(kategori_jabatan_struktur_list())],
             'induk_id' => 'nullable|integer|exists:jabatan,id',
             'unit_label' => 'nullable|string|max:100',
             'urutan' => 'nullable|integer|min:0',

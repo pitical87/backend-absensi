@@ -14,6 +14,8 @@ $grupMenu = [
         'unit'     => ['admin/unit',     'gedung',   'Data Unit Kerja'],
         'atasan_langsung' => ['admin/atasan_langsung', 'struktur', 'Atasan Langsung'],
         'struktur' => ['admin/struktur', 'struktur', 'Struktur Organisasi'],
+        'referensi' => ['admin/jabatan-posisi', 'atur', 'Jabatan & Posisi'],
+        'profesi'  => ['admin/profesi',  'bintang', 'Data Profesi'],
       ],
   ],
   [
@@ -23,6 +25,7 @@ $grupMenu = [
     'items' => [
       'shift'  => ['admin/shift',  'jam',      'Pengaturan Shift'],
       'jadwal' => ['admin/jadwal', 'kalender', 'Jadwal Shift'],
+      'template_jadwal' => ['admin/jadwal/template-mingguan', 'kalender', 'Template Jadwal'],
     ],
   ],
   [

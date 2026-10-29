@@ -9,23 +9,29 @@ use Illuminate\Support\Facades\Request;
 
 const HARI_ID = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 const BULAN_ID = [1 => 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-                  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
 if (! function_exists('tgl_id')) {
     function tgl_id($tanggal, bool $dgnHari = true): string
     {
         $ts = is_numeric($tanggal) ? (int) $tanggal : strtotime((string) $tanggal);
-        if (! $ts) return '—';
-        $t = date('j', $ts) . ' ' . BULAN_ID[(int) date('n', $ts)] . ' ' . date('Y', $ts);
-        return $dgnHari ? HARI_ID[(int) date('w', $ts)] . ', ' . $t : $t;
+        if (! $ts) {
+            return '—';
+        }
+        $t = date('j', $ts).' '.BULAN_ID[(int) date('n', $ts)].' '.date('Y', $ts);
+
+        return $dgnHari ? HARI_ID[(int) date('w', $ts)].', '.$t : $t;
     }
 }
 
 if (! function_exists('jam_id')) {
     function jam_id($waktu): string
     {
-        if (! $waktu) return '—';
+        if (! $waktu) {
+            return '—';
+        }
         $ts = is_numeric($waktu) ? (int) $waktu : strtotime((string) $waktu);
+
         return $ts ? date('H.i', $ts) : '—';
     }
 }
@@ -33,8 +39,13 @@ if (! function_exists('jam_id')) {
 if (! function_exists('jam_singkat')) {
     function jam_singkat(string|DateTimeInterface|null $time): string
     {
-        if ($time instanceof DateTimeInterface) return $time->format('H.i');
-        if (! $time) return '—';
+        if ($time instanceof DateTimeInterface) {
+            return $time->format('H.i');
+        }
+        if (! $time) {
+            return '—';
+        }
+
         return substr(str_replace(':', '.', $time), 0, 5);
     }
 }
@@ -43,12 +54,19 @@ if (! function_exists('menit_ke_teks')) {
     function menit_ke_teks($menit): string
     {
         $menit = (int) $menit;
-        if ($menit <= 0) return '0 menit';
+        if ($menit <= 0) {
+            return '0 menit';
+        }
         $j = intdiv($menit, 60);
         $m = $menit % 60;
         $s = [];
-        if ($j > 0) $s[] = $j . ' jam';
-        if ($m > 0) $s[] = $m . ' menit';
+        if ($j > 0) {
+            $s[] = $j.' jam';
+        }
+        if ($m > 0) {
+            $s[] = $m.' menit';
+        }
+
         return implode(' ', $s);
     }
 }
@@ -56,8 +74,11 @@ if (! function_exists('menit_ke_teks')) {
 if (! function_exists('label_shift')) {
     function label_shift(?object $s): string
     {
-        if (! $s || empty($s->kategori)) return 'Belum diatur';
-        return $s->kategori . ' (' . jam_singkat($s->jam_masuk) . ' - ' . jam_singkat($s->jam_pulang) . ')';
+        if (! $s || empty($s->kategori)) {
+            return 'Belum diatur';
+        }
+
+        return $s->kategori.' ('.jam_singkat($s->jam_masuk).' - '.jam_singkat($s->jam_pulang).')';
     }
 }
 
@@ -69,6 +90,7 @@ if (! function_exists('hitung_jarak')) {
         $dLng = deg2rad($lng2 - $lng1);
         $a = sin($dLat / 2) ** 2
               + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLng / 2) ** 2;
+
         return $r * 2 * atan2(sqrt($a), sqrt(1 - $a));
     }
 }
@@ -98,7 +120,7 @@ if (! function_exists('catat_aktivitas')) {
                 'ip' => Request::ip(),
                 'waktu' => now(),
             ]);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             // jangan pernah menggagalkan aksi utama karena log
         }
     }
@@ -114,7 +136,7 @@ if (! function_exists('buat_notifikasi')) {
      *
      * @param  string  $tipe  info|warning|danger|success
      * @param  string|null  $kategori  password|keamanan|jadwal|izin|lembur|sistem
-     * @return int|null  id notifikasi, null bila gagal disimpan
+     * @return int|null id notifikasi, null bila gagal disimpan
      */
     function buat_notifikasi(
         int $userId,
@@ -141,12 +163,12 @@ if (! function_exists('buat_notifikasi')) {
             try {
                 $baris->loadMissing('user');
                 $baris->user?->notify(new WebPushNotification($baris));
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 report($e);
             }
 
             return (int) $baris->id;
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             report($e);
 
             return null;
@@ -190,7 +212,7 @@ if (! function_exists('jumlah_notifikasi_belum_dibaca')) {
 
         try {
             return (int) Notifikasi::where('user_id', $userId)->belumDibaca()->count();
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             return 0;
         }
     }
@@ -200,8 +222,11 @@ if (! function_exists('tempat_tugas')) {
     function tempat_tugas(object $u): string
     {
         $t = $u->unit_nama ?? null;
-        if (! $t) return 'Belum diatur';
-        return $t . (! empty($u->sub_unit_nama) ? ' — ' . $u->sub_unit_nama : '');
+        if (! $t) {
+            return 'Belum diatur';
+        }
+
+        return $t.(! empty($u->sub_unit_nama) ? ' — '.$u->sub_unit_nama : '');
     }
 }
 
@@ -242,9 +267,10 @@ if (! function_exists('ikon')) {
             'tambah' => '<path d="M12 5v14M5 12h14"/>',
         ];
         $p = $paths[$nama] ?? $paths['info'];
-        return '<svg class="ikon" width="' . $ukuran . '" height="' . $ukuran . '" viewBox="0 0 24 24" fill="none"'
-             . ' stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"'
-             . ' aria-hidden="true">' . $p . '</svg>';
+
+        return '<svg class="ikon" width="'.$ukuran.'" height="'.$ukuran.'" viewBox="0 0 24 24" fill="none"'
+             .' stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"'
+             .' aria-hidden="true">'.$p.'</svg>';
     }
 }
 
@@ -256,7 +282,7 @@ if (! function_exists('aset_admin')) {
     function aset_admin(string $berkas): string
     {
         $bersih = ltrim(str_replace('\\', '/', $berkas), '/');
-        $jalur = public_path('assets/' . $bersih);
+        $jalur = public_path('assets/'.$bersih);
         $versi = is_file($jalur) ? filemtime($jalur) : null;
 
         $parameter = ['berkas' => $bersih];
@@ -272,18 +298,17 @@ if (! function_exists('badge_status')) {
     function badge_status(?string $status, int $menitTerlambat = 0): string
     {
         return match (true) {
-            $status === null || $status === 'Alpa'
-                => '<span class="badge badge-merah">Tidak Hadir</span>',
+            $status === null || $status === 'Alpa' => '<span class="badge badge-merah">Tidak Hadir</span>',
             $status === 'Belum Pulang' => '<span class="badge badge-biru">Belum Pulang</span>',
             $status === 'Terlambat' => '<span class="badge badge-amber">Terlambat '
-                                      . $menitTerlambat . ' mnt</span>',
+                                      .$menitTerlambat.' mnt</span>',
             $status === 'Tepat Waktu' => '<span class="badge badge-hijau">Tepat Waktu</span>',
             $status === 'Libur' => '<span class="badge badge-abu">Libur</span>',
             $status === 'Izin' => '<span class="badge badge-ungu">Izin</span>',
             $status === 'Sakit' => '<span class="badge badge-ungu">Sakit</span>',
             $status === 'Cuti' => '<span class="badge badge-ungu">Cuti</span>',
             $status === 'Dinas Luar' => '<span class="badge badge-teal">Dinas Luar</span>',
-            default => '<span class="badge badge-abu">' . e($status) . '</span>',
+            default => '<span class="badge badge-abu">'.e($status).'</span>',
         };
     }
 }
@@ -305,6 +330,7 @@ if (! function_exists('label_jabatan')) {
         if (! empty($u->jabatan_nama)) {
             return $u->jabatan_nama;
         }
+
         return $u->jabatan_kategori ?? 'Staf/Pelaksana';
     }
 }
@@ -316,18 +342,81 @@ if (! function_exists('unit_organisasi')) {
     }
 }
 
-if (! function_exists('kategori_jabatan_list')) {
-    function kategori_jabatan_list(): array
+if (! function_exists('referensi_nama')) {
+    /**
+     * Nama baris tabel referensi (order urutan,id). Memo per permintaan (aman Octane);
+     * fallback ke $lazim hanya bila tabel belum dimigrasi / query gagal.
+     *
+     * @param  array<string, mixed>  $filter
+     */
+    function referensi_nama(string $tabel, array $lazim, array $filter = []): array
     {
-        return ['Direktur', 'Kepala Bidang', 'Kepala Bagian',
-                'Kepala Seksi', 'Kepala Sub Bagian', 'Staf/Pelaksana'];
+        // Memo hanya saat melayani HTTP (bukan console/unit-test, yang instance
+        // request-nya hidup selama satu proses dan bisa membuat data terasa basi).
+        $request = app()->bound('request') && ! app()->runningInConsole() ? app('request') : null;
+        $kunci = 'referensi_nama_'.$tabel.'_'.md5(serialize($filter));
+        if ($request && $request->attributes->has($kunci)) {
+            return $request->attributes->get($kunci);
+        }
+
+        $hasil = $lazim;
+        try {
+            $q = DB::table($tabel)->orderBy('urutan')->orderBy('id');
+            foreach ($filter as $kolom => $nilai) {
+                $q->where($kolom, $nilai);
+            }
+            $hasil = $q->pluck('nama')->all();
+        } catch (Throwable $e) {
+            $hasil = $lazim;
+        }
+
+        if ($request) {
+            $request->attributes->set($kunci, $hasil);
+        }
+
+        return $hasil;
     }
 }
 
-if (! function_exists('posisi_list')) {
-    function posisi_list(): array
+if (! function_exists('kategori_jabatan_list')) {
+    function kategori_jabatan_list(): array
     {
-        return [
+        return referensi_nama('jabatans', [
+            'Direktur', 'Kepala Bidang', 'Kepala Bagian',
+            'Kepala Seksi', 'Kepala Sub Bagian', 'Staf/Pelaksana',
+        ]);
+    }
+}
+
+if (! function_exists('kategori_jabatan_struktur_list')) {
+    /**
+     * Kategori yang dipakai pada Struktur Organisasi / Master Jabatan
+     * (semua kecuali kategori tanpa jabatan struktural, cth. Staf/Pelaksana).
+     */
+    function kategori_jabatan_struktur_list(): array
+    {
+        return referensi_nama('jabatans', [
+            'Direktur', 'Kepala Bidang', 'Kepala Bagian',
+            'Kepala Seksi', 'Kepala Sub Bagian',
+        ], ['untuk_struktur' => 1]);
+    }
+}
+
+if (! function_exists('posisi_baris')) {
+    /**
+     * Baris posisi [{nama, tingkat}, …] terurut urutan,id. $tingkat = awal tahap
+     * persetujuan izin pemohon (sama dengan posisi_index() lama). Fallback ke daftar
+     * bawaan hanya bila tabel belum dimigrasi / query gagal.
+     */
+    function posisi_baris(): array
+    {
+        $request = app()->bound('request') && ! app()->runningInConsole() ? app('request') : null;
+        $kunci = 'referensi_posisi_baris';
+        if ($request && $request->attributes->has($kunci)) {
+            return $request->attributes->get($kunci);
+        }
+
+        $bawaan = [
             'Staf',
             'Koordinator/Kepala Unit/Ruang/Instalasi',
             'Kepala Seksi/Sub Bagian',
@@ -335,14 +424,59 @@ if (! function_exists('posisi_list')) {
             'HRD',
             'Direktur',
         ];
+
+        $hasil = [];
+        try {
+            foreach (DB::table('posisi_jabatan')->orderBy('urutan')->orderBy('id')
+                ->get(['nama', 'tingkat']) as $baris) {
+                $hasil[] = ['nama' => (string) $baris->nama, 'tingkat' => (int) $baris->tingkat];
+            }
+        } catch (Throwable $e) {
+            foreach ($bawaan as $i => $nama) {
+                $hasil[] = ['nama' => $nama, 'tingkat' => $i];
+            }
+        }
+
+        if ($request) {
+            $request->attributes->set($kunci, $hasil);
+        }
+
+        return $hasil;
+    }
+}
+
+if (! function_exists('posisi_list')) {
+    function posisi_list(): array
+    {
+        return array_column(posisi_baris(), 'nama');
     }
 }
 
 if (! function_exists('posisi_index')) {
     function posisi_index(string $posisi): int
     {
-        $i = array_search($posisi, posisi_list(), true);
-        return $i === false ? 0 : $i;
+        foreach (posisi_baris() as $baris) {
+            if ($baris['nama'] === $posisi) {
+                return $baris['tingkat'];
+            }
+        }
+
+        return 0;
+    }
+}
+
+if (! function_exists('posisi_untuk_tingkat')) {
+    /** Nama-nama posisi pada tingkat persetujuan tertentu (untuk alur izin). */
+    function posisi_untuk_tingkat(int $tingkat): array
+    {
+        $nama = [];
+        foreach (posisi_baris() as $baris) {
+            if ($baris['tingkat'] === $tingkat) {
+                $nama[] = $baris['nama'];
+            }
+        }
+
+        return $nama;
     }
 }
 
@@ -350,7 +484,7 @@ if (! function_exists('jenis_cuti_list')) {
     function jenis_cuti_list(): array
     {
         return ['Cuti Tahunan', 'Cuti Sakit', 'Cuti Melahirkan',
-                'Cuti Karena Alasan Penting', 'Cuti Besar', 'Cuti di Luar Tanggungan Negara'];
+            'Cuti Karena Alasan Penting', 'Cuti Besar', 'Cuti di Luar Tanggungan Negara'];
     }
 }
 
@@ -364,6 +498,13 @@ if (! function_exists('is_pns')) {
 if (! function_exists('label_tahap_izin')) {
     function label_tahap_izin(int $tahap): string
     {
+        // Penyetuju tahap t = posisi dengan tingkat t (terurut urutan).
+        foreach (posisi_baris() as $baris) {
+            if ($baris['tingkat'] === $tahap) {
+                return $baris['nama'];
+            }
+        }
+
         return match ($tahap) {
             1 => 'Koordinator/Kepala Unit',
             2 => 'Kepala Seksi/Sub Bagian',
@@ -400,6 +541,7 @@ if (! function_exists('hari_kerja_antara')) {
             }
             $t = strtotime('+1 day', $t);
         }
+
         return $jml;
     }
 }
@@ -435,7 +577,7 @@ if (! function_exists('pastikan_libur_tetap')) {
             foreach (hari_libur_tetap($tahun) as $tgl => $ket) {
                 HariLibur::updateOrCreate(['tanggal' => $tgl], ['keterangan' => $ket]);
             }
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             // diam saja
         }
     }

@@ -14,6 +14,7 @@ class AlurIzinService
     {
         $mulai = posisi_index($posisiPemohon) + 1;
         $semua = [1, 2, 3, 4];
+
         return array_values(array_filter($semua, fn ($t) => $t >= $mulai));
     }
 
@@ -22,7 +23,7 @@ class AlurIzinService
         $query = User::where('status', 'aktif');
 
         if ($tahap === 1) {
-            $query->where('posisi', 'Koordinator/Kepala Unit/Ruang/Instalasi')
+            $query->where('posisi', 'in', $this->namaPenyetuju($tahap, 'Koordinator/Kepala Unit/Ruang/Instalasi'))
                 ->where('id', '!=', $pemohon['id'])
                 ->where('unit_kerja_id', $pemohon['unit_kerja_id']);
             if (! empty($pemohon['sub_unit_id'])) {
@@ -32,7 +33,7 @@ class AlurIzinService
             if (empty($pemohon['seksi_pembina_id'])) {
                 return null;
             }
-            $query->where('posisi', 'Kepala Seksi/Sub Bagian')
+            $query->where('posisi', 'in', $this->namaPenyetuju($tahap, 'Kepala Seksi/Sub Bagian'))
                 ->where('jabatan_id', $pemohon['seksi_pembina_id']);
         } elseif ($tahap === 3) {
             $seksiId = posisi_index($pemohon['posisi'] ?? 'Staf') >= 2 && ! empty($pemohon['jabatan_id'])
@@ -45,15 +46,21 @@ class AlurIzinService
             if (! $seksi || ! $seksi->induk_id) {
                 return null;
             }
-            $query->where('posisi', 'Kepala Bidang/Bagian')
+            $query->where('posisi', 'in', $this->namaPenyetuju($tahap, 'Kepala Bidang/Bagian'))
                 ->where('jabatan_id', $seksi->induk_id);
         } elseif ($tahap === 4) {
-            $query->where('posisi', 'HRD');
+            $query->where('posisi', 'in', $this->namaPenyetuju($tahap, 'HRD'));
         } else {
             return null;
         }
 
         return $query->first();
+    }
+
+    /** Nama posisi penyetuju suatu tahap dari master posisi_jabatan (fallback nama bawaan). */
+    private function namaPenyetuju(int $tahap, string $bawaan): array
+    {
+        return posisi_untuk_tingkat($tahap) ?: [$bawaan];
     }
 
     public function mulai(int $pengajuanId, array $pemohon): array
@@ -70,15 +77,19 @@ class AlurIzinService
                     'posisi_tahap' => label_tahap_izin($t),
                     'status' => 'Menunggu',
                 ]);
-                if (! $tahapAktif) $tahapAktif = $t;
+                if (! $tahapAktif) {
+                    $tahapAktif = $t;
+                }
             } elseif ($t === 4) {
                 IzinPersetujuan::create([
                     'pengajuan_id' => $pengajuanId,
                     'tahap' => 4,
-                    'posisi_tahap' => 'HRD',
+                    'posisi_tahap' => label_tahap_izin(4),
                     'status' => 'Menunggu',
                 ]);
-                if (! $tahapAktif) $tahapAktif = 4;
+                if (! $tahapAktif) {
+                    $tahapAktif = 4;
+                }
             } else {
                 IzinPersetujuan::create([
                     'pengajuan_id' => $pengajuanId,
@@ -105,6 +116,7 @@ class AlurIzinService
             return true;
         }
         $pejabat = $this->pejabatTahap((int) $pengajuan['tahap_aktif'], $pemohon);
+
         return $pejabat && $pejabat->id === $user->id;
     }
 
@@ -135,6 +147,7 @@ class AlurIzinService
                 'status' => 'Ditolak',
                 'processed_at' => Carbon::now(),
             ]);
+
             return 'Ditolak';
         }
 
@@ -152,6 +165,7 @@ class AlurIzinService
 
         if ($tahapBerikut) {
             Izin::where('id', $pengajuan['id'])->update(['tahap_aktif' => $tahapBerikut]);
+
             return 'Menunggu';
         }
 
@@ -164,6 +178,7 @@ class AlurIzinService
             'nomor_surat' => $nomor,
             'kode_verifikasi' => $kode,
         ]);
+
         return 'Disetujui';
     }
 
@@ -175,6 +190,7 @@ class AlurIzinService
             ->whereYear('processed_at', $tahun)
             ->whereNotNull('nomor_surat')
             ->count();
+
         return sprintf('800/%03d/RSUD-MRK/%02d/%d', $jml + 1, $bulan, $tahun);
     }
 }

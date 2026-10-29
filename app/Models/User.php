@@ -88,26 +88,27 @@ class User extends Authenticatable
     }
 
     /**
-     * Shift aktif pegawai diambil dari tabel jadwal_shift:
-     * baris dengan tanggal_berlaku = hari ini; bila belum jam 12 siang
-     * dan hari ini tidak ada jadwal, cek jadwal kemarin (lanjutan shift malam).
+     * Jadwal per tanggal mengalahkan template mingguan sub unit. Bila belum
+     * jam 12 siang dan hari ini tidak ada shift, cek kemarin untuk shift malam.
      */
     protected function shift(): Attribute
     {
         return Attribute::get(function () {
+            $jadwal = app(\App\Services\JadwalEfektifService::class);
             $hariIni = now()->toDateString();
+            $shift = $jadwal->shiftUntukTanggal($this, $hariIni);
 
-            $query = JadwalShift::with('shift:id,kategori,jam_masuk,jam_pulang,lintas_hari,aktif')
-                ->where('user_id', $this->id);
-
-            $jadwal = (clone $query)->where('tanggal_berlaku', $hariIni)->first();
-
-            if (! $jadwal && (int) now()->format('G') < 12) {
-                $jadwal = (clone $query)
-                    ->where('tanggal_berlaku', now()->subDay()->toDateString())->first();
+            if (! $shift && (int) now()->format('G') < 12) {
+                $kemarin = $jadwal->shiftUntukTanggal($this, now()->subDay()->toDateString());
+                $lintasHari = $kemarin && (
+                    $kemarin->lintas_hari
+                    || $kemarin->jam_pulang->format('H:i') <= $kemarin->jam_masuk->format('H:i')
+                    || $kemarin->kategori === 'Malam'
+                );
+                $shift = $lintasHari ? $kemarin : null;
             }
 
-            return $jadwal?->shift;
+            return $shift;
         });
     }
 

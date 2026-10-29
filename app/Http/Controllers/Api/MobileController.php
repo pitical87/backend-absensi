@@ -8,12 +8,10 @@ use App\Models\ApiToken;
 use App\Models\HariLibur;
 use App\Models\Izin;
 use App\Models\IzinPersetujuan;
-use App\Models\JadwalShift;
 use App\Models\LoginAttempt;
 use App\Models\Logbook;
 use App\Models\MappingSIMRSAccount;
 use App\Models\Profesi;
-use App\Models\Shift;
 use App\Models\SubUnit;
 use App\Models\TemplateLogbook;
 use App\Models\UnitKerja;
@@ -652,15 +650,7 @@ class MobileController extends Controller
     public function jadwal(Request $req): JsonResponse
     {
         $user = $req->get('user');
-        $today = now()->toDateString();
-
-        $jadwal = JadwalShift::where('user_id', $user->id)
-            ->where('tanggal_berlaku', '<=', $today)
-            ->orderByDesc('tanggal_berlaku')
-            ->first();
-
-        $shiftId = $jadwal ? (int) $jadwal->shift_id : $user->shift?->id;
-        $shift = $shiftId ? Shift::find($shiftId) : null;
+        $shift = $user->shift;
 
         return response()->json([
             'sukses' => true,

@@ -34,6 +34,23 @@ class V1Controller extends Controller
         }
     }
 
+    private function terapkanShiftEfektif($data)
+    {
+        $users = User::whereIn('id', collect($data)->pluck('id'))
+            ->get(['id', 'sub_unit_id']);
+        $shiftPerUser = app(\App\Services\JadwalEfektifService::class)
+            ->shiftsUntukPegawai($users, now()->toDateString());
+
+        foreach ($data as $pegawai) {
+            $shift = $shiftPerUser[(int) $pegawai->id] ?? null;
+            $pegawai->setAttribute('shift_kategori', $shift?->kategori);
+            $pegawai->setAttribute('shift_jam_masuk', $shift?->jam_masuk?->format('H:i:s'));
+            $pegawai->setAttribute('shift_jam_pulang', $shift?->jam_pulang?->format('H:i:s'));
+        }
+
+        return $data;
+    }
+
     public function ping(Request $request)
     {
         $this->cekAuth($request);
@@ -60,9 +77,10 @@ class V1Controller extends Controller
             ->leftJoin('jadwal_shift as js', function ($join) { $join->on('users.id', '=', 'js.user_id')->where('js.tanggal_berlaku', now()->toDateString()); })->leftJoin('shift as s', 's.id', '=', 'js.shift_id')
             ->leftJoin('jabatan as j', 'j.id', '=', 'users.jabatan_id')
             ->where('users.role', 'pegawai')
-            ->orderBy('users.nama_lengkap')->get()->all();
+            ->orderBy('users.nama_lengkap')->get();
+        $data = $this->terapkanShiftEfektif($data);
 
-        return response()->json(['sukses' => true, 'jumlah' => count($data), 'data' => $data]);
+        return response()->json(['sukses' => true, 'jumlah' => $data->count(), 'data' => $data->all()]);
     }
 
     public function getPegawai(Request $request, int $id)
@@ -86,6 +104,8 @@ class V1Controller extends Controller
         if (! $data) {
             return response()->json(['sukses' => false, 'pesan' => 'Pegawai tidak ditemukan.'], 404);
         }
+        $data = $this->terapkanShiftEfektif(collect([$data]))->first();
+
         return response()->json(['sukses' => true, 'data' => $data]);
     }
 

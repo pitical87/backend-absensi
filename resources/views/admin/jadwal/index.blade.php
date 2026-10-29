@@ -44,7 +44,8 @@
         <button type="submit" class="btn btn-navy btn-kecil">{!! ikon('unggah', 15) !!} Import Excel</button>
         <span class="teks-kecil teks-redup">
           Format: NIP/Email/Nama + kolom tanggal 01–{{ sprintf('%02d', $hariDalamBulan) }}. Jadwal
-          {{ BULAN_ID[$bulan] }} {{ $tahun }} untuk pegawai di file diganti penuh; sel kosong = libur.
+          {{ BULAN_ID[$bulan] }} {{ $tahun }} untuk pegawai di file diganti penuh; sel kosong mengikuti
+          template mingguan, atau libur jika tidak ada template.
         </span>
       </form>
     </div>
@@ -157,6 +158,9 @@
         </h2>
         <button type="submit" class="btn btn-primer btn-kecil">Simpan Semua</button>
       </div>
+      <p class="teks-redup teks-kecil px-3">
+        Tanggal tanpa jadwal khusus mengikuti template mingguan; jika tidak ada template, tanggal tersebut libur.
+      </p>
 
       <div class="tabel-bungkus overflow-x-auto">
         <table id="grid-unit" class="tabel jadwal-grid" style="min-width:{{ 180 + ($hariDalamBulan * 52) }}px">
