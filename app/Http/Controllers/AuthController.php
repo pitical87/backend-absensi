@@ -165,6 +165,10 @@ class AuthController extends Controller
         ]);
         if ($remember) {
             session()->put('remember_login_until', now()->addDay()->timestamp);
+            config([
+                'session.lifetime' => 24 * 60,
+                'session.expire_on_close' => false,
+            ]);
         }
         catat_aktivitas('Masuk', $u->nama_lengkap . ' (' . $u->role . ') masuk ke sistem');
 

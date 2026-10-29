@@ -20,9 +20,10 @@ class CheckAuth
             return redirect()->route('login');
         }
 
-        if (session('remember_login_until')) {
-            $until = (int) session('remember_login_until');
-            if (time() > $until) {
+        $rememberUntil = session('remember_login_until');
+        if ($rememberUntil !== null) {
+            $remainingSeconds = (int) $rememberUntil - time();
+            if ($remainingSeconds <= 0) {
                 session()->flush();
                 if ($request->expectsJson() || $request->isJson()) {
                     return response()->json([
@@ -32,6 +33,11 @@ class CheckAuth
                 }
                 return redirect()->route('login');
             }
+
+            config([
+                'session.lifetime' => max(1, (int) ceil($remainingSeconds / 60)),
+                'session.expire_on_close' => false,
+            ]);
         }
 
         return $next($request);
