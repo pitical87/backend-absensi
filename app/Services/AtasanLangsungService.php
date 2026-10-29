@@ -27,7 +27,7 @@ class AtasanLangsungService
             'verifikasi_logbook' => $punyaBawahan,
             'buat_jadwal' => $punyaBawahan,
             'verifikasi_ijin' => $punyaBawahan,
-            'verifikasi_lembur' => $punyaBawahan,
+            'verifikasi_lembur' => $punyaBawahan && pengaturan('aktifkan_lembur', '1') === '1',
             'verifikasi_perubahan_jadwal' => $punyaBawahan,
         ];
     }
@@ -43,16 +43,19 @@ class AtasanLangsungService
     }
 
     /**
-     * Bawahan langsung user: id, nama, dan email saja. Relasi atasan
-     * dicerminkan apa adanya, termasuk bila pegawainya sudah nonaktif, supaya
-     * klien tetap tahu menyeluruh siapa yang berada di bawah kewenangannya.
+     * Bawahan langsung beserta user saat ini: id, nama, dan email saja.
+     * Relasi atasan dicerminkan apa adanya, termasuk bila pegawainya sudah
+     * nonaktif, supaya klien bisa menampilkan atasan dan bawahannya bersama.
      */
     public function daftarBawahan(User $atasan)
     {
         return User::query()
-            ->whereIn('users.id', AtasanLangsung::where('atasan_id', $atasan->id)
-                ->where('user_id', '!=', $atasan->id)
-                ->select('user_id'))
+            ->where(function ($query) use ($atasan) {
+                $query->whereIn('users.id', AtasanLangsung::where('atasan_id', $atasan->id)
+                    ->where('user_id', '!=', $atasan->id)
+                    ->select('user_id'))
+                    ->orWhere('users.id', $atasan->id);
+            })
             ->orderBy('users.nama_lengkap')
             ->get(['users.id', 'users.nama_lengkap', 'users.email'])
             ->map(fn ($b) => [

@@ -488,9 +488,10 @@ class VerifikasiLogbookAtasanTest extends TestCase
             ->assertJsonPath('hak_akses.verifikasi_perubahan_jadwal', true);
 
         $bawahan = $respons->json('bawahan');
-        $this->assertCount(2, $bawahan);
-        $this->assertSame(['id' => $firman->id, 'nama' => 'Firman', 'email' => $firman->email], $bawahan[0]);
-        $this->assertSame(['id' => $rina->id, 'nama' => 'Rina Wijaya', 'email' => $rina->email], $bawahan[1]);
+        $this->assertCount(3, $bawahan);
+        $this->assertSame(['id' => $diana->id, 'nama' => 'Diana Sihombong', 'email' => $diana->email], $bawahan[0]);
+        $this->assertSame(['id' => $firman->id, 'nama' => 'Firman', 'email' => $firman->email], $bawahan[1]);
+        $this->assertSame(['id' => $rina->id, 'nama' => 'Rina Wijaya', 'email' => $rina->email], $bawahan[2]);
     }
 
     public function test_login_tanpa_bawahan_menghasilkan_hak_akses_semuanya_false(): void
@@ -510,7 +511,11 @@ class VerifikasiLogbookAtasanTest extends TestCase
                 'verifikasi_lembur' => false,
                 'verifikasi_perubahan_jadwal' => false,
             ])
-            ->assertJsonPath('bawahan', []);
+            ->assertJsonPath('bawahan', [[
+                'id' => $budi->id,
+                'nama' => 'Budi Santoso',
+                'email' => $budi->email,
+            ]]);
     }
 
     public function test_bawahan_yang_jadi_atasan_tidak_ikut_terdaftar(): void
@@ -525,11 +530,18 @@ class VerifikasiLogbookAtasanTest extends TestCase
             'password' => 'rahasia-kuat',
         ])->assertOk();
 
-        $this->assertSame([[
-            'id' => $diana->id,
-            'nama' => 'Diana Sihombong',
-            'email' => $diana->email,
-        ]], $respons->json('bawahan'));
+        $this->assertSame([
+            [
+                'id' => $diana->id,
+                'nama' => 'Diana Sihombong',
+                'email' => $diana->email,
+            ],
+            [
+                'id' => $firman->id,
+                'nama' => 'Firman',
+                'email' => $firman->email,
+            ],
+        ], $respons->json('bawahan'));
     }
 
     public function test_endpoint_me_ikut_mengembalikan_hak_akses_dan_bawahan(): void
@@ -543,7 +555,8 @@ class VerifikasiLogbookAtasanTest extends TestCase
             ->assertOk()
             ->assertJsonPath('hak_akses.verifikasi_logbook', true)
             ->assertJsonPath('hak_akses.buat_jadwal', true)
-            ->assertJsonPath('bawahan.0.nama', 'Firman');
+            ->assertJsonPath('bawahan.0.nama', 'Diana Sihombong')
+            ->assertJsonPath('bawahan.1.nama', 'Firman');
     }
 
     // ── Entri yang dibuat admin otomatis terverifikasi ─
