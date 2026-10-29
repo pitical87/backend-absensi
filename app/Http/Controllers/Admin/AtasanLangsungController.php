@@ -137,6 +137,7 @@ class AtasanLangsungController extends Controller
         $b = User::query()
             ->select('users.id', 'users.nama_lengkap', 'users.email', 'uk.nama AS unit_nama', 'su.nama AS sub_nama')
             ->where('users.role', '!=', 'admin')
+            ->where('users.status', 'aktif')
             ->leftJoin('unit_kerja as uk', 'uk.id', '=', 'users.unit_kerja_id')
             ->leftJoin('sub_unit as su', 'su.id', '=', 'users.sub_unit_id')
             ->orderBy('users.nama_lengkap');
@@ -190,8 +191,9 @@ class AtasanLangsungController extends Controller
 
     private function statistik(): array
     {
-        $total = (int) User::where('role', '!=', 'admin')->count();
-        $sudah = (int) AtasanLangsung::whereIn('user_id', User::query()->where('role', '!=', 'admin')->select('id'))
+        $pegawaiAktif = User::query()->where('role', '!=', 'admin')->where('status', 'aktif');
+        $total = (int) (clone $pegawaiAktif)->count();
+        $sudah = (int) AtasanLangsung::whereIn('user_id', (clone $pegawaiAktif)->select('id'))
             ->distinct()->count('user_id');
 
         return ['total' => $total, 'sudah' => $sudah, 'belum' => max(0, $total - $sudah)];

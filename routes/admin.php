@@ -85,6 +85,10 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::post('pegawai/hapus', [PegawaiController::class, 'hapus'])->name('admin.pegawai.hapus');
 
     Route::get('unit', [UnitController::class, 'index'])->name('admin.unit.index');
+    Route::get('unit/sub/{subUnit}/pegawai/kelola', [UnitController::class, 'pegawaiSubUntukKelola'])
+        ->name('admin.unit.sub.pegawai-kelola');
+    Route::get('unit/sub/{subUnit}/pegawai', [UnitController::class, 'pegawaiSubUntukHapus'])
+        ->name('admin.unit.sub.pegawai-hapus');
     Route::post('unit/aksi', [UnitController::class, 'aksi'])->name('admin.unit.aksi');
 
     Route::get('atasan_langsung', [AtasanLangsungController::class, 'index'])->name('admin.atasan_langsung.index');
@@ -133,6 +137,10 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::post('kehadiran/simpan', [KehadiranController::class, 'simpan'])->name('admin.kehadiran.simpan');
     Route::post('kehadiran/hapus', [KehadiranController::class, 'hapus'])->name('admin.kehadiran.hapus');
     Route::get('kehadiran/mencurigakan', [KehadiranController::class, 'mencurigakan'])->name('admin.kehadiran.mencurigakan');
+    Route::post('kehadiran/mencurigakan/notifikasi', [KehadiranController::class, 'kirimNotifikasiMencurigakan'])
+        ->name('admin.kehadiran.mencurigakan.notifikasi');
+    Route::post('kehadiran/mencurigakan/email', [KehadiranController::class, 'kirimEmailMencurigakan'])
+        ->name('admin.kehadiran.mencurigakan.email');
 
     Route::get('finger', [FingerController::class, 'index'])->name('admin.finger');
     Route::post('finger/mapping', [FingerController::class, 'simpanMapping'])->name('admin.finger.mapping.simpan');

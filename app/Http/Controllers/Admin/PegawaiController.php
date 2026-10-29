@@ -34,6 +34,19 @@ class PegawaiController extends Controller
 
     private const PER_HALAMAN = 20;
 
+    private const KOLOM_EKSPOR = [
+        'no' => 'No',
+        'nama' => 'Nama Lengkap',
+        'email' => 'Email',
+        'nip' => 'NIP',
+        'unit' => 'Bidang',
+        'sub_unit' => 'Sub Unit',
+        'profesi' => 'Profesi',
+        'jabatan' => 'Jabatan',
+        'status_pegawai' => 'Status Pegawai',
+        'status_akun' => 'Status Akun',
+    ];
+
     public function index(Request $request)
     {
         $password = app(PasswordService::class);
@@ -41,6 +54,7 @@ class PegawaiController extends Controller
         return view('admin.pegawai.index', $this->dataTabel($request) + [
             'judulHalaman' => 'Data Pegawai',
             'menuAktif' => 'pegawai',
+            'kolomEksporPilihan' => self::KOLOM_EKSPOR,
             'unitList' => UnitKerja::orderBy('id')->get()->all(),
             'subPerUnit' => $this->subPerUnit(),
             'jabatanList' => Jabatan::orderBy('kategori')->orderBy('nama')->get()->all(),
@@ -208,8 +222,11 @@ class PegawaiController extends Controller
     public function pdf(Request $request)
     {
         $daftar = $this->daftarEkspor($request);
+        $kolom = $this->kolomEkspor($request);
         $html = view('admin.pegawai.pdf', [
             'daftar' => $daftar,
+            'kolomEkspor' => $kolom,
+            'barisEkspor' => $this->barisEkspor($daftar, $kolom),
             'label' => $this->labelFilter($request),
             'namaInstansi' => pengaturan('nama_instansi', 'RSUD Merauke'),
             'tanggalCetak' => now()->format('d-m-Y H:i'),
@@ -224,7 +241,10 @@ class PegawaiController extends Controller
 
         catat_aktivitas('Ekspor PDF Pegawai', 'total '.$daftar->count().' pegawai');
 
-        return $dompdf->stream('data-pegawai-'.now()->format('Y-m-d').'.pdf');
+        return response($dompdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="data-pegawai-'.now()->format('Y-m-d').'.pdf"',
+        ]);
     }
 
     /**
@@ -233,37 +253,25 @@ class PegawaiController extends Controller
     public function excel(Request $request)
     {
         $daftar = $this->daftarEkspor($request);
+        $kolom = $this->kolomEkspor($request);
 
         $sheet = new Spreadsheet();
         $ws = $sheet->getActiveSheet();
         $ws->setTitle('Data Pegawai');
 
-        $judul = ['No', 'Nama Lengkap', 'Email', 'NIP', 'Bidang', 'Sub Bidang', 'Profesi', 'Jabatan', 'Status Pegawai', 'Status Akun'];
+        $judul = array_values($kolom);
         $ws->fromArray($judul, null, 'A1');
-        $ws->getStyle('A1:J1')->getFont()->setBold(true);
-        $ws->getStyle('A1:J1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+        $kolomAkhir = Coordinate::stringFromColumnIndex(count($judul));
+        $ws->getStyle('A1:'.$kolomAkhir.'1')->getFont()->setBold(true);
+        $ws->getStyle('A1:'.$kolomAkhir.'1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
             ->getStartColor()->setARGB('FFDCE9FA');
 
-        $no = 1;
-        $baris = 2;
-        foreach ($daftar as $p) {
-            $ws->fromArray([
-                $no++,
-                $p->nama_lengkap,
-                $p->email,
-                $p->nip,
-                $p->unit_nama,
-                $p->sub_nama,
-                $p->profesi_nama,
-                $p->jabatan_nama,
-                $p->status_pegawai,
-                $p->status === 'aktif' ? 'Aktif' : 'Nonaktif',
-            ], null, 'A'.$baris);
-            $baris++;
+        foreach ($this->barisEkspor($daftar, $kolom) as $indeks => $nilai) {
+            $ws->fromArray($nilai, null, 'A'.($indeks + 2));
         }
 
-        foreach (range('A', 'J') as $huruf) {
-            $ws->getColumnDimension($huruf)->setAutoSize(true);
+        for ($i = 1; $i <= count($judul); $i++) {
+            $ws->getColumnDimension(Coordinate::stringFromColumnIndex($i))->setAutoSize(true);
         }
 
         catat_aktivitas('Ekspor Excel Pegawai', 'total '.$daftar->count().' pegawai');
@@ -274,6 +282,52 @@ class PegawaiController extends Controller
 
         return response()->download($temp, 'data-pegawai-'.now()->format('Y-m-d').'.xlsx')
             ->deleteFileAfterSend(true);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function kolomEkspor(Request $request): array
+    {
+        $data = $request->validate([
+            'kolom' => ['sometimes', 'array', 'min:1'],
+            'kolom.*' => ['string', \Illuminate\Validation\Rule::in(array_keys(self::KOLOM_EKSPOR))],
+        ]);
+        $pilihan = array_values(array_unique($data['kolom'] ?? array_keys(self::KOLOM_EKSPOR)));
+
+        return array_intersect_key(self::KOLOM_EKSPOR, array_flip($pilihan));
+    }
+
+    /**
+     * @param  array<string, string>  $kolom
+     * @return array<int, array<int, mixed>>
+     */
+    private function barisEkspor(iterable $daftar, array $kolom): array
+    {
+        $baris = [];
+        $no = 1;
+
+        foreach ($daftar as $pegawai) {
+            $nilai = [];
+            foreach (array_keys($kolom) as $kode) {
+                $nilai[] = match ($kode) {
+                    'no' => $no,
+                    'nama' => $pegawai->nama_lengkap,
+                    'email' => $pegawai->email,
+                    'nip' => $pegawai->nip,
+                    'unit' => $pegawai->unit_nama,
+                    'sub_unit' => $pegawai->sub_nama,
+                    'profesi' => $pegawai->profesi_nama,
+                    'jabatan' => $pegawai->jabatan_nama ?? ($pegawai->jabatan_kategori ?? 'Staf/Pelaksana'),
+                    'status_pegawai' => $pegawai->status_pegawai,
+                    'status_akun' => $pegawai->status === 'aktif' ? 'Aktif' : 'Nonaktif',
+                };
+            }
+            $baris[] = $nilai;
+            $no++;
+        }
+
+        return $baris;
     }
 
     public function form(StrukturService $struktur, int $id = 0)
@@ -320,12 +374,12 @@ class PegawaiController extends Controller
                 $struktur->pilihan()['Kepala Sub Bagian'] ?? []
             ),
             'atasanPilihan' => User::where('role', '!=', 'admin')
+                ->where('status', 'aktif')
                 ->when($edit, fn ($q) => $q->where('id', '!=', $edit->id))
                 ->orderBy('nama_lengkap')->get(['id', 'nama_lengkap']),
             'atasanTerpilih' => $edit
                 ? AtasanLangsung::where('user_id', $edit->id)->pluck('atasan_id')->map(fn ($v) => (int) $v)->all()
                 : [],
-            'atasanUnitMap' => UnitKerja::pluck('atasan_id', 'id'),
             'atasanSubMap' => SubUnit::pluck('atasan_id', 'id'),
             'passwordDefault' => pengaturan('password_default_pegawai', 'pegawai123'),
         ]);
@@ -355,8 +409,12 @@ class PegawaiController extends Controller
             throw ValidationException::withMessages(['posisi' => $galatPosisi]);
         }
 
-        $data['status_pegawai'] = $request->boolean('status_pegawai') ? 'PNS' : 'Non-PNS';
+        $data['status_pegawai'] = $request->input('status_pegawai') === 'PNS' ? 'PNS' : 'Non-PNS';
+        if ($data['status_pegawai'] !== 'PNS') {
+            $data['nip'] = null;
+        }
         $data['role'] = 'pegawai';
+        unset($data['status']);
 
         $pakaiDefault = $request->boolean('password_default');
         $password = $pakaiDefault
@@ -377,31 +435,41 @@ class PegawaiController extends Controller
                 $user->save();
 
                 self::aturJadwalHariIni($user->id, $shiftHariIni);
-                if ($request->has('atasan')) {
-                    $atasanServis->sinkron($user->id, (array) $request->input('atasan'));
-                } else {
-                    $atasanServis->warisiOtomatis($user);
-                }
+                $this->tambahAtasanDariSubUnit($user, $request, $atasanServis);
                 catat_aktivitas('Ubah Pegawai', $data['nama_lengkap'].' ('.$data['email'].')');
 
                 return 'Data pegawai diperbarui.';
             }
 
             $data['password_hash'] = Hash::make($password);
+            $data['status'] = 'aktif';
             $user = User::create($data);
 
             self::aturJadwalHariIni($user->id, $shiftHariIni);
-            if ($request->has('atasan')) {
-                $atasanServis->sinkron($user->id, (array) $request->input('atasan'));
-            } else {
-                $atasanServis->warisiOtomatis($user);
-            }
+            $this->tambahAtasanDariSubUnit($user, $request, $atasanServis);
             catat_aktivitas('Tambah Pegawai', $data['nama_lengkap'].' ('.$data['email'].')');
 
             return 'Pegawai baru berhasil ditambahkan.';
         });
 
         return redirect('admin/pegawai')->with('success', $pesan);
+    }
+
+    private function tambahAtasanDariSubUnit(User $user, Request $request, AtasanLangsungService $atasanServis): void
+    {
+        $atasanSubId = $user->sub_unit_id
+            ? SubUnit::whereKey($user->sub_unit_id)->value('atasan_id')
+            : null;
+        $atasanSub = $atasanSubId && (int) $atasanSubId !== (int) $user->id
+            ? User::whereKey($atasanSubId)->where('role', '!=', 'admin')->where('status', 'aktif')->value('id')
+            : null;
+        $atasanIds = $atasanSub
+            ? [(int) $atasanSub]
+            : (array) $request->input('atasan', []);
+
+        if ($atasanIds !== []) {
+            $atasanServis->sinkronBanyak([$user->id], $atasanIds, 'tambah');
+        }
     }
 
     /**

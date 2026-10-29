@@ -7,7 +7,9 @@ use App\Models\LogLokasi;
 use App\Models\Shift;
 use App\Models\UnitKerja;
 use App\Models\User;
+use App\Mail\AbsenMencurigakanMail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 class KehadiranTest extends TestCase
@@ -72,6 +74,8 @@ class KehadiranTest extends TestCase
             ->assertSee('id="btn-terapkan-semua"', false)
             ->assertSee('id="modal-peta-absen"', false)
             ->assertSee('id="modal-anomali"', false)
+            ->assertSee('id="modal-email-mencurigakan"', false)
+            ->assertSee('id="form-email-mencurigakan"', false)
             ->assertSee('id="panel-percobaan"', false)
             ->assertSee('id="tbody-percobaan"', false);
     }
@@ -149,6 +153,114 @@ class KehadiranTest extends TestCase
         $html = $this->getJson(route('admin.kehadiran.percobaan', ['tanggal' => $this->tanggal]))->json('html');
         $this->assertStringContainsString('Rina Dewi', $html);
         $this->assertStringContainsString('320 m', $html);
+    }
+
+    public function test_admin_dapat_mengirim_notifikasi_ke_pegawai_mencurigakan_terpilih(): void
+    {
+        $this->admin();
+        $pegawai = $this->pegawai('Pegawai Mencurigakan');
+
+        foreach (['2026-03-10', '2026-03-11', '2026-03-12', '2026-03-13'] as $tanggal) {
+            $this->absensi($pegawai, [
+                'tanggal' => $tanggal,
+                'waktu_masuk' => $tanggal.' 08:00:00',
+            ]);
+        }
+
+        $html = $this->getJson(route('admin.kehadiran.mencurigakan', ['bulan' => 3, 'tahun' => 2026]))
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->json('html');
+        $this->assertStringContainsString('data-user="'.$pegawai->id.'"', $html);
+
+        $this->postJson(route('admin.kehadiran.mencurigakan.notifikasi'), [
+            'bulan' => 3,
+            'tahun' => 2026,
+            'user_ids' => [$pegawai->id],
+        ])->assertOk()
+            ->assertJsonPath('sukses', true)
+            ->assertJsonPath('terkirim', 1);
+
+        $this->assertDatabaseHas('notifikasis', [
+            'user_id' => $pegawai->id,
+            'tipe' => 'warning',
+            'kategori' => 'keamanan',
+            'is_read' => false,
+        ]);
+    }
+
+    public function test_notifikasi_mencurigakan_menolak_pegawai_yang_tidak_terdeteksi(): void
+    {
+        $this->admin();
+        $pegawai = $this->pegawai('Pegawai Normal');
+
+        $this->postJson(route('admin.kehadiran.mencurigakan.notifikasi'), [
+            'bulan' => 3,
+            'tahun' => 2026,
+            'user_ids' => [$pegawai->id],
+        ])->assertStatus(422)
+            ->assertJsonPath('sukses', false);
+
+        $this->assertDatabaseMissing('notifikasis', ['user_id' => $pegawai->id]);
+    }
+
+    public function test_admin_dapat_mengirim_email_dengan_subjek_dan_pesan_yang_diedit(): void
+    {
+        Mail::fake();
+        $this->admin();
+        $pegawai = $this->pegawai('Pegawai Email');
+
+        foreach (['2026-03-10', '2026-03-11', '2026-03-12', '2026-03-13'] as $tanggal) {
+            $this->absensi($pegawai, [
+                'tanggal' => $tanggal,
+                'waktu_masuk' => $tanggal.' 08:00:00',
+            ]);
+        }
+
+        $this->getJson(route('admin.kehadiran.mencurigakan', ['bulan' => 3, 'tahun' => 2026]))
+            ->assertOk()
+            ->assertJsonPath('total', 1);
+
+        $this->postJson(route('admin.kehadiran.mencurigakan.email'), [
+            'bulan' => 3,
+            'tahun' => 2026,
+            'user_ids' => [$pegawai->id],
+            'subjek' => 'Mohon klarifikasi absensi',
+            'pesan' => "Halo Pegawai Email,\nMohon periksa catatan absensi.",
+        ])->assertOk()
+            ->assertJsonPath('sukses', true)
+            ->assertJsonPath('terkirim', 1);
+
+        Mail::assertSent(AbsenMencurigakanMail::class, function (AbsenMencurigakanMail $mail) use ($pegawai) {
+            return $mail->hasTo($pegawai->email)
+                && $mail->subjekEmail === 'Mohon klarifikasi absensi'
+                && $mail->isiPesan === "Halo Pegawai Email,\nMohon periksa catatan absensi.";
+        });
+    }
+
+    public function test_email_mencurigakan_menolak_penerima_dengan_email_tidak_valid(): void
+    {
+        Mail::fake();
+        $this->admin();
+        $pegawai = $this->pegawai('Pegawai Email Tidak Valid', ['email' => 'email-tidak-valid']);
+
+        foreach (['2026-03-10', '2026-03-11', '2026-03-12', '2026-03-13'] as $tanggal) {
+            $this->absensi($pegawai, [
+                'tanggal' => $tanggal,
+                'waktu_masuk' => $tanggal.' 08:00:00',
+            ]);
+        }
+
+        $this->postJson(route('admin.kehadiran.mencurigakan.email'), [
+            'bulan' => 3,
+            'tahun' => 2026,
+            'user_ids' => [$pegawai->id],
+            'subjek' => 'Mohon klarifikasi absensi',
+            'pesan' => 'Silakan klarifikasi.',
+        ])->assertStatus(422)
+            ->assertJsonPath('sukses', false);
+
+        Mail::assertNothingSent();
     }
 
     public function test_halaman_index_memuat_shell_lazy(): void

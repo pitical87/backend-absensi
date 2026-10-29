@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Mail\AbsenMencurigakanMail;
 use App\Models\Absensi;
 use App\Models\HariLibur;
 use App\Models\LogLokasi;
@@ -13,6 +14,8 @@ use DateTime;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
+use Throwable;
 
 class KehadiranController extends Controller
 {
@@ -84,6 +87,140 @@ class KehadiranController extends Controller
             'label' => BULAN_ID[$bulan].' '.$tahun,
             'html' => view('admin.kehadiran.mencurigakan_rows', ['rows' => $rows])->render(),
         ]);
+    }
+
+    public function kirimNotifikasiMencurigakan(Request $request)
+    {
+        $ids = $request->input('user_ids');
+        if (! is_array($ids) || $ids === []) {
+            return response()->json(['sukses' => false, 'pesan' => 'Pilih minimal satu pegawai.'], 422);
+        }
+
+        $ids = array_values(array_unique(array_filter(array_map(
+            static fn ($id) => filter_var($id, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: null,
+            $ids
+        ))));
+        if ($ids === []) {
+            return response()->json(['sukses' => false, 'pesan' => 'Pilihan pegawai tidak valid.'], 422);
+        }
+
+        $bulan = (int) $request->input('bulan');
+        $tahun = (int) $request->input('tahun');
+        if ($bulan < 1 || $bulan > 12 || $tahun < 2000 || $tahun > 2100) {
+            return response()->json(['sukses' => false, 'pesan' => 'Periode pemeriksaan tidak valid.'], 422);
+        }
+
+        $mencurigakan = collect($this->penggunaMencurigakan($bulan, $tahun))
+            ->pluck('user_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+        $penerima = array_values(array_intersect($ids, $mencurigakan));
+        if (count($penerima) !== count($ids)) {
+            return response()->json([
+                'sukses' => false,
+                'pesan' => 'Daftar pegawai terpilih sudah berubah. Silakan scan ulang sebelum mengirim notifikasi.',
+            ], 422);
+        }
+
+        $isi = 'Terdapat pola absensi mencurigakan pada akun anda di '.BULAN_ID[$bulan].' '.$tahun
+            .'.';
+        $terkirim = buat_notifikasi_banyak($penerima, $isi, 'warning', null, 'keamanan');
+        if ($terkirim === 0) {
+            return response()->json([
+                'sukses' => false,
+                'pesan' => 'Notifikasi tidak berhasil disimpan. Silakan coba lagi.',
+            ], 500);
+        }
+
+        catat_aktivitas('Kirim Notifikasi Absen Mencurigakan', $terkirim.' pegawai — '.BULAN_ID[$bulan].' '.$tahun);
+
+        return response()->json([
+            'sukses' => true,
+            'pesan' => 'Notifikasi berhasil dikirim ke '.$terkirim.' pegawai.',
+            'terkirim' => $terkirim,
+        ]);
+    }
+
+    public function kirimEmailMencurigakan(Request $request)
+    {
+        $validated = $request->validate([
+            'user_ids' => ['required', 'array', 'min:1', 'max:100'],
+            'user_ids.*' => ['required', 'integer', 'distinct', 'min:1'],
+            'bulan' => ['required', 'integer', 'between:1,12'],
+            'tahun' => ['required', 'integer', 'between:2000,2100'],
+            'subjek' => ['required', 'string', 'max:180', 'not_regex:/[\\r\\n]/'],
+            'pesan' => ['required', 'string', 'max:10000'],
+        ]);
+
+        $ids = array_map('intval', $validated['user_ids']);
+        $mencurigakan = collect($this->penggunaMencurigakan(
+            (int) $validated['bulan'],
+            (int) $validated['tahun'],
+        ))->pluck('user_id')->map(fn ($id) => (int) $id)->all();
+
+        if (array_diff($ids, $mencurigakan) !== []) {
+            return response()->json([
+                'sukses' => false,
+                'pesan' => 'Daftar pegawai terpilih sudah berubah. Silakan scan ulang sebelum mengirim email.',
+            ], 422);
+        }
+
+        $penerima = User::whereIn('id', $ids)
+            ->where('role', '!=', 'admin')
+            ->where('status', 'aktif')
+            ->get(['id', 'nama_lengkap', 'email'])
+            ->keyBy('id');
+        if ($penerima->count() !== count($ids)) {
+            return response()->json([
+                'sukses' => false,
+                'pesan' => 'Sebagian pegawai tidak ditemukan atau sudah tidak aktif. Scan ulang sebelum mengirim email.',
+            ], 422);
+        }
+
+        $tanpaEmail = $penerima->filter(fn (User $user) => ! filter_var($user->email, FILTER_VALIDATE_EMAIL));
+        if ($tanpaEmail->isNotEmpty()) {
+            return response()->json([
+                'sukses' => false,
+                'pesan' => 'Email belum tersedia atau tidak valid untuk: '.$tanpaEmail->pluck('nama_lengkap')->implode(', '),
+            ], 422);
+        }
+
+        $terkirim = 0;
+        $gagal = [];
+        foreach ($penerima as $user) {
+            try {
+                Mail::to($user->email)->send(new AbsenMencurigakanMail(
+                    $user->nama_lengkap,
+                    $validated['pesan'],
+                    $validated['subjek'],
+                ));
+                $terkirim++;
+            } catch (Throwable $e) {
+                report($e);
+                $gagal[] = $user->nama_lengkap;
+            }
+        }
+
+        if ($terkirim === 0) {
+            return response()->json([
+                'sukses' => false,
+                'pesan' => 'Email tidak berhasil dikirim ke penerima mana pun. Periksa konfigurasi email lalu coba lagi.',
+            ], 500);
+        }
+
+        catat_aktivitas(
+            'Kirim Email Absen Mencurigakan',
+            $terkirim.' terkirim, '.count($gagal).' gagal — '.BULAN_ID[(int) $validated['bulan']].' '.$validated['tahun']
+        );
+
+        return response()->json([
+            'sukses' => $gagal === [],
+            'pesan' => $gagal === []
+                ? 'Email berhasil dikirim ke '.$terkirim.' pegawai.'
+                : 'Email terkirim ke '.$terkirim.' pegawai, tetapi gagal ke: '.implode(', ', $gagal).'.',
+            'terkirim' => $terkirim,
+            'gagal' => count($gagal),
+        ], $gagal === [] ? 200 : 502);
     }
 
     /**
@@ -662,6 +799,7 @@ class KehadiranController extends Controller
             }
 
             $hasil[] = [
+                'user_id' => (int) $uid,
                 'nama' => $d['user']?->nama_lengkap,
                 'email' => $d['user']?->email,
                 'masuk' => $masuk,

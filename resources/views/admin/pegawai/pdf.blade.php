@@ -33,30 +33,21 @@
 <table>
   <thead>
     <tr>
-      <th class="angka" style="width:26px">No</th>
-      <th>Nama Pegawai</th>
-      <th style="width:110px">NIP</th>
-      <th>Jabatan</th>
-      <th>Bidang</th>
-      <th>Sub Bidang</th>
-      <th>Status Pegawai</th>
+      @foreach($kolomEkspor as $judulKolom)
+      <th>{{ $judulKolom }}</th>
+      @endforeach
     </tr>
   </thead>
   <tbody>
-    @php $no = 1; @endphp
-    @foreach($daftar as $p)
+    @foreach($barisEkspor as $baris)
     <tr>
-      <td class="angka">{{ $no++ }}</td>
-      <td>{{ $p->nama_lengkap }}</td>
-      <td class="angka">{{ $p->nip ?: '—' }}</td>
-      <td>{{ $p->jabatan_nama ?? ($p->jabatan_kategori ?? 'Staf/Pelaksana') }}</td>
-      <td>{{ $p->unit_nama ?? '—' }}</td>
-      <td>{{ $p->sub_nama ?: '—' }}</td>
-      <td class="angka">{{ $p->status_pegawai }}</td>
+      @foreach($baris as $nilai)
+      <td>{{ $nilai ?: '—' }}</td>
+      @endforeach
     </tr>
     @endforeach
     @if($daftar->isEmpty())
-    <tr><td colspan="7" style="text-align:center;color:#666">Tidak ada data pegawai.</td></tr>
+    <tr><td colspan="{{ count($kolomEkspor) }}" style="text-align:center;color:#666">Tidak ada data pegawai.</td></tr>
     @endif
   </tbody>
 </table>

@@ -62,7 +62,7 @@
   <section class="kartu mb-0 flex flex-col justify-between">
     <div>
       <div class="kartu-kepala">
-        <h2>{!! ikon('jam') !!} Absen Lebih Awal, Lebih Akhir & Sesuai Jam Bulan {{ BULAN_ID[(int) now()->format('n')] }} {{ now()->format('Y') }}</h2>
+        <h2>{!! ikon('jam') !!} Ketepatan absen {{ BULAN_ID[(int) now()->format('n')] }} {{ now()->format('Y') }}</h2>
         <span class="teks-redup teks-kecil">toleransi ±{{ $lewatJadwal['toleransi'] }} menit · {{ $lewatJadwal['total'] }} pegawai melebihi jadwal</span>
       </div>
       @if($lewatJadwal['ada_data'])

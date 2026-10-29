@@ -57,6 +57,37 @@ class PasswordDefaultPegawaiTest extends TestCase
         $this->assertTrue(Hash::check('rahasia-default', $u->password_hash));
     }
 
+    public function test_pegawai_baru_selalu_memiliki_status_akun_aktif(): void
+    {
+        [$unitId, $profId] = $this->siap();
+
+        $this->post('admin/pegawai/simpan', [
+            'nama_lengkap' => 'Pegawai Aktif Otomatis',
+            'email' => 'pegawai.aktif@example.com',
+            'unit_kerja_id' => $unitId,
+            'profesi_id' => $profId,
+            'password_default' => '1',
+            'jabatan_kategori' => 'Staf/Pelaksana',
+            'posisi' => 'Staf',
+            'status' => 'nonaktif',
+        ])->assertRedirect('admin/pegawai');
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'pegawai.aktif@example.com',
+            'status' => 'aktif',
+        ]);
+    }
+
+    public function test_form_pegawai_tidak_menampilkan_pilihan_status_akun(): void
+    {
+        $this->siap();
+
+        $this->get('admin/pegawai/form')
+            ->assertOk()
+            ->assertSee('Status akun pegawai baru otomatis Aktif.')
+            ->assertDontSee('<select name="status">', false);
+    }
+
     public function test_edit_tanpa_centang_tidak_mengubah_password(): void
     {
         [$unitId, $profId] = $this->siap();

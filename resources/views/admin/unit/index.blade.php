@@ -84,6 +84,104 @@
   </div>
 </div>
 
+{{-- ===== MODAL KELOLA PEGAWAI SUB UNIT ===== --}}
+<div id="modal-pegawai-sub" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4"
+     onclick="if(event.target===this) window.unitTutup('modal-pegawai-sub')">
+  <div class="kartu w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+    <div class="flex items-start justify-between gap-3 mb-3">
+      <div>
+        <h3 class="text-base font-bold text-navy">Pegawai :  <span id="pegawai-sub-nama" class=" teks-primary"></span></h3>
+
+      </div>
+      <button type="button" class="btn btn-garis btn-kecil" data-tutup-modal="modal-pegawai-sub">×</button>
+    </div>
+    <label class="blok mb-3">
+      <input type="text" id="pegawai-sub-cari" placeholder="Cari nama atau email…" autocomplete="off">
+    </label>
+    <div class="tabel-bungkus max-h-[60vh] overflow-auto">
+      <table class="tabel min-w-[600px]">
+        <thead>
+          <tr><th>Nama</th><th>Email</th><th class="w-[170px]">Aksi</th></tr>
+        </thead>
+        <tbody id="pegawai-sub-daftar">
+          <tr><td colspan="3" class="teks-redup">Memuat daftar pegawai…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{{-- ===== MODAL HAPUS SUB UNIT ===== --}}
+<div id="modal-hapus-sub" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4"
+     onclick="if(event.target===this) window.unitTutup('modal-hapus-sub')">
+  <div class="kartu w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+    <div class="flex items-start justify-between gap-3 mb-3">
+      <h3 class="text-base font-bold text-navy">Hapus Sub Unit</h3>
+      <button type="button" class="btn btn-garis btn-kecil" data-tutup-modal="modal-hapus-sub">×</button>
+    </div>
+    <p class="teks-kecil mb-3">
+      Tentukan tindakan untuk pegawai pada sub unit <strong id="hapus-sub-nama"></strong> sebelum sub unit dihapus.
+    </p>
+    <form method="post" action="{{ url('admin/unit/aksi') }}" data-ajax="hapus_sub">
+      @csrf
+      <input type="hidden" name="aksi" value="hapus_sub">
+      <input type="hidden" name="id" id="hapus-sub-id">
+      <input type="hidden" name="unit_kerja_id" id="hapus-sub-unit-id">
+      <fieldset class="border border-garis rounded-lg p-3 mb-4">
+        <legend class="teks-kecil font-semibold px-1">Pilih tindakan</legend>
+        <div class="flex flex-col sm:flex-row gap-3">
+          <label class="flex items-start gap-2 rounded-lg border border-garis p-3 cursor-pointer flex-1">
+            <input type="radio" name="mode_hapus_sub" value="pindahkan" class="mt-1 w-auto">
+            <span>
+              <span class="font-semibold block">Pindahkan pegawai</span>
+              <span class="teks-redup teks-kecil">Atur sub unit tujuan untuk setiap pegawai.</span>
+            </span>
+          </label>
+          <label class="flex items-start gap-2 rounded-lg border border-garis p-3 cursor-pointer flex-1">
+            <input type="radio" name="mode_hapus_sub" value="nonaktifkan" class="mt-1 w-auto">
+            <span>
+              <span class="font-semibold block">Nonaktifkan pegawai</span>
+              <span class="teks-redup teks-kecil">Pegawai dinonaktifkan dan dilepas dari sub unit ini.</span>
+            </span>
+          </label>
+        </div>
+      </fieldset>
+      <div id="hapus-sub-tabel-bungkus" class="border border-garis rounded-lg p-3 mb-4 hidden">
+        <div class="font-semibold teks-kecil mb-2">Pegawai terdampak (<span id="hapus-sub-jumlah">0</span>)</div>
+        <div id="hapus-sub-semua-bungkus" class="flex flex-wrap items-end gap-2 mb-3">
+          <div class="flex-1 min-w-[220px]">
+            <label class="teks-kecil mb-1 block" for="hapus-sub-semua-tujuan">Pindahkan semua ke</label>
+            <select id="hapus-sub-semua-tujuan">
+              <option value="">Pilih tujuan untuk semua pegawai</option>
+            </select>
+          </div>
+          <button type="button" class="btn btn-navy btn-kecil" id="hapus-sub-terapkan-semua" disabled>
+            Terapkan ke semua
+          </button>
+        </div>
+        <div class="tabel-bungkus max-h-72 overflow-auto">
+          <table class="tabel min-w-[640px]">
+            <thead>
+              <tr>
+                <th>Nama</th>
+                <th>Email</th>
+                <th id="hapus-sub-kolom-tindakan">Pilih unit</th>
+              </tr>
+            </thead>
+            <tbody id="hapus-sub-pegawai">
+              <tr><td colspan="3" class="teks-redup">Memuat daftar pegawai…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 mt-5">
+        <button type="button" class="btn btn-garis" data-tutup-modal="modal-hapus-sub">Batal</button>
+        <button type="submit" class="btn btn-bahaya" id="hapus-sub-submit" disabled>Hapus Sub Unit</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 @endsection
 
 @section('script')
@@ -110,6 +208,8 @@ window.PEGAWAI_UNIT = {!! $daftarPegawaiJson !!};
     var urlAksi  = '{{ route('admin.unit.aksi') }}';
 
     var tab = '{{ $tabAktif }}';
+    var subUnitKelolaAktif = null;
+    var daftarPegawaiSubAktif = [];
 
     function tampilPesan(teks, berhasil) {
       if (! teks) {
@@ -159,6 +259,217 @@ window.PEGAWAI_UNIT = {!! $daftarPegawaiJson !!};
       m.classList.add('hidden');
       m.classList.remove('flex');
     };
+
+    function gambarPegawaiSub(pegawai) {
+      var tbody = document.getElementById('pegawai-sub-daftar');
+      var q = (document.getElementById('pegawai-sub-cari').value || '').trim().toLowerCase();
+      var hasil = pegawai.filter(function (p) {
+        return !q || (p.nama + ' ' + (p.email || '')).toLowerCase().indexOf(q) !== -1;
+      });
+
+      tbody.innerHTML = '';
+      if (!hasil.length) {
+        var kosong = document.createElement('tr');
+        var cell = document.createElement('td');
+        cell.colSpan = 3;
+        cell.className = 'tengah teks-redup py-4';
+        cell.textContent = 'Tidak ada pegawai yang cocok.';
+        kosong.appendChild(cell);
+        tbody.appendChild(kosong);
+        return;
+      }
+
+      hasil.forEach(function (p) {
+        var baris = document.createElement('tr');
+        var nama = document.createElement('td');
+        nama.className = 'font-medium';
+        nama.textContent = p.nama;
+        var email = document.createElement('td');
+        email.className = 'teks-kecil';
+        email.textContent = p.email || '—';
+        var aksi = document.createElement('td');
+        if (p.di_sub_unit) {
+          var sudah = document.createElement('span');
+          sudah.className = 'badge badge-hijau';
+          sudah.textContent = 'Sudah di sini';
+          aksi.appendChild(sudah);
+        } else {
+          var pindah = document.createElement('button');
+          pindah.type = 'button';
+          pindah.className = 'btn btn-primer btn-kecil';
+          pindah.textContent = p.unit_kerja_id === Number(subUnitKelolaAktif.unitKerjaId)
+            ? 'Pindahkan ke sini'
+            : 'Pindahkan dari unit lain';
+          pindah.setAttribute('data-pindahkan-ke-sub', '');
+          pindah.dataset.userId = p.id;
+          pindah.dataset.subUnitId = subUnitKelolaAktif.id;
+          pindah.dataset.unitKerjaId = subUnitKelolaAktif.unitKerjaId;
+          aksi.appendChild(pindah);
+        }
+        baris.appendChild(nama);
+        baris.appendChild(email);
+        baris.appendChild(aksi);
+        tbody.appendChild(baris);
+      });
+    }
+
+    function muatPegawaiSub(subUnitId, nama, unitKerjaId) {
+      subUnitKelolaAktif = { id: subUnitId, nama: nama, unitKerjaId: unitKerjaId };
+      document.getElementById('pegawai-sub-nama').textContent = nama;
+      document.getElementById('pegawai-sub-cari').value = '';
+      document.getElementById('pegawai-sub-daftar').innerHTML =
+        '<tr><td colspan="3" class="teks-redup">Memuat daftar pegawai…</td></tr>';
+      bukaModal('modal-pegawai-sub');
+
+      return fetch('{{ url('admin/unit/sub') }}/' + encodeURIComponent(subUnitId) + '/pegawai/kelola', {
+        headers: { 'Accept': 'application/json' }
+      })
+        .then(function (r) {
+          if (!r.ok) throw new Error('Daftar pegawai tidak dapat dimuat.');
+          return r.json();
+        })
+        .then(function (data) {
+          subUnitKelolaAktif.unitKerjaId = data.sub_unit.unit_kerja_id;
+          daftarPegawaiSubAktif = data.pegawai || [];
+          gambarPegawaiSub(daftarPegawaiSubAktif);
+        })
+        .catch(function (error) {
+          var tbody = document.getElementById('pegawai-sub-daftar');
+          tbody.innerHTML = '';
+          var row = document.createElement('tr');
+          var cell = document.createElement('td');
+          cell.colSpan = 3;
+          cell.className = 'teks-merah';
+          cell.textContent = error.message || 'Gagal memuat pegawai.';
+          row.appendChild(cell);
+          tbody.appendChild(row);
+        });
+    }
+
+    document.getElementById('pegawai-sub-cari').addEventListener('input', function () {
+      gambarPegawaiSub(daftarPegawaiSubAktif);
+    });
+
+    function isiModalHapusSub(tombol) {
+      var id = tombol.getAttribute('data-id') || '';
+      var nama = tombol.getAttribute('data-nama') || '';
+      var unitId = tombol.getAttribute('data-unit-kerja-id') || '';
+      var daftar = document.getElementById('hapus-sub-pegawai');
+      var tujuanSemua = document.getElementById('hapus-sub-semua-tujuan');
+      var terapkanSemua = document.getElementById('hapus-sub-terapkan-semua');
+      var tabelBungkus = document.getElementById('hapus-sub-tabel-bungkus');
+      var semuaBungkus = document.getElementById('hapus-sub-semua-bungkus');
+      var kolomTindakan = document.getElementById('hapus-sub-kolom-tindakan');
+      var submit = document.getElementById('hapus-sub-submit');
+
+      document.querySelectorAll('input[name="mode_hapus_sub"]').forEach(function (radio) {
+        radio.checked = false;
+      });
+      document.getElementById('hapus-sub-id').value = id;
+      document.getElementById('hapus-sub-unit-id').value = unitId;
+      document.getElementById('hapus-sub-nama').textContent = nama;
+      document.getElementById('hapus-sub-jumlah').textContent = '…';
+      daftar.innerHTML = '<tr><td colspan="3" class="teks-redup">Memuat daftar pegawai…</td></tr>';
+      tujuanSemua.innerHTML = '<option value="">Pilih tujuan untuk semua pegawai</option>';
+      terapkanSemua.disabled = true;
+      tabelBungkus.classList.add('hidden');
+      delete tabelBungkus.dataset.siap;
+      semuaBungkus.classList.remove('hidden');
+      kolomTindakan.textContent = 'Pilih unit';
+      submit.disabled = true;
+      bukaModal('modal-hapus-sub');
+
+      fetch('{{ url('admin/unit/sub') }}/' + encodeURIComponent(id) + '/pegawai', {
+        headers: { 'Accept': 'application/json' }
+      })
+        .then(function (r) {
+          if (! r.ok) throw new Error('Daftar pegawai tidak dapat dimuat.');
+          return r.json();
+        })
+        .then(function (data) {
+          daftar.innerHTML = '';
+          document.getElementById('hapus-sub-jumlah').textContent = String(data.pegawai.length);
+
+          if (! data.pegawai.length) {
+            var kosong = document.createElement('tr');
+            kosong.innerHTML = '<td colspan="3" class="teks-redup">Tidak ada pegawai pada sub unit ini.</td>';
+            daftar.appendChild(kosong);
+          }
+
+          data.tujuan.forEach(function (item) {
+            var opsi = document.createElement('option');
+            opsi.value = item.id;
+            opsi.textContent = item.nama;
+            tujuanSemua.appendChild(opsi);
+          });
+          var tanpaSub = document.createElement('option');
+          tanpaSub.value = 'none';
+          tanpaSub.textContent = 'Tetap di unit kerja tanpa sub unit';
+          tujuanSemua.appendChild(tanpaSub);
+
+          data.pegawai.forEach(function (pegawai) {
+            var item = document.createElement('tr');
+            item.setAttribute('data-pegawai-id', pegawai.id);
+
+            var identitas = document.createElement('div');
+            identitas.className = 'font-medium';
+            identitas.textContent = pegawai.nama;
+            var namaCell = document.createElement('td');
+            namaCell.appendChild(identitas);
+
+            var emailCell = document.createElement('td');
+            emailCell.className = 'teks-kecil';
+            emailCell.textContent = pegawai.email || '—';
+
+            var tujuanPegawai = document.createElement('select');
+            tujuanPegawai.name = 'pindah_ke_sub_unit_id[' + pegawai.id + ']';
+            tujuanPegawai.required = true;
+            tujuanPegawai.setAttribute('aria-label', 'Tujuan pemindahan ' + pegawai.nama);
+
+            var pilih = document.createElement('option');
+            pilih.value = '';
+            pilih.textContent = 'Pilih tujuan';
+            tujuanPegawai.appendChild(pilih);
+
+            data.tujuan.forEach(function (tujuan) {
+              var opsiPegawai = document.createElement('option');
+              opsiPegawai.value = tujuan.id;
+              opsiPegawai.textContent = tujuan.nama;
+              tujuanPegawai.appendChild(opsiPegawai);
+            });
+            var opsiTanpaSub = document.createElement('option');
+            opsiTanpaSub.value = 'none';
+            opsiTanpaSub.textContent = 'Tetap di unit kerja tanpa sub unit';
+            tujuanPegawai.appendChild(opsiTanpaSub);
+            var tujuanCell = document.createElement('td');
+            tujuanCell.appendChild(tujuanPegawai);
+            var pegawaiIds = document.createElement('input');
+            pegawaiIds.type = 'hidden';
+            pegawaiIds.name = 'pegawai_ids[]';
+            pegawaiIds.value = pegawai.id;
+            tujuanCell.appendChild(pegawaiIds);
+
+            item.appendChild(namaCell);
+            item.appendChild(emailCell);
+            item.appendChild(tujuanCell);
+            daftar.appendChild(item);
+          });
+          terapkanSemua.disabled = data.pegawai.length === 0;
+          tabelBungkus.dataset.siap = '1';
+          submit.disabled = !document.querySelector('input[name="mode_hapus_sub"]:checked');
+        })
+        .catch(function (error) {
+          daftar.innerHTML = '';
+          var gagal = document.createElement('tr');
+          var pesanGagal = document.createElement('td');
+          pesanGagal.colSpan = 3;
+          pesanGagal.className = 'teks-merah';
+          pesanGagal.textContent = error.message || 'Gagal memuat daftar pegawai.';
+          gagal.appendChild(pesanGagal);
+          daftar.appendChild(gagal);
+          tampilPesan(pesanGagal.textContent, false);
+        });
+    }
 
     function bukaModal(id) {
       var m = document.getElementById(id);
@@ -393,6 +704,7 @@ window.PEGAWAI_UNIT = {!! $daftarPegawaiJson !!};
 
           if (h.sukses && form.dataset.ajax === 'tambah_unit') window.unitTutup('modal-tambah');
           if (h.sukses && form.dataset.ajax === 'ubah_unit') window.unitTutup('modal-ubah');
+          if (h.sukses && form.dataset.ajax === 'hapus_sub') window.unitTutup('modal-hapus-sub');
           if (h.sukses && form.isConnected) { form.reset(); unitSiapkanSemua(); }
         })
         .catch(function () { tampilPesan('Terjadi kesalahan jaringan.', false); })
@@ -422,6 +734,121 @@ window.PEGAWAI_UNIT = {!! $daftarPegawaiJson !!};
       if (tutup) {
         e.preventDefault();
         window.unitTutup(tutup.getAttribute('data-tutup-modal'));
+        return;
+      }
+
+      var kelolaPegawai = target.closest('[data-kelola-pegawai-sub]');
+      if (kelolaPegawai) {
+        e.preventDefault();
+        muatPegawaiSub(
+          kelolaPegawai.getAttribute('data-id'),
+          kelolaPegawai.getAttribute('data-nama'),
+          kelolaPegawai.getAttribute('data-unit-kerja-id')
+        );
+        return;
+      }
+
+      var pindahkanKeSub = target.closest('[data-pindahkan-ke-sub]');
+      if (pindahkanKeSub) {
+        e.preventDefault();
+        if (pindahkanKeSub.disabled || !subUnitKelolaAktif) return;
+
+        var teksAwalPindah = pindahkanKeSub.textContent;
+        var dataPindah = new FormData();
+        dataPindah.set('aksi', 'pindahkan_pegawai_sub');
+        dataPindah.set('user_id', pindahkanKeSub.dataset.userId);
+        dataPindah.set('sub_unit_id', pindahkanKeSub.dataset.subUnitId);
+        dataPindah.set('unit_kerja_id', pindahkanKeSub.dataset.unitKerjaId);
+        pindahkanKeSub.disabled = true;
+        pindahkanKeSub.textContent = 'Memindahkan…';
+        tampilPesan('Memindahkan pegawai…', true);
+
+        fetch(urlAksi, {
+          method: 'POST',
+          body: dataPindah,
+          headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' }
+        })
+          .then(function (r) {
+            return r.json().then(function (h) {
+              if (!r.ok || !h.sukses) throw new Error(h.pesan || 'Pegawai gagal dipindahkan.');
+              if (h.tabs) tabBar.innerHTML = h.tabs;
+              if (h.isiSemua) renderSemuaPanel(h.isiSemua);
+              if (h.mode === 'unit') tab = tabAktifDariTabs() || tab;
+              else if (h.mode) tab = h.mode;
+              aktifkanTab(tab);
+              unitSiapkanSemua();
+              tampilPesan(h.pesan, true);
+              return muatPegawaiSub(
+                subUnitKelolaAktif.id,
+                subUnitKelolaAktif.nama,
+                subUnitKelolaAktif.unitKerjaId
+              );
+            });
+          })
+          .catch(function (error) {
+            tampilPesan(error.message || 'Gagal memindahkan pegawai.', false);
+          })
+          .finally(function () {
+            if (pindahkanKeSub.isConnected) {
+              pindahkanKeSub.disabled = false;
+              pindahkanKeSub.textContent = teksAwalPindah;
+            }
+          });
+        return;
+      }
+
+      if (target.closest('#hapus-sub-terapkan-semua')) {
+        e.preventDefault();
+        var nilaiSemua = document.getElementById('hapus-sub-semua-tujuan').value;
+        if (! nilaiSemua) {
+          tampilPesan('Pilih tujuan yang akan diterapkan ke semua pegawai.', false);
+          return;
+        }
+        document.querySelectorAll('#hapus-sub-pegawai select[name^="pindah_ke_sub_unit_id["]')
+          .forEach(function (select) { select.value = nilaiSemua; });
+        tampilPesan('Tujuan pemindahan diterapkan ke semua pegawai. Anda masih dapat mengubah tujuan masing-masing.', true);
+        return;
+      }
+
+      var modeHapusSub = target.closest('input[name="mode_hapus_sub"]');
+      if (modeHapusSub) {
+        var tabelBungkus = document.getElementById('hapus-sub-tabel-bungkus');
+        var semuaBungkus = document.getElementById('hapus-sub-semua-bungkus');
+        var kolomTindakan = document.getElementById('hapus-sub-kolom-tindakan');
+        var submitHapus = document.getElementById('hapus-sub-submit');
+        var nonaktifkan = modeHapusSub.value === 'nonaktifkan';
+        tabelBungkus.classList.remove('hidden');
+        semuaBungkus.classList.toggle('hidden', nonaktifkan);
+        kolomTindakan.textContent = nonaktifkan ? 'Tindakan' : 'Pilih unit';
+
+        document.querySelectorAll('#hapus-sub-pegawai select[name^="pindah_ke_sub_unit_id["]')
+          .forEach(function (select) {
+            select.required = ! nonaktifkan;
+            select.disabled = nonaktifkan;
+          });
+        document.querySelectorAll('#hapus-sub-pegawai tr[data-pegawai-id]').forEach(function (row) {
+          var cell = row.children[2];
+          var select = cell.querySelector('select');
+          var badge = cell.querySelector('[data-tindakan-nonaktif]');
+          if (nonaktifkan && ! badge) {
+            badge = document.createElement('span');
+            badge.setAttribute('data-tindakan-nonaktif', '');
+            badge.className = 'badge badge-abu';
+            badge.textContent = 'Akan dinonaktifkan';
+            cell.appendChild(badge);
+          } else if (! nonaktifkan && badge) {
+            badge.remove();
+          }
+          if (select) select.classList.toggle('hidden', nonaktifkan);
+        });
+        submitHapus.disabled = tabelBungkus.dataset.siap !== '1';
+        return;
+      }
+
+      var hapusSub = target.closest('[data-hapus-sub]');
+      if (hapusSub) {
+        e.preventDefault();
+        isiModalHapusSub(hapusSub);
         return;
       }
 
@@ -475,7 +902,7 @@ window.PEGAWAI_UNIT = {!! $daftarPegawaiJson !!};
 
     document.addEventListener('keydown', function (e) {
       if (e.key !== 'Escape') return;
-      ['modal-tambah', 'modal-ubah'].forEach(function (id) {
+      ['modal-tambah', 'modal-ubah', 'modal-hapus-sub', 'modal-pegawai-sub'].forEach(function (id) {
         var m = document.getElementById(id);
         if (m && ! m.classList.contains('hidden')) window.unitTutup(id);
       });

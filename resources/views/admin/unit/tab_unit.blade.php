@@ -46,7 +46,7 @@
           <th>Nama Sub Unit</th>
           <th>Atasan Default</th>
           <th class="tengah w-[110px]">Pegawai</th>
-          <th class="w-[110px]">Aksi</th>
+          <th class="w-[190px]">Aksi</th>
         </tr>
       </thead>
       <tbody>
@@ -73,12 +73,20 @@
             </td>
             <td class="tengah angka">{{ (int) $su->jml_pegawai }}</td>
             <td>
-              <button type="button" class="btn btn-bahaya btn-kecil"
-                      data-ajax="hapus_sub" data-id="{{ (int) $su->id }}"
+              <div class="flex flex-wrap gap-1">
+                <button type="button" class="btn btn-navy btn-kecil"
+                        data-kelola-pegawai-sub
+                        data-id="{{ (int) $su->id }}"
+                        data-nama="{{ $su->nama }}"
+                        data-unit-kerja-id="{{ (int) $unitAktif->id }}">Pegawai
+                </button>
+                <button type="button" class="btn btn-bahaya btn-kecil"
+                      data-hapus-sub
+                      data-id="{{ (int) $su->id }}"
                       data-nama="{{ $su->nama }}"
-                      data-unit-kerja-id="{{ (int) $unitAktif->id }}"
-                      data-konfirmasi="Hapus sub unit {{ $su->nama }}?">Hapus
-              </button>
+                      data-unit-kerja-id="{{ (int) $unitAktif->id }}">Hapus
+                </button>
+              </div>
             </td>
           </tr>
         @empty

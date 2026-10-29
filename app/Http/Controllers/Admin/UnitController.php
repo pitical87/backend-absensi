@@ -9,6 +9,7 @@ use App\Models\UnitKerja;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class UnitController extends Controller
 {
@@ -34,6 +35,57 @@ class UnitController extends Controller
         ]);
     }
 
+    public function pegawaiSubUntukHapus(SubUnit $subUnit): JsonResponse
+    {
+        return response()->json([
+            'sub_unit' => [
+                'id' => (int) $subUnit->id,
+                'nama' => $subUnit->nama,
+            ],
+            'pegawai' => User::where('sub_unit_id', $subUnit->id)
+                ->orderBy('nama_lengkap')
+                ->get(['id', 'nama_lengkap', 'email'])
+                ->map(fn (User $user) => [
+                    'id' => (int) $user->id,
+                    'nama' => $user->nama_lengkap,
+                    'email' => $user->email,
+                ])
+                ->values(),
+            'tujuan' => SubUnit::where('unit_kerja_id', $subUnit->unit_kerja_id)
+                ->where('id', '!=', $subUnit->id)
+                ->orderBy('nama')
+                ->get(['id', 'nama'])
+                ->map(fn (SubUnit $tujuan) => [
+                    'id' => (int) $tujuan->id,
+                    'nama' => $tujuan->nama,
+                ])
+                ->values(),
+        ]);
+    }
+
+    public function pegawaiSubUntukKelola(SubUnit $subUnit): JsonResponse
+    {
+        return response()->json([
+            'sub_unit' => [
+                'id' => (int) $subUnit->id,
+                'nama' => $subUnit->nama,
+                'unit_kerja_id' => (int) $subUnit->unit_kerja_id,
+            ],
+            'pegawai' => User::where('role', 'pegawai')
+                ->where('status', 'aktif')
+                ->orderBy('nama_lengkap')
+                ->get(['id', 'nama_lengkap', 'email', 'unit_kerja_id', 'sub_unit_id'])
+                ->map(fn (User $user) => [
+                    'id' => (int) $user->id,
+                    'nama' => $user->nama_lengkap,
+                    'email' => $user->email,
+                    'di_sub_unit' => (int) $user->sub_unit_id === (int) $subUnit->id,
+                    'unit_kerja_id' => (int) $user->unit_kerja_id,
+                ])
+                ->values(),
+        ]);
+    }
+
     /**
      * Semua aksi lewat AJAX akan membalas JSON berisi tab yang sudah disegarkan
      * ulang, jadi klien cukup menimpa isi tanpa memanggil endpoint lagi.
@@ -51,7 +103,11 @@ class UnitController extends Controller
             'hapus_unit' => $this->hapusUnit($id),
             'tambah_sub' => $this->tambahSub((int) $request->input('unit_kerja_id'), $nama, $atasanId),
             'ubah_sub' => $this->ubahSub($id, $nama, $atasanId),
-            'hapus_sub' => $this->hapusSub($id),
+            'pindahkan_pegawai_sub' => $this->pindahkanPegawaiSub(
+                (int) $request->input('sub_unit_id'),
+                (int) $request->input('user_id'),
+            ),
+            'hapus_sub' => $this->hapusSub($id, $request),
             'kirim_pesan_jadwal' => $this->kirimPesanJadwal($id),
             default => ['Aksi tidak dikenal.', false, null],
         };
@@ -152,17 +208,174 @@ class UnitController extends Controller
         return ['Sub unit diperbarui.', true, null];
     }
 
-    private function hapusSub(int $id): array
+    private function pindahkanPegawaiSub(int $subUnitId, int $userId): array
     {
-        if (User::where('sub_unit_id', $id)->exists()) {
-            return ['Sub unit tidak dapat dihapus karena masih memiliki pegawai.', false, null];
+        if ($subUnitId < 1 || $userId < 1) {
+            return ['Pilih pegawai dan sub unit yang valid.', false, null];
         }
 
-        $nama = SubUnit::where('id', $id)->value('nama') ?? ('#'.$id);
-        SubUnit::where('id', $id)->delete();
-        catat_aktivitas('Hapus Sub Unit', $nama);
+        $hasil = DB::transaction(function () use ($subUnitId, $userId) {
+            $subUnit = SubUnit::whereKey($subUnitId)->lockForUpdate()->first();
+            $pegawai = User::whereKey($userId)->lockForUpdate()->first();
+            if (! $subUnit || ! $pegawai) {
+                return ['error' => 'Pegawai atau sub unit tidak ditemukan.'];
+            }
+            if ($pegawai->role !== 'pegawai') {
+                return ['error' => 'Hanya akun pegawai yang dapat dimasukkan ke sub unit.'];
+            }
+            if ((int) $pegawai->sub_unit_id === (int) $subUnit->id) {
+                return ['error' => 'Pegawai sudah berada di sub unit ini.'];
+            }
 
-        return ['Sub unit dihapus.', true, null];
+            $pegawai->update([
+                'unit_kerja_id' => $subUnit->unit_kerja_id,
+                'sub_unit_id' => $subUnit->id,
+            ]);
+            $atasanId = $subUnit->atasan_id
+                ?: UnitKerja::whereKey($subUnit->unit_kerja_id)->value('atasan_id');
+
+            if ($atasanId && (int) $atasanId !== (int) $pegawai->id) {
+                AtasanLangsung::firstOrCreate([
+                    'user_id' => $pegawai->id,
+                    'atasan_id' => $atasanId,
+                ]);
+            }
+
+            return [
+                'nama_pegawai' => $pegawai->nama_lengkap,
+                'nama_sub_unit' => $subUnit->nama,
+            ];
+        });
+
+        if (isset($hasil['error'])) {
+            return [$hasil['error'], false, null];
+        }
+
+        catat_aktivitas('Pindahkan Pegawai ke Sub Unit', $hasil['nama_pegawai'].' — '.$hasil['nama_sub_unit']);
+
+        return [
+            $hasil['nama_pegawai'].' dipindahkan ke sub unit '.$hasil['nama_sub_unit'].'.',
+            true,
+            null,
+        ];
+    }
+
+    private function hapusSub(int $id, Request $request): array
+    {
+        $sub = SubUnit::find($id);
+        if (! $sub) {
+            return ['Sub unit tidak ditemukan.', false, null];
+        }
+
+        $mode = $request->input('mode_hapus_sub');
+        if (! in_array($mode, ['pindahkan', 'nonaktifkan'], true)) {
+            return ['Pilih apakah pegawai akan dipindahkan atau dinonaktifkan.', false, null];
+        }
+
+        $pegawaiInput = $request->input('pegawai_ids', []);
+        $penempatan = $request->input('pindah_ke_sub_unit_id', []);
+        if (! is_array($pegawaiInput) || ! is_array($penempatan)) {
+            return ['Daftar pegawai atau tujuan pemindahan tidak valid.', false, null];
+        }
+
+        $hasil = DB::transaction(function () use ($sub, $mode, $pegawaiInput, $penempatan) {
+            $subTerkunci = SubUnit::whereKey($sub->id)->lockForUpdate()->first();
+            if (! $subTerkunci) {
+                return ['error' => 'Sub unit tidak ditemukan.'];
+            }
+
+            $pegawai = User::where('sub_unit_id', $subTerkunci->id)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get(['id']);
+            $pegawaiIds = $pegawai->pluck('id')->map(fn ($id) => (string) $id)->all();
+            $inputIds = array_map('strval', $pegawaiInput);
+            sort($pegawaiIds);
+            sort($inputIds);
+            if ($pegawaiIds !== $inputIds) {
+                return ['error' => 'Daftar pegawai berubah. Muat ulang pilihan tujuan lalu coba lagi.'];
+            }
+
+            if ($mode === 'nonaktifkan') {
+                if ($penempatan !== []) {
+                    return ['error' => 'Data tujuan pemindahan tidak sesuai dengan tindakan yang dipilih.'];
+                }
+
+                if ($pegawaiIds !== []) {
+                    User::whereIn('id', $pegawaiIds)
+                        ->where('sub_unit_id', $subTerkunci->id)
+                        ->update(['status' => 'nonaktif', 'sub_unit_id' => null]);
+                }
+            } else {
+                $penempatanIds = array_map('strval', array_keys($penempatan));
+                sort($penempatanIds);
+                if ($pegawaiIds !== $penempatanIds) {
+                    return ['error' => 'Pilih tujuan untuk setiap pegawai yang akan dipindahkan.'];
+                }
+
+                $tujuanPerPegawai = [];
+                $tujuanIds = [];
+                foreach ($penempatan as $pegawaiId => $tujuanId) {
+                    if (! ctype_digit((string) $pegawaiId) || ! in_array((string) $pegawaiId, $pegawaiIds, true)) {
+                        return ['error' => 'Daftar pegawai untuk dipindahkan tidak valid.'];
+                    }
+
+                    if ($tujuanId === 'none') {
+                        $tujuanPerPegawai[(int) $pegawaiId] = null;
+                        continue;
+                    }
+
+                    $tujuanId = filter_var($tujuanId, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+                    if ($tujuanId === false || $tujuanId === (int) $subTerkunci->id) {
+                        return ['error' => 'Pilih tujuan pemindahan yang valid untuk setiap pegawai.'];
+                    }
+
+                    $tujuanPerPegawai[(int) $pegawaiId] = $tujuanId;
+                    $tujuanIds[] = $tujuanId;
+                }
+
+                $tujuanIds = array_values(array_unique($tujuanIds));
+                $tujuanList = SubUnit::where('unit_kerja_id', $subTerkunci->unit_kerja_id)
+                    ->whereIn('id', $tujuanIds)
+                    ->lockForUpdate()
+                    ->get(['id', 'nama'])
+                    ->keyBy('id');
+                if ($tujuanList->count() !== count($tujuanIds)) {
+                    return ['error' => 'Sub unit tujuan harus berada dalam unit kerja yang sama.'];
+                }
+
+                $kelompok = [];
+                foreach ($tujuanPerPegawai as $pegawaiId => $tujuanId) {
+                    $kelompok[$tujuanId ?? 'none'][] = $pegawaiId;
+                }
+                foreach ($kelompok as $tujuanId => $ids) {
+                    User::whereIn('id', $ids)
+                        ->where('sub_unit_id', $subTerkunci->id)
+                        ->update(['sub_unit_id' => $tujuanId === 'none' ? null : (int) $tujuanId]);
+                }
+            }
+
+            $nama = $subTerkunci->nama;
+            $subTerkunci->delete();
+
+            return [
+                'jumlah' => $pegawai->count(),
+                'nama' => $nama,
+            ];
+        });
+
+        if (isset($hasil['error'])) {
+            return [$hasil['error'], false, null];
+        }
+
+        $aksiPegawai = $mode === 'nonaktifkan' ? 'dinonaktifkan' : 'dipindahkan';
+        catat_aktivitas('Hapus Sub Unit', $hasil['nama'].' — '.$hasil['jumlah'].' pegawai '.$aksiPegawai);
+
+        $pesan = $mode === 'nonaktifkan'
+            ? 'Sub unit dihapus dan '.$hasil['jumlah'].' pegawai dinonaktifkan.'
+            : 'Sub unit dihapus dan '.$hasil['jumlah'].' pegawai dipindahkan ke tujuan masing-masing.';
+
+        return [$pesan, true, null];
     }
 
     private function kirimPesanJadwal(int $unitId): array

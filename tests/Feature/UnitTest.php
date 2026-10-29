@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AtasanLangsung;
 use App\Models\SubUnit;
 use App\Models\UnitKerja;
 use App\Models\User;
@@ -88,6 +89,16 @@ class UnitTest extends TestCase
             ->assertOk()
             ->assertSee('Anggrek')
             ->assertSee('+ Tambah Sub Unit')
+            ->assertSee('data-kelola-pegawai-sub', false)
+            ->assertSee('modal-hapus-sub')
+            ->assertSee('Pilih tindakan')
+            ->assertSee('Nonaktifkan pegawai')
+            ->assertSee('id="hapus-sub-tabel-bungkus" class="border border-garis rounded-lg p-3 mb-4 hidden"', false)
+            ->assertSee('Pindahkan semua ke')
+            ->assertSee('Terapkan ke semua')
+            ->assertSee('<th>Nama</th>', false)
+            ->assertSee('<th>Email</th>', false)
+            ->assertSee('id="hapus-sub-kolom-tindakan">Pilih unit</th>', false)
             ->getContent();
 
         // Semua panel memang sudah ada (berpindah tab instan tanpa menunggu
@@ -198,7 +209,7 @@ class UnitTest extends TestCase
             ->assertJsonPath('mode', 'tambah');
     }
 
-    public function test_hapus_sub_yang_punya_pegawai_ditolak_lewat_json(): void
+    public function test_hapus_sub_json_mewajibkan_pilihan_tujuan_jika_ada_pegawai(): void
     {
         $this->admin();
         $unit = UnitKerja::create(['nama' => 'Rawat Inap', 'punya_sub' => 1]);
@@ -319,6 +330,112 @@ class UnitTest extends TestCase
         $this->assertDatabaseHas('sub_unit', ['id' => $sub->id, 'atasan_id' => $atasan->id]);
     }
 
+    public function test_daftar_pegawai_sub_unit_hanya_memuat_akun_aktif(): void
+    {
+        $this->admin();
+        $unit = UnitKerja::create(['nama' => 'Rawat Inap', 'punya_sub' => 1]);
+        $unitLain = UnitKerja::create(['nama' => 'Farmasi', 'punya_sub' => 1]);
+        $subAsal = SubUnit::create(['unit_kerja_id' => $unit->id, 'nama' => 'Anggrek']);
+        $subTujuan = SubUnit::create(['unit_kerja_id' => $unit->id, 'nama' => 'Melati']);
+        $pegawai = $this->createPegawai($subAsal, 'pegawai-sub@example.test', 'Pegawai Unit');
+        $pegawaiLain = User::create([
+            'nama_lengkap' => 'Pegawai Unit Lain',
+            'email' => 'pegawai-lain@example.test',
+            'password_hash' => bcrypt('rahasia-kuat'),
+            'role' => 'pegawai',
+            'status' => 'nonaktif',
+            'email_verified_at' => now(),
+            'unit_kerja_id' => $unitLain->id,
+        ]);
+
+        $this->getJson(route('admin.unit.sub.pegawai-kelola', $subTujuan))
+            ->assertOk()
+            ->assertJsonPath('sub_unit.id', $subTujuan->id)
+            ->assertJsonPath('pegawai.0.nama', 'Pegawai Unit')
+            ->assertJsonPath('pegawai.0.email', 'pegawai-sub@example.test')
+            ->assertJsonPath('pegawai.0.di_sub_unit', false)
+            ->assertJsonCount(1, 'pegawai')
+            ->assertJsonMissing(['nama' => 'Pegawai Unit Lain']);
+    }
+
+    public function test_admin_dapat_memindahkan_pegawai_ke_sub_unit_dari_popup(): void
+    {
+        $this->admin();
+        $unit = UnitKerja::create(['nama' => 'Rawat Inap', 'punya_sub' => 1]);
+        $subAsal = SubUnit::create(['unit_kerja_id' => $unit->id, 'nama' => 'Anggrek']);
+        $subTujuan = SubUnit::create(['unit_kerja_id' => $unit->id, 'nama' => 'Melati']);
+        $atasan = $this->createPegawai($subAsal, 'atasan@example.test', 'Atasan');
+        $atasan->update(['unit_kerja_id' => $unit->id]);
+        $subTujuan->update(['atasan_id' => $atasan->id]);
+        $pegawai = $this->createPegawai($subAsal, 'pegawai-pindah@example.test', 'Pegawai Pindah');
+        $atasanLama = $this->createPegawai($subAsal, 'atasan-lama@example.test', 'Atasan Lama');
+        AtasanLangsung::create(['user_id' => $pegawai->id, 'atasan_id' => $atasanLama->id]);
+
+        $this->postJson(route('admin.unit.aksi'), [
+            'aksi' => 'pindahkan_pegawai_sub',
+            'user_id' => $pegawai->id,
+            'sub_unit_id' => $subTujuan->id,
+            'unit_kerja_id' => $unit->id,
+        ])->assertOk()
+            ->assertJsonPath('sukses', true)
+            ->assertJsonPath('mode', 'unit');
+
+        $this->assertDatabaseHas('users', [
+            'id' => $pegawai->id,
+            'unit_kerja_id' => $unit->id,
+            'sub_unit_id' => $subTujuan->id,
+        ]);
+        $this->assertDatabaseHas('atasan_langsung', [
+            'user_id' => $pegawai->id,
+            'atasan_id' => $atasan->id,
+        ]);
+        $this->assertDatabaseHas('atasan_langsung', [
+            'user_id' => $pegawai->id,
+            'atasan_id' => $atasanLama->id,
+        ]);
+    }
+
+    public function test_admin_dapat_memindahkan_pegawai_dari_unit_kerja_lain(): void
+    {
+        $this->admin();
+        $unitTujuan = UnitKerja::create(['nama' => 'Rawat Inap', 'punya_sub' => 1]);
+        $unitAsal = UnitKerja::create(['nama' => 'Farmasi', 'punya_sub' => 1]);
+        $atasanTujuan = $this->createPegawai(
+            SubUnit::create(['unit_kerja_id' => $unitTujuan->id, 'nama' => 'Lain']),
+            'atasan-tujuan@example.test',
+            'Atasan Tujuan'
+        );
+        $atasanTujuan->update(['unit_kerja_id' => $unitTujuan->id]);
+        $unitTujuan->update(['atasan_id' => $atasanTujuan->id]);
+        $subTujuan = SubUnit::create(['unit_kerja_id' => $unitTujuan->id, 'nama' => 'Anggrek']);
+        $pegawai = User::create([
+            'nama_lengkap' => 'Pegawai Farmasi',
+            'email' => 'pegawai-farmasi@example.test',
+            'password_hash' => bcrypt('rahasia-kuat'),
+            'role' => 'pegawai',
+            'status' => 'aktif',
+            'email_verified_at' => now(),
+            'unit_kerja_id' => $unitAsal->id,
+        ]);
+
+        $this->postJson(route('admin.unit.aksi'), [
+            'aksi' => 'pindahkan_pegawai_sub',
+            'user_id' => $pegawai->id,
+            'sub_unit_id' => $subTujuan->id,
+            'unit_kerja_id' => $unitTujuan->id,
+        ])->assertOk()->assertJsonPath('sukses', true);
+
+        $this->assertDatabaseHas('users', [
+            'id' => $pegawai->id,
+            'unit_kerja_id' => $unitTujuan->id,
+            'sub_unit_id' => $subTujuan->id,
+        ]);
+        $this->assertDatabaseHas('atasan_langsung', [
+            'user_id' => $pegawai->id,
+            'atasan_id' => $atasanTujuan->id,
+        ]);
+    }
+
     public function test_hapus_unit_lewat_json_kembali_ke_tab_semua(): void
     {
         $this->admin();
@@ -332,20 +449,171 @@ class UnitTest extends TestCase
         $this->assertDatabaseMissing('unit_kerja', ['id' => $unit->id]);
     }
 
-    public function test_hapus_sub_menolak_yg_punya_pegawai(): void
+    public function test_hapus_sub_memindahkan_pegawai_ke_sub_unit_tujuan(): void
+    {
+        $this->admin();
+        $unit = UnitKerja::create(['nama' => 'Rawat Inap', 'punya_sub' => 1]);
+        $sub = SubUnit::create(['unit_kerja_id' => $unit->id, 'nama' => 'Anggrek']);
+        $tujuan = SubUnit::create(['unit_kerja_id' => $unit->id, 'nama' => 'Melati']);
+
+        $pegawai = User::create([
+            'nama_lengkap' => 'Pegawai', 'email' => 'p2@contoh.test', 'password_hash' => bcrypt('rahasia-kuat'),
+            'role' => 'pegawai', 'status' => 'aktif', 'email_verified_at' => now(), 'sub_unit_id' => $sub->id,
+        ]);
+
+        $this->getJson(route('admin.unit.sub.pegawai-hapus', $sub))
+            ->assertOk()
+            ->assertJsonPath('sub_unit.nama', 'Anggrek')
+            ->assertJsonPath('pegawai.0.nama', 'Pegawai')
+            ->assertJsonPath('pegawai.0.id', $pegawai->id)
+            ->assertJsonPath('pegawai.0.email', 'p2@contoh.test')
+            ->assertJsonPath('tujuan.0.id', $tujuan->id);
+
+        $this->postJson(route('admin.unit.aksi'), [
+            'aksi' => 'hapus_sub',
+            'id' => $sub->id,
+            'unit_kerja_id' => $unit->id,
+            'mode_hapus_sub' => 'pindahkan',
+            'pegawai_ids' => [$pegawai->id],
+            'pindah_ke_sub_unit_id' => [$pegawai->id => $tujuan->id],
+        ])->assertOk()
+            ->assertJsonPath('sukses', true)
+            ->assertJsonPath('mode', 'unit');
+
+        $this->assertDatabaseMissing('sub_unit', ['id' => $sub->id]);
+        $this->assertDatabaseHas('users', ['id' => $pegawai->id, 'sub_unit_id' => $tujuan->id]);
+    }
+
+    public function test_hapus_sub_dapat_mempertahankan_pegawai_di_unit_tanpa_sub_unit(): void
+    {
+        $this->admin();
+        $unit = UnitKerja::create(['nama' => 'Rawat Inap', 'punya_sub' => 1]);
+        $sub = SubUnit::create(['unit_kerja_id' => $unit->id, 'nama' => 'Anggrek']);
+        $pegawai = User::create([
+            'nama_lengkap' => 'Pegawai', 'email' => 'p3@contoh.test', 'password_hash' => bcrypt('rahasia-kuat'),
+            'role' => 'pegawai', 'status' => 'aktif', 'email_verified_at' => now(), 'sub_unit_id' => $sub->id,
+        ]);
+
+        $this->postJson(route('admin.unit.aksi'), [
+            'aksi' => 'hapus_sub',
+            'id' => $sub->id,
+            'unit_kerja_id' => $unit->id,
+            'mode_hapus_sub' => 'pindahkan',
+            'pegawai_ids' => [$pegawai->id],
+            'pindah_ke_sub_unit_id' => [$pegawai->id => 'none'],
+        ])->assertOk()->assertJsonPath('sukses', true);
+
+        $this->assertDatabaseMissing('sub_unit', ['id' => $sub->id]);
+        $this->assertDatabaseHas('users', ['id' => $pegawai->id, 'sub_unit_id' => null]);
+    }
+
+    public function test_hapus_sub_menolak_tujuan_dari_unit_kerja_lain(): void
+    {
+        $this->admin();
+        $unit = UnitKerja::create(['nama' => 'Rawat Inap', 'punya_sub' => 1]);
+        $unitLain = UnitKerja::create(['nama' => 'Farmasi', 'punya_sub' => 1]);
+        $sub = SubUnit::create(['unit_kerja_id' => $unit->id, 'nama' => 'Anggrek']);
+        $tujuan = SubUnit::create(['unit_kerja_id' => $unitLain->id, 'nama' => 'Apotek']);
+        $pegawai = $this->createPegawai($sub, 'p4@contoh.test');
+
+        $this->postJson(route('admin.unit.aksi'), [
+            'aksi' => 'hapus_sub',
+            'id' => $sub->id,
+            'unit_kerja_id' => $unit->id,
+            'mode_hapus_sub' => 'pindahkan',
+            'pegawai_ids' => [$pegawai->id],
+            'pindah_ke_sub_unit_id' => [$pegawai->id => $tujuan->id],
+        ])->assertStatus(422)->assertJsonPath('sukses', false);
+
+        $this->assertDatabaseHas('sub_unit', ['id' => $sub->id]);
+    }
+
+    public function test_hapus_sub_mendukung_tujuan_berbeda_per_pegawai(): void
+    {
+        $this->admin();
+        $unit = UnitKerja::create(['nama' => 'Rawat Inap', 'punya_sub' => 1]);
+        $sub = SubUnit::create(['unit_kerja_id' => $unit->id, 'nama' => 'Anggrek']);
+        $tujuanA = SubUnit::create(['unit_kerja_id' => $unit->id, 'nama' => 'Melati']);
+        $tujuanB = SubUnit::create(['unit_kerja_id' => $unit->id, 'nama' => 'Mawar']);
+        $firman = $this->createPegawai($sub, 'firman@example.test', 'Firman');
+        $ical = $this->createPegawai($sub, 'ical@example.test', 'Ical');
+
+        $this->postJson(route('admin.unit.aksi'), [
+            'aksi' => 'hapus_sub',
+            'id' => $sub->id,
+            'unit_kerja_id' => $unit->id,
+            'mode_hapus_sub' => 'pindahkan',
+            'pegawai_ids' => [$firman->id, $ical->id],
+            'pindah_ke_sub_unit_id' => [
+                $firman->id => $tujuanA->id,
+                $ical->id => $tujuanB->id,
+            ],
+        ])->assertOk()->assertJsonPath('sukses', true);
+
+        $this->assertDatabaseMissing('sub_unit', ['id' => $sub->id]);
+        $this->assertDatabaseHas('users', ['id' => $firman->id, 'sub_unit_id' => $tujuanA->id]);
+        $this->assertDatabaseHas('users', ['id' => $ical->id, 'sub_unit_id' => $tujuanB->id]);
+    }
+
+    public function test_hapus_sub_menerapkan_satu_tujuan_ke_semua_pegawai(): void
+    {
+        $this->admin();
+        $unit = UnitKerja::create(['nama' => 'Rawat Inap', 'punya_sub' => 1]);
+        $sub = SubUnit::create(['unit_kerja_id' => $unit->id, 'nama' => 'Anggrek']);
+        $tujuan = SubUnit::create(['unit_kerja_id' => $unit->id, 'nama' => 'Melati']);
+        $firman = $this->createPegawai($sub, 'firman-all@example.test', 'Firman');
+        $ical = $this->createPegawai($sub, 'ical-all@example.test', 'Ical');
+
+        $this->postJson(route('admin.unit.aksi'), [
+            'aksi' => 'hapus_sub',
+            'id' => $sub->id,
+            'unit_kerja_id' => $unit->id,
+            'mode_hapus_sub' => 'pindahkan',
+            'pegawai_ids' => [$firman->id, $ical->id],
+            'pindah_ke_sub_unit_id' => [
+                $firman->id => $tujuan->id,
+                $ical->id => $tujuan->id,
+            ],
+        ])->assertOk()->assertJsonPath('sukses', true);
+
+        $this->assertDatabaseMissing('sub_unit', ['id' => $sub->id]);
+        $this->assertDatabaseHas('users', ['id' => $firman->id, 'sub_unit_id' => $tujuan->id]);
+        $this->assertDatabaseHas('users', ['id' => $ical->id, 'sub_unit_id' => $tujuan->id]);
+    }
+
+    public function test_hapus_sub_dapat_menonaktifkan_seluruh_pegawai(): void
+    {
+        $this->admin();
+        $unit = UnitKerja::create(['nama' => 'Rawat Inap', 'punya_sub' => 1]);
+        $sub = SubUnit::create(['unit_kerja_id' => $unit->id, 'nama' => 'Anggrek']);
+        $firman = $this->createPegawai($sub, 'firman-deaktivasi@example.test', 'Firman');
+        $ical = $this->createPegawai($sub, 'ical-deaktivasi@example.test', 'Ical');
+
+        $this->postJson(route('admin.unit.aksi'), [
+            'aksi' => 'hapus_sub',
+            'id' => $sub->id,
+            'unit_kerja_id' => $unit->id,
+            'mode_hapus_sub' => 'nonaktifkan',
+            'pegawai_ids' => [$firman->id, $ical->id],
+        ])->assertOk()->assertJsonPath('sukses', true)
+            ->assertJsonPath('pesan', 'Sub unit dihapus dan 2 pegawai dinonaktifkan.');
+
+        $this->assertDatabaseMissing('sub_unit', ['id' => $sub->id]);
+        $this->assertDatabaseHas('users', ['id' => $firman->id, 'status' => 'nonaktif', 'sub_unit_id' => null]);
+        $this->assertDatabaseHas('users', ['id' => $ical->id, 'status' => 'nonaktif', 'sub_unit_id' => null]);
+    }
+
+    public function test_hapus_sub_menolak_submit_tanpa_mode_tindakan(): void
     {
         $this->admin();
         $unit = UnitKerja::create(['nama' => 'Rawat Inap', 'punya_sub' => 1]);
         $sub = SubUnit::create(['unit_kerja_id' => $unit->id, 'nama' => 'Anggrek']);
 
-        User::create([
-            'nama_lengkap' => 'Pegawai', 'email' => 'p2@contoh.test', 'password_hash' => bcrypt('rahasia-kuat'),
-            'role' => 'pegawai', 'status' => 'aktif', 'email_verified_at' => now(), 'sub_unit_id' => $sub->id,
-        ]);
-
-        $this->post(route('admin.unit.aksi'), ['aksi' => 'hapus_sub', 'id' => $sub->id])
-            ->assertRedirect('admin/unit')
-            ->assertSessionHas('error');
+        $this->postJson(route('admin.unit.aksi'), [
+            'aksi' => 'hapus_sub',
+            'id' => $sub->id,
+            'unit_kerja_id' => $unit->id,
+        ])->assertStatus(422)->assertJsonPath('sukses', false);
 
         $this->assertDatabaseHas('sub_unit', ['id' => $sub->id]);
     }
@@ -358,6 +626,20 @@ class UnitTest extends TestCase
         ]);
 
         $this->get(route('admin.unit.index'))->assertRedirect();
+    }
+
+    private function createPegawai(SubUnit $sub, string $email, string $nama = 'Pegawai'): User
+    {
+        return User::create([
+            'nama_lengkap' => $nama,
+            'email' => $email,
+            'password_hash' => bcrypt('rahasia-kuat'),
+            'role' => 'pegawai',
+            'status' => 'aktif',
+            'email_verified_at' => now(),
+            'unit_kerja_id' => $sub->unit_kerja_id,
+            'sub_unit_id' => $sub->id,
+        ]);
     }
 
     // ── PENCARIAN NAMA (COMBO BOX PILIH PEGAWAI) ──────────────────────

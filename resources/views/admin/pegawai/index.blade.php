@@ -1,8 +1,41 @@
 @extends('layouts.admin')
 
 @section('content')
+<div class="kartu">
 
+  <div class="grid gap-2 mt-2 mb-3" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
+     <div class="kartu-kecil">
+       <span class="teks-kecil teks-redup">Belum pernah ganti</span>
+       <strong class="block text-lg text-red-600" id="ringkasan-belum">{{ $ringkasanPassword['belum'] }}</strong>
+     </div>
+     <div class="kartu-kecil">
+       <span class="teks-kecil teks-redup">Perlu diperbarui</span>
+       <strong class="block text-lg text-amber-600" id="ringkasan-perlu">{{ $ringkasanPassword['perlu'] }}</strong>
+     </div>
+     <div class="kartu-kecil">
+       <span class="teks-kecil teks-redup">Terlalu lama</span>
+       <strong class="block text-lg text-red-700" id="ringkasan-lama">{{ $ringkasanPassword['lama'] }}</strong>
+     </div>
+     <div class="kartu-kecil">
+       <span class="teks-kecil teks-redup">Password aman</span>
+       <strong class="block text-lg text-emerald-600" id="ringkasan-aman">{{ $ringkasanPassword['aman'] }}</strong>
+     </div>
+     <div class="kartu-kecil flex flex-col justify-between">
+       <form method="post" action="{{ route('admin.pegawai.ingatkan_password') }}"
+             onsubmit="return confirm('Kirim pengingat ganti password ke seluruh pegawai yang perlu?');">
+         @csrf
+         <button type="submit" class="btn btn-garis btn-kecil w-full">
+           {!! ikon('peringatan', 15) !!} Ingatkan Ganti Password
+         </button>
+       </form>
+       <span class="teks-kecil teks-redup mt-1">
+         Dikirim ke {{ $ringkasanPassword['perluPerhatian'] }} pegawai  {{ \App\Services\PasswordService::COOLDOWN_HARI }} hari.
+       </span>
+     </div>
+   </div>
+</div>
 <section class="kartu">
+  
   <div class="kartu-kepala">
     <h2>{!! ikon('pegawai') !!} Daftar Pegawai <span class="badge badge-biru" id="total-pegawai">{{ number_format($pegawai->total(), 0, ',', '.') }}</span></h2>
     <div class="flex flex-wrap items-center gap-2">
@@ -56,36 +89,7 @@
     </select>
   </div>
 
-  <div class="grid gap-2 mt-2" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
-    <div class="kartu-kecil">
-      <span class="teks-kecil teks-redup">Belum pernah ganti</span>
-      <strong class="block text-lg text-red-600" id="ringkasan-belum">{{ $ringkasanPassword['belum'] }}</strong>
-    </div>
-    <div class="kartu-kecil">
-      <span class="teks-kecil teks-redup">Perlu diperbarui</span>
-      <strong class="block text-lg text-amber-600" id="ringkasan-perlu">{{ $ringkasanPassword['perlu'] }}</strong>
-    </div>
-    <div class="kartu-kecil">
-      <span class="teks-kecil teks-redup">Terlalu lama</span>
-      <strong class="block text-lg text-red-700" id="ringkasan-lama">{{ $ringkasanPassword['lama'] }}</strong>
-    </div>
-    <div class="kartu-kecil">
-      <span class="teks-kecil teks-redup">Password aman</span>
-      <strong class="block text-lg text-emerald-600" id="ringkasan-aman">{{ $ringkasanPassword['aman'] }}</strong>
-    </div>
-    <div class="kartu-kecil flex flex-col justify-between">
-      <form method="post" action="{{ route('admin.pegawai.ingatkan_password') }}"
-            onsubmit="return confirm('Kirim pengingat ganti password ke seluruh pegawai yang perlu?');">
-        @csrf
-        <button type="submit" class="btn btn-garis btn-kecil w-full">
-          {!! ikon('peringatan', 15) !!} Ingatkan Ganti Password
-        </button>
-      </form>
-      <span class="teks-kecil teks-redup mt-1">
-        Dikirim ke {{ $ringkasanPassword['perluPerhatian'] }} pegawai  {{ \App\Services\PasswordService::COOLDOWN_HARI }} hari.
-      </span>
-    </div>
-  </div>
+ 
   <div class="mt-2 teks-kecil teks-redup" id="status-cari"></div>
 
   <div class="tabel-bungkus">
@@ -108,15 +112,14 @@
 <div id="modal-ganti-password" class="modal-tirai">
   <div class="modal-kamera max-w-md w-full">
     <header class="flex items-center justify-between text-black">
-      <span class="flex items-center gap-2">
+      <span class="flex items-center gap-2 text-black">
         <svg class="w-4 h-4 text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
-        </svg> Ganti Password Pegawai
+        </svg> Ganti Password : <span id="label-ganti-password"></span>
       </span>
       <button type="button" class="btn-tutup-modal btn btn-garis btn-kecil">&times;</button>
     </header>
     <div class="isi">
-      <p class="teks-kecil teks-redup mt-0 mb-3" id="label-ganti-password"></p>
       <form method="post" action="{{ url('admin/pegawai/ganti-password') }}" class="space-y-3.5">
         @csrf
         <input type="hidden" name="id" id="input-ganti-id">
@@ -164,6 +167,35 @@
   </div>
 </div>
 
+<div id="modal-pilih-kolom-ekspor" class="modal-tirai">
+  <div class="modal-kamera max-w-2xl w-full">
+    <header class="flex items-center justify-between text-black">
+      <span>Pilih Data Export <span id="format-ekspor" class="teks-redup"></span></span>
+      <button type="button" class="btn-tutup-modal btn btn-garis btn-kecil">&times;</button>
+    </header>
+    <div class="isi">
+      <p class="teks-kecil teks-redup mt-0 mb-3">Pilih kolom yang ingin disertakan. Filter pegawai yang sedang aktif tetap diterapkan.</p>
+      <div class="flex flex-wrap gap-2 mb-3">
+        <button type="button" class="btn btn-garis btn-kecil" id="pilih-semua-kolom">Pilih Semua</button>
+        <button type="button" class="btn btn-garis btn-kecil" id="hapus-pilihan-kolom">Kosongkan</button>
+      </div>
+      <div class="grid gap-2 sm:grid-cols-2">
+        @foreach($kolomEksporPilihan as $kodeKolom => $labelKolom)
+        <label class="flex items-center gap-2 kartu-kecil">
+          <input type="checkbox" class="kolom-ekspor w-auto" value="{{ $kodeKolom }}" checked>
+          {{ $labelKolom }}
+        </label>
+        @endforeach
+      </div>
+      <div id="status-pilih-kolom" class="teks-kecil text-red-600 mt-2 hidden">Pilih minimal satu kolom.</div>
+      <div class="pt-4 flex items-center justify-end gap-2">
+        <button type="button" class="btn btn-garis btn-kecil btn-tutup-modal">Batal</button>
+        <button type="button" class="btn btn-primer btn-kecil" id="mulai-ekspor">Export</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 @endsection
 
 @section('script')
@@ -179,6 +211,8 @@
   const badge    = document.getElementById('total-pegawai');
   const status   = document.getElementById('status-cari');
   const urlData  = '{{ route('admin.pegawai.data') }}';
+  const modalEkspor = document.getElementById('modal-pilih-kolom-ekspor');
+  let formatEkspor = '';
   const subPerUnit = {!! json_encode((object) $subPerUnit) !!};
   let halaman    = 1;
   let jam        = null;
@@ -245,14 +279,48 @@
     });
   }
 
+  function bukaPilihanEkspor(kind) {
+    formatEkspor = kind;
+    document.getElementById('format-ekspor').textContent = kind.toUpperCase();
+    document.getElementById('status-pilih-kolom').classList.add('hidden');
+    modalEkspor.classList.add('terbuka');
+  }
+
+  function arahkanEkspor() {
+    const kolom = Array.from(modalEkspor.querySelectorAll('.kolom-ekspor:checked'))
+      .map(function (input) { return input.value; });
+    const pesan = document.getElementById('status-pilih-kolom');
+    if (!kolom.length) {
+      pesan.classList.remove('hidden');
+      return;
+    }
+    const p = paramsMu();
+    p.delete('page');
+    kolom.forEach(function (value) { p.append('kolom[]', value); });
+    window.location = '{{ url('admin/pegawai') }}/' + formatEkspor + '?' + p.toString();
+  }
+
   function arahkan(kind) {
     const p = paramsMu();
     p.delete('page');
     window.location = '{{ url('admin/pegawai') }}/' + kind + '?' + p.toString();
   }
 
-  document.getElementById('btn-excel').addEventListener('click', function (e) { e.preventDefault(); arahkan('excel'); });
-  document.getElementById('btn-pdf').addEventListener('click', function (e) { e.preventDefault(); arahkan('pdf'); });
+  document.getElementById('btn-excel').addEventListener('click', function (e) { e.preventDefault(); bukaPilihanEkspor('excel'); });
+  document.getElementById('btn-pdf').addEventListener('click', function (e) { e.preventDefault(); bukaPilihanEkspor('pdf'); });
+  document.getElementById('pilih-semua-kolom').addEventListener('click', function () {
+    modalEkspor.querySelectorAll('.kolom-ekspor').forEach(function (input) { input.checked = true; });
+  });
+  document.getElementById('hapus-pilihan-kolom').addEventListener('click', function () {
+    modalEkspor.querySelectorAll('.kolom-ekspor').forEach(function (input) { input.checked = false; });
+  });
+  document.getElementById('mulai-ekspor').addEventListener('click', arahkanEkspor);
+  modalEkspor.querySelectorAll('.btn-tutup-modal').forEach(function (button) {
+    button.addEventListener('click', function () { modalEkspor.classList.remove('terbuka'); });
+  });
+  modalEkspor.addEventListener('click', function (event) {
+    if (event.target === modalEkspor) modalEkspor.classList.remove('terbuka');
+  });
   document.getElementById('btn-cetak').addEventListener('click', function (e) { e.preventDefault(); arahkan('cetak'); });
 
   inputQ.addEventListener('input', function () {
@@ -279,7 +347,7 @@
 
   function bukaGanti(id, nama) {
     inputGantiId.value = id;
-    labelGanti.textContent = 'Ganti password untuk: ' + nama;
+    labelGanti.textContent =   nama;
     modalGanti.classList.add('terbuka');
   }
 

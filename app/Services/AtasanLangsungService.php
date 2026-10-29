@@ -73,6 +73,7 @@ class AtasanLangsungService
     public function pilihan(?int $kecualiId = null)
     {
         return User::where('role', '!=', 'admin')
+            ->where('status', 'aktif')
             ->when($kecualiId, fn ($q) => $q->where('id', '!=', $kecualiId))
             ->orderBy('nama_lengkap')
             ->get(['id', 'nama_lengkap']);
@@ -86,6 +87,7 @@ class AtasanLangsungService
         $kata = trim($kata);
 
         return User::where('role', '!=', 'admin')
+            ->where('status', 'aktif')
             ->when($kata !== '', fn ($b) => $b->where(function ($w) use ($kata) {
                 $w->where('nama_lengkap', 'like', "%{$kata}%")
                     ->orWhere('email', 'like', "%{$kata}%");
@@ -109,7 +111,11 @@ class AtasanLangsungService
 
         AtasanLangsung::where('user_id', $userId)->delete();
 
-        $sah = User::whereIn('id', $bersih)->where('role', '!=', 'admin')->pluck('id')->all();
+        $sah = User::whereIn('id', $bersih)
+            ->where('role', '!=', 'admin')
+            ->where('status', 'aktif')
+            ->pluck('id')
+            ->all();
 
         foreach ($sah as $idAtasan) {
             AtasanLangsung::create(['user_id' => $userId, 'atasan_id' => $idAtasan]);
@@ -137,8 +143,16 @@ class AtasanLangsungService
             return ['diproses' => 0, 'diterapkan' => 0];
         }
 
-        $sahUmum = User::whereIn('id', $diminta->all())->where('role', '!=', 'admin')->pluck('id')->all();
-        $pegawai = User::whereIn('id', $target->all())->where('role', '!=', 'admin')->pluck('id')->all();
+        $sahUmum = User::whereIn('id', $diminta->all())
+            ->where('role', '!=', 'admin')
+            ->where('status', 'aktif')
+            ->pluck('id')
+            ->all();
+        $pegawai = User::whereIn('id', $target->all())
+            ->where('role', '!=', 'admin')
+            ->where('status', 'aktif')
+            ->pluck('id')
+            ->all();
 
         $diproses = 0;
         $diterapkan = 0;

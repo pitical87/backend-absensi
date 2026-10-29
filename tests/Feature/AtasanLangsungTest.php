@@ -49,11 +49,14 @@ class AtasanLangsungTest extends TestCase
         $this->admin();
         $satu = $this->pegawai('Budi Santoso');
         $this->pegawai('Ani Lestari');
+        $nonaktif = $this->pegawai('Pegawai Nonaktif');
+        $nonaktif->update(['status' => 'nonaktif']);
 
         $this->get(route('admin.atasan_langsung.index'))
             ->assertOk()
             ->assertSee('Budi Santoso')
             ->assertSee('Ani Lestari')
+            ->assertDontSee('Pegawai Nonaktif')
             ->assertSee('data-page');
 
         $this->assertFalse(AtasanLangsung::exists());
@@ -82,8 +85,11 @@ class AtasanLangsungTest extends TestCase
         $sudah = $this->pegawai('Budi Santoso');
         $belum = $this->pegawai('Ani Lestari');
         $atasan = $this->pegawai('Kasir');
+        $nonaktif = $this->pegawai('Pegawai Nonaktif');
+        $nonaktif->update(['status' => 'nonaktif']);
 
         AtasanLangsung::create(['user_id' => $sudah->id, 'atasan_id' => $atasan->id]);
+        AtasanLangsung::create(['user_id' => $nonaktif->id, 'atasan_id' => $atasan->id]);
 
         $jsonBelum = $this->getJson(route('admin.atasan_langsung.data').'?status=belum')->assertOk();
         $jsonBelum->assertJsonPath('total', 2);
@@ -125,13 +131,21 @@ class AtasanLangsungTest extends TestCase
         $this->admin();
         $this->pegawai('Budi Santoso');
         $this->pegawai('Ani Lestari');
+        $nonaktif = $this->pegawai('Kandidat Nonaktif');
+        $nonaktif->update(['status' => 'nonaktif']);
 
         $this->getJson(route('admin.atasan_langsung.pilihan').'?q=Budi')
             ->assertOk()
             ->assertJsonPath('sukses', true)
             ->assertJsonPath('total', 1)
             ->assertSee('Budi Santoso')
-            ->assertDontSee('Ani Lestari');
+            ->assertDontSee('Ani Lestari')
+            ->assertDontSee('Kandidat Nonaktif');
+
+        $this->getJson(route('admin.atasan_langsung.pilihan').'?q=Nonaktif')
+            ->assertOk()
+            ->assertJsonPath('total', 0)
+            ->assertDontSee('Kandidat Nonaktif');
     }
 
     // ── SIMPAN SATU PEGAWAI ───────────────────────────────────────────

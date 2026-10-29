@@ -148,6 +148,33 @@
   </div>
 </section>
 
+<div id="modal-email-mencurigakan" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
+  <section class="kartu w-full max-w-2xl max-h-[92vh] overflow-y-auto">
+    <div class="kartu-kepala">
+      <h2>{!! ikon('surat') !!} Tinjau Email</h2>
+      <button type="button" id="modal-email-mencurigakan-tutup" class="btn btn-garis btn-kecil" aria-label="Tutup">&times;</button>
+    </div>
+    <form id="form-email-mencurigakan" class="px-3 pb-3 space-y-3">
+      <div>
+        <div class="teks-kecil font-semibold mb-1">Penerima (<span id="jumlah-email-mencurigakan">0</span>)</div>
+        <div id="penerima-email-mencurigakan" class="border border-garis rounded-lg p-2 max-h-28 overflow-y-auto teks-kecil"></div>
+      </div>
+      <label class="blok">
+        <span class="teks-kecil">Subjek</span>
+        <input type="text" id="subjek-email-mencurigakan" maxlength="180" required>
+      </label>
+      <label class="blok">
+        <span class="teks-kecil">Pesan</span>
+        <textarea id="isi-email-mencurigakan" rows="8" maxlength="10000" required></textarea>
+      </label>
+      <div class="flex justify-end gap-2">
+        <button type="button" id="modal-email-mencurigakan-batal" class="btn btn-garis">Batal</button>
+        <button type="submit" id="btn-kirim-email-konfirmasi" class="btn btn-primer">{!! ikon('surat',14) !!} Kirim Email</button>
+      </div>
+    </form>
+  </section>
+</div>
+
 {{-- ===== MODAL TAMBAH / UBAH ABSENSI ===== --}}
 <div id="modal-absen" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
   <section class="kartu w-full max-w-lg max-h-[92vh] overflow-y-auto">
@@ -428,6 +455,8 @@
   var selTahunMenc = document.getElementById('input-tahun-mencurigakan');
   var tbodyMenc = document.getElementById('tbody-mencurigakan');
   var totalMenc = document.getElementById('total-mencurigakan');
+  var urlNotifikasiMenc = @json(route('admin.kehadiran.mencurigakan.notifikasi'));
+  var urlEmailMenc = @json(route('admin.kehadiran.mencurigakan.email'));
 
   function muatMencurigakan() {
     if (! urlMencurigakan) return;
@@ -789,20 +818,143 @@
 
   var btnNotif = document.getElementById('btn-kirim-notifikasi');
   var btnEmail = document.getElementById('btn-kirim-email');
+  var modalEmail = document.getElementById('modal-email-mencurigakan');
+  var formEmail = document.getElementById('form-email-mencurigakan');
+  var btnKirimEmail = document.getElementById('btn-kirim-email-konfirmasi');
+
+  function tampilkanModalEmail(tampil) {
+    if (! modalEmail) return;
+    modalEmail.classList.toggle('hidden', !tampil);
+    modalEmail.classList.toggle('flex', tampil);
+  }
+
+  function isiEmailTerpilih() {
+    var penerima = dataTerpilih();
+    var wadah = document.getElementById('penerima-email-mencurigakan');
+    var isi = 'Kami mendeteksi pola absensi mencurigakan pada akun anda di sistem absensi RSUD Merauke untuk bulan '
+      + (selBulanMenc ? selBulanMenc.options[selBulanMenc.selectedIndex].text : '')
+      + ' ' + (selTahunMenc ? selTahunMenc.value : '') + '.\n\n'
+      + 'Silakan meninjau kembali catatan absensi Anda dan memberikan klarifikasi '
+      + 'apabila terdapat ketidaksesuaian. Abaikan pemberitahuan ini jika Anda merasa pemberitahuan ini tidak sesuai. '
+        document.getElementById('jumlah-email-mencurigakan').textContent = String(penerima.length);
+    wadah.textContent = '';
+    penerima.forEach(function (pegawai) {
+      var baris = document.createElement('div');
+      baris.className = 'py-1 border-b border-slate-100';
+      baris.textContent = pegawai.nama + ' — ' + (pegawai.email || 'Email tidak tersedia');
+      wadah.appendChild(baris);
+    });
+    document.getElementById('subjek-email-mencurigakan').value = 'Pola Absensi Mencurigakan di SIMARO - '
+      + (selBulanMenc ? selBulanMenc.options[selBulanMenc.selectedIndex].text : '')
+      + ' ' + (selTahunMenc ? selTahunMenc.value : '');
+    document.getElementById('isi-email-mencurigakan').value = isi;
+    tampilkanModalEmail(true);
+  }
+
   if (btnNotif) {
     btnNotif.addEventListener('click', function () {
       var d = dataTerpilih();
       if (d.length === 0) return alert('Tidak ada data terpilih.');
-      alert('Fitur "Kirim Notifikasi" akan dikirim ke ' + d.length + ' pegawai.');
+
+      var tombol = btnNotif;
+      var teksAwal = tombol.innerHTML;
+      var data = new FormData();
+      d.forEach(function (pegawai) { data.append('user_ids[]', pegawai.user_id); });
+      data.append('bulan', selBulanMenc ? selBulanMenc.value : '');
+      data.append('tahun', selTahunMenc ? selTahunMenc.value : '');
+
+      tombol.disabled = true;
+      tombol.textContent = 'Mengirim…';
+      tampilPesan('Mengirim notifikasi ke ' + d.length + ' pegawai…', true);
+      fetch(urlNotifikasiMenc, {
+        method: 'POST',
+        body: data,
+        headers: {
+          'Accept': 'application/json',
+          'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf"]') || {}).content || ''
+        },
+        credentials: 'same-origin'
+      })
+        .then(function (r) {
+          return r.json().then(function (h) {
+            if (! r.ok || ! h.sukses) throw new Error(h.pesan || 'Notifikasi gagal dikirim.');
+            return h;
+          });
+        })
+        .then(function (h) { tampilPesan(h.pesan, true); })
+        .catch(function (error) { tampilPesan(error.message || 'Terjadi kesalahan jaringan.', false); })
+        .finally(function () {
+          tombol.disabled = false;
+          tombol.innerHTML = teksAwal;
+        });
     });
   }
   if (btnEmail) {
     btnEmail.addEventListener('click', function () {
       var d = dataTerpilih();
       if (d.length === 0) return alert('Tidak ada data terpilih.');
-      alert('Fitur "Kirim Email" akan dikirim ke ' + d.length + ' pegawai.');
+      if (d.some(function (pegawai) { return !pegawai.email; })) {
+        tampilPesan('Ada pegawai terpilih yang belum memiliki email. Periksa alamat email sebelum melanjutkan.', false);
+        return;
+      }
+      isiEmailTerpilih();
     });
   }
+
+  document.getElementById('modal-email-mencurigakan-tutup').addEventListener('click', function () {
+    tampilkanModalEmail(false);
+  });
+  document.getElementById('modal-email-mencurigakan-batal').addEventListener('click', function () {
+    tampilkanModalEmail(false);
+  });
+  modalEmail.addEventListener('click', function (e) {
+    if (e.target === modalEmail) tampilkanModalEmail(false);
+  });
+  formEmail.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var penerima = dataTerpilih();
+    if (penerima.length === 0) {
+      tampilkanModalEmail(false);
+      tampilPesan('Tidak ada pegawai terpilih. Scan ulang lalu pilih penerima.', false);
+      return;
+    }
+
+    var data = new FormData();
+    penerima.forEach(function (pegawai) { data.append('user_ids[]', pegawai.user_id); });
+    data.append('bulan', selBulanMenc ? selBulanMenc.value : '');
+    data.append('tahun', selTahunMenc ? selTahunMenc.value : '');
+    data.append('subjek', document.getElementById('subjek-email-mencurigakan').value);
+    data.append('pesan', document.getElementById('isi-email-mencurigakan').value);
+
+    btnKirimEmail.disabled = true;
+    btnKirimEmail.textContent = 'Mengirim…';
+    fetch(urlEmailMenc, {
+      method: 'POST',
+      body: data,
+      headers: {
+        'Accept': 'application/json',
+        'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf"]') || {}).content || ''
+      },
+      credentials: 'same-origin'
+    })
+      .then(function (r) {
+        return r.json().then(function (h) {
+          if (! r.ok || ! h.sukses) throw new Error(h.pesan || 'Email gagal dikirim.');
+          return h;
+        });
+      })
+      .then(function (h) {
+        tampilkanModalEmail(false);
+        tampilPesan(h.pesan, true);
+      })
+      .catch(function (error) {
+        tampilPesan(error.message || 'Terjadi kesalahan jaringan saat mengirim email.', false);
+      })
+      .finally(function () {
+        btnKirimEmail.disabled = false;
+        btnKirimEmail.innerHTML = @json(ikon('surat',14)) + ' Kirim Email';
+      });
+  });
 
 })();
 </script>

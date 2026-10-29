@@ -28,7 +28,7 @@ class PegawaiRequest extends FormRequest
                 $id ? ["unique:users,email,{$id}"] : ['unique:users,email']
             ),
             'no_hp'          => ['nullable', 'string', 'max:20'],
-            'nip'            => ['nullable', 'string', 'max:30'],
+            'nip'            => ['nullable', 'required_if:status_pegawai,PNS', 'string', 'max:30'],
             'unit_kerja_id'  => ['required', 'integer', 'exists:unit_kerja,id'],
             'sub_unit_id'    => ['nullable', Rule::exists('sub_unit', 'id')->where(
                 fn (Builder $q) => $q->where('unit_kerja_id', (int) $this->input('unit_kerja_id'))
@@ -57,6 +57,7 @@ class PegawaiRequest extends FormRequest
             'jenis_kelamin.in'      => 'Jenis kelamin tidak valid.',
             'password.required'     => 'Password wajib diisi untuk pegawai baru.',
             'password.min'          => 'Password minimal 6 karakter.',
+            'nip.required_if'       => 'NIP wajib diisi untuk pegawai berstatus PNS.',
             'unit_kerja_id.required' => 'Tempat kerja wajib dipilih.',
             'unit_kerja_id.exists'  => 'Unit kerja tidak valid.',
             'sub_unit_id.exists'    => 'Sub unit tidak sesuai dengan unit kerja yang dipilih.',
