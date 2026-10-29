@@ -61,6 +61,30 @@ class DashboardLazyTest extends TestCase
         $this->assertStringContainsString('<script>', $html);
     }
 
+    public function test_pegawai_tanpa_jadwal_dihitung_selalu_hadir(): void
+    {
+        $this->admin();
+
+        User::create([
+            'nama_lengkap' => 'Pegawai Tanpa Jadwal',
+            'email' => 'pegawai.dashboard@contoh.test',
+            'password_hash' => bcrypt('rahasia-kuat'),
+            'role' => 'pegawai',
+            'status' => 'aktif',
+        ]);
+
+        $html = $this->get(route('admin.dashboard.data'))->assertOk()->getContent();
+
+        $this->assertMatchesRegularExpression(
+            '/<span class="text-slate-700 truncate">Selalu Hadir<\/span>\s*<span class="ml-auto tabular-nums whitespace-nowrap"><strong>1<\/strong>/',
+            $html
+        );
+        $this->assertMatchesRegularExpression(
+            '/<span class="text-slate-700 truncate">Belum Pernah Absen<\/span>\s*<span class="ml-auto tabular-nums whitespace-nowrap"><strong>0<\/strong>/',
+            $html
+        );
+    }
+
     public function test_endpoint_data_dilindungi_login(): void
     {
         $this->get(route('admin.dashboard.data'))->assertRedirect(route('login'));

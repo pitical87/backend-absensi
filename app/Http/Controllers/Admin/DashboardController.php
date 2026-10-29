@@ -117,7 +117,7 @@ class DashboardController extends Controller
 
         $teladan = [];
         $rekapService = app(RekapService::class);
-        $pegawaiAktif = User::select('users.id', 'users.nama_lengkap', 'uk.nama AS unit_nama')
+        $pegawaiAktif = User::select('users.id', 'users.nama_lengkap', 'users.sub_unit_id', 'uk.nama AS unit_nama')
             ->leftJoin('unit_kerja as uk', 'uk.id', '=', 'users.unit_kerja_id')
             ->where('users.role', 'pegawai')->where('users.status', 'aktif')
             ->get()->all();
@@ -155,10 +155,10 @@ class DashboardController extends Controller
             $terhitung = (int) $r['hadir'] + (int) $r['dinas_luar'];
             $efektif   = (int) $r['hari_efektif'];
 
-            if ($terhitung === 0) {
-                $ketaatan['tidak_pernah']++;
-            } elseif ($efektif > 0 && $terhitung >= $efektif) {
+            if ($efektif === 0 || $terhitung >= $efektif) {
                 $ketaatan['selalu']++;
+            } elseif ($terhitung === 0) {
+                $ketaatan['tidak_pernah']++;
             } elseif ($efektif > 0 && $terhitung * 100 >= $efektif * 75) {
                 $ketaatan['sering']++;
             } else {
@@ -174,7 +174,7 @@ class DashboardController extends Controller
             ['label' => 'Selalu Hadir', 'jml' => $ketaatan['selalu'], 'warna' => '#059669'],
             ['label' => 'Sering Hadir (≥75%)', 'jml' => $ketaatan['sering'], 'warna' => '#007AFC'],
             ['label' => 'Jarang Hadir (<75%)', 'jml' => $ketaatan['jarang'], 'warna' => '#D97706'],
-            ['label' => 'Tidak Pernah Absen', 'jml' => $ketaatan['tidak_pernah'], 'warna' => '#DC2626'],
+            ['label' => 'Belum Pernah Absen', 'jml' => $ketaatan['tidak_pernah'], 'warna' => '#DC2626'],
         ];
         foreach ($irisanPie as &$s) {
             $s['pct'] = $ketaatan['total'] > 0 ? round($s['jml'] / $ketaatan['total'] * 100, 2) : 0.0;
@@ -187,23 +187,29 @@ class DashboardController extends Controller
         $lewatJadwal = $this->rekapLewatJadwal($mulaiBulan, $hariIni, $totalPegawai);
 
         // Distribusi pegawai per shift (kategori) bulan ini
-        $mulaiBulanCarbon = Carbon::parse($mulaiBulan);
-        $shiftDistribusi = DB::table('jadwal_shift')
-            ->join('shift as s', 's.id', '=', 'jadwal_shift.shift_id')
-            ->join('users as u', 'u.id', '=', 'jadwal_shift.user_id')
-            ->where('jadwal_shift.tanggal_berlaku', '>=', $mulaiBulan)
-            ->where('jadwal_shift.tanggal_berlaku', '<=', $hariIni)
-            ->where('u.role', 'pegawai')
-            ->where('u.status', 'aktif')
-            ->select('s.kategori', DB::raw('COUNT(DISTINCT jadwal_shift.user_id) as jml'))
-            ->groupBy('s.kategori')
-            ->get()
-            ->keyBy('kategori');
+        $jadwalEfektifPerPegawai = app(\App\Services\JadwalEfektifService::class)
+            ->petaUntukBanyakPegawai($pegawaiAktif, $mulaiBulan, $hariIni);
+        $shiftIdKategori = DB::table('shift')
+            ->whereIn('id', collect($jadwalEfektifPerPegawai)->flatten()->unique())
+            ->pluck('kategori', 'id');
+        $shiftDistribusi = [];
+        foreach ($jadwalEfektifPerPegawai as $userId => $jadwalPegawai) {
+            $kategoriPegawai = [];
+            foreach (array_unique(array_values($jadwalPegawai)) as $shiftId) {
+                $kategori = $shiftIdKategori[$shiftId] ?? null;
+                if ($kategori) {
+                    $kategoriPegawai[$kategori] = true;
+                }
+            }
+            foreach (array_keys($kategoriPegawai) as $kategori) {
+                $shiftDistribusi[$kategori] = ($shiftDistribusi[$kategori] ?? 0) + 1;
+            }
+        }
 
         $shiftPie = [];
         $shiftLabels = ['Pagi', 'Siang', 'Sore', 'Malam'];
         foreach ($shiftLabels as $label) {
-            $jml = $shiftDistribusi[$label]->jml ?? 0;
+            $jml = $shiftDistribusi[$label] ?? 0;
             $shiftPie[] = [
                 'label' => $label,
                 'jml' => (int) $jml,
