@@ -193,6 +193,7 @@ class DashboardController extends Controller
             ->whereIn('id', collect($jadwalEfektifPerPegawai)->flatten()->unique())
             ->pluck('kategori', 'id');
         $shiftDistribusi = [];
+        $pegawaiDenganShift = [];
         foreach ($jadwalEfektifPerPegawai as $userId => $jadwalPegawai) {
             $kategoriPegawai = [];
             foreach (array_unique(array_values($jadwalPegawai)) as $shiftId) {
@@ -200,6 +201,9 @@ class DashboardController extends Controller
                 if ($kategori) {
                     $kategoriPegawai[$kategori] = true;
                 }
+            }
+            if ($kategoriPegawai) {
+                $pegawaiDenganShift[$userId] = true;
             }
             foreach (array_keys($kategoriPegawai) as $kategori) {
                 $shiftDistribusi[$kategori] = ($shiftDistribusi[$kategori] ?? 0) + 1;
@@ -222,6 +226,12 @@ class DashboardController extends Controller
                 },
             ];
         }
+
+        $tanpaShift = max(0, count($pegawaiAktif) - count($pegawaiDenganShift));
+        if ($tanpaShift > 0) {
+            $shiftPie[] = ['label' => 'Tanpa Shift', 'jml' => $tanpaShift, 'warna' => '#94A3B8'];
+        }
+
         $shiftTotal = array_sum(array_column($shiftPie, 'jml'));
         foreach ($shiftPie as &$s) {
             $s['pct'] = $shiftTotal > 0 ? round($s['jml'] / $shiftTotal * 100, 2) : 0.0;
