@@ -5,15 +5,39 @@
 <section class="kartu">
   <div class="kartu-kepala">
     <h2>{!! ikon('grafik') !!} Dashboard Eksekutif</h2>
-    <span class="badge badge-biru">{{ $f['mode'] === 'tren' ? 'Tren ' . $f['tahun'] : $f['dari'] . ' s/d ' . $f['sampai'] }}</span>
+    <span class="badge badge-biru">{{ $labelPeriode }}</span>
   </div>
 
   <form method="get" action="{{ url('admin/eksekutif') }}" class="bilah-alat flex-wrap">
     <select name="mode">
-      <option value="tren" {{ $f['mode'] === 'tren' ? 'selected' : '' }}>Tren Tahun</option>
+      <option value="tren" {{ $f['mode'] === 'tren' ? 'selected' : '' }}>Tren Tahunan</option>
+      <option value="bulan" {{ $f['mode'] === 'bulan' ? 'selected' : '' }}>Per Bulan</option>
+      <option value="minggu" {{ $f['mode'] === 'minggu' ? 'selected' : '' }}>Per Minggu</option>
       <option value="unit" {{ $f['mode'] === 'unit' ? 'selected' : '' }}>Perbandingan Unit</option>
     </select>
     @if($f['mode'] === 'tren')
+      <select name="tahun">
+        @for($t = (int) date('Y'); $t >= 2024; $t--)
+          <option {{ $t === $f['tahun'] ? 'selected' : '' }}>{{ $t }}</option>
+        @endfor
+      </select>
+    @elseif($f['mode'] === 'bulan')
+      <select name="bulan">
+        @foreach(BULAN_ID as $i => $nb)
+          <option value="{{ $i }}" {{ $i === $f['bulan'] ? 'selected' : '' }}>{{ $nb }}</option>
+        @endforeach
+      </select>
+      <select name="tahun">
+        @for($t = (int) date('Y'); $t >= 2024; $t--)
+          <option {{ $t === $f['tahun'] ? 'selected' : '' }}>{{ $t }}</option>
+        @endfor
+      </select>
+    @elseif($f['mode'] === 'minggu')
+      <select name="minggu">
+        @foreach($mingguList as $mg)
+          <option value="{{ $mg['minggu'] }}" {{ $mg['minggu'] === $f['minggu'] ? 'selected' : '' }}>{{ $mg['label'] }}</option>
+        @endforeach
+      </select>
       <select name="tahun">
         @for($t = (int) date('Y'); $t >= 2024; $t--)
           <option {{ $t === $f['tahun'] ? 'selected' : '' }}>{{ $t }}</option>
@@ -49,9 +73,11 @@
     @php
       $sqs = http_build_query(array_filter([
         'mode' => $f['mode'],
-        'tahun' => $f['mode'] === 'tren' ? $f['tahun'] : null,
-        'dari' => $f['mode'] !== 'tren' ? $f['dari'] : null,
-        'sampai' => $f['mode'] !== 'tren' ? $f['sampai'] : null,
+        'tahun' => in_array($f['mode'], ['tren', 'bulan', 'minggu'], true) ? $f['tahun'] : null,
+        'bulan' => $f['mode'] === 'bulan' ? $f['bulan'] : null,
+        'minggu' => $f['mode'] === 'minggu' ? $f['minggu'] : null,
+        'dari' => $f['mode'] === 'unit' ? $f['dari'] : null,
+        'sampai' => $f['mode'] === 'unit' ? $f['sampai'] : null,
         'unit' => $f['unit'] ?: null, 'jab' => $f['jab'] ?: null, 'prof' => $f['prof'] ?: null,
       ]));
     @endphp
@@ -118,6 +144,54 @@
             <td class="angka">{{ $t['logbook'] }}</td>
           </tr>
           @endforeach
+        </tbody>
+      </table>
+    </div>
+  @endif
+
+  @if(in_array($f['mode'], ['bulan', 'minggu'], true))
+    @if($harian)
+    <div class="teks-redup teks-kecil mb-2">Tren Kehadiran Harian — {{ $labelPeriode }}</div>
+    @php
+      $maksHarian = max(1, ...array_column($harian, 'hadir'));
+      $jarakBatang = $f['mode'] === 'bulan' ? 3 : 6;
+    @endphp
+    <div class="grafik-batang" style="display:flex;align-items:flex-end;gap:{{ $jarakBatang }}px;height:170px;padding:8px 0">
+      @foreach($harian as $h)
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end">
+          <span class="teks-kecil" style="font-size:8px">{{ $h['hadir'] }}</span>
+          <div class="batang" style="width:100%;height:{{ round($h['hadir'] * 100 / $maksHarian) }}%;background:#1568B8;border-radius:3px 3px 0 0" title="{{ $h['hari'] }}, {{ $h['label'] }}: {{ $h['hadir'] }} hadir"></div>
+          <span class="teks-redup teks-kecil" style="font-size:7px">{{ $f['mode'] === 'bulan' ? (int) date('j', strtotime($h['tanggal'])) : substr($h['hari'], 0, 3) }}</span>
+        </div>
+      @endforeach
+    </div>
+    @endif
+
+    <div class="teks-redup teks-kecil mb-2" style="margin-top:14px">Rincian Harian — {{ $labelPeriode }}</div>
+    <div class="tabel-bungkus">
+      <table class="tabel">
+        <thead>
+          <tr>
+            <th>Tanggal</th><th class="angka">Hadir</th><th class="angka">Tepat</th>
+            <th class="angka">Terlambat</th><th class="angka">Izin Pelaksanaan</th>
+            <th class="angka">Jam Lembur</th><th class="angka">Logbook</th>
+          </tr>
+        </thead>
+        <tbody>
+          @foreach($harian as $h)
+          <tr>
+            <td>{{ $h['hari'] }}, {{ $h['label'] }}</td>
+            <td class="angka">{{ $h['hadir'] }}</td>
+            <td class="angka">{{ $h['tepat'] }}</td>
+            <td class="angka">{{ $h['terlambat'] }}</td>
+            <td class="angka">{{ $h['izin'] }}</td>
+            <td class="angka">{{ number_format($h['jam_lembur'], 1, ',', '.') }}</td>
+            <td class="angka">{{ $h['logbook'] }}</td>
+          </tr>
+          @endforeach
+          @if(! $harian)
+          <tr><td colspan="7" class="tengah teks-redup">Tidak ada data pada periode ini.</td></tr>
+          @endif
         </tbody>
       </table>
     </div>

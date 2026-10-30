@@ -3,35 +3,79 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Absensi;
 use App\Models\AbsenLembur;
+use App\Models\Absensi;
 use App\Models\Izin;
 use App\Models\Logbook;
 use App\Models\PengajuanLembur;
 use App\Models\UnitKerja;
 use App\Models\User;
-use App\Services\StrukturService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class EksekutifController extends Controller
 {
     private function ambilParam(Request $request): array
     {
+        $mode = in_array($request->get('mode'), ['tren', 'bulan', 'minggu', 'unit'], true) ? $request->get('mode') : 'tren';
+        $tahun = min(2100, max(2024, (int) ($request->get('tahun') ?: now()->format('Y'))));
+        $bulan = min(12, max(1, (int) ($request->get('bulan') ?: now()->format('n'))));
+        $mingguMaks = Carbon::create($tahun, 12, 28)->isoWeek();
+        $minggu = min($mingguMaks, max(1, (int) ($request->get('minggu') ?: now()->isoWeek())));
+
         $dari = $request->get('dari') ?: now()->startOfMonth()->toDateString();
         $sampai = $request->get('sampai') ?: now()->toDateString();
+
+        if ($mode === 'bulan') {
+            $dari = Carbon::create($tahun, $bulan, 1)->startOfMonth()->toDateString();
+            $sampai = Carbon::create($tahun, $bulan, 1)->endOfMonth()->toDateString();
+        } elseif ($mode === 'minggu') {
+            $mulai = Carbon::now()->setISODate($tahun, $minggu, 1)->startOfDay();
+            $dari = $mulai->toDateString();
+            $sampai = $mulai->copy()->addDays(6)->toDateString();
+        }
+
         if ($sampai < $dari) {
             $sampai = $dari;
         }
+
         return [
-            'mode' => in_array($request->get('mode'), ['tren', 'unit'], true) ? $request->get('mode') : 'tren',
-            'tahun' => min(2100, max(2024, (int) ($request->get('tahun') ?: now()->format('Y')))),
+            'mode' => $mode,
+            'tahun' => $tahun,
+            'bulan' => $bulan,
+            'minggu' => $minggu,
             'dari' => $dari,
             'sampai' => $sampai,
             'unit' => (int) $request->get('unit'),
             'jab' => in_array((string) $request->get('jab'), kategori_jabatan_list(), true) ? (string) $request->get('jab') : '',
             'prof' => (int) $request->get('prof'),
         ];
+    }
+
+    private function labelPeriode(array $f): string
+    {
+        return match ($f['mode']) {
+            'bulan' => BULAN_ID[$f['bulan']].' '.$f['tahun'],
+            'minggu' => 'Minggu ke-'.$f['minggu'].' ('.tgl_id($f['dari'], false).' s/d '.tgl_id($f['sampai'], false).')',
+            'unit' => $f['dari'].' s/d '.$f['sampai'],
+            default => 'Tren '.$f['tahun'],
+        };
+    }
+
+    private function daftarMinggu(int $tahun): array
+    {
+        $hasil = [];
+        $jumlah = Carbon::create($tahun, 12, 28)->isoWeek();
+        for ($m = 1; $m <= $jumlah; $m++) {
+            $awal = Carbon::now()->setISODate($tahun, $m, 1)->startOfDay();
+            $akhir = $awal->copy()->addDays(6);
+            $hasil[] = [
+                'minggu' => $m,
+                'label' => 'Minggu '.$m.' ('.tgl_id($awal->toDateString(), false).' – '.tgl_id($akhir->toDateString(), false).')',
+            ];
+        }
+
+        return $hasil;
     }
 
     /** rentang bulan utk mode tren selama satu tahun (Jan–Des tahun terpilih). */
@@ -41,6 +85,7 @@ class EksekutifController extends Controller
         foreach (range(1, 12) as $m) {
             $mulai[] = sprintf('%04d-%02d-01', $tahun, $m);
         }
+
         return $mulai;
     }
 
@@ -56,6 +101,7 @@ class EksekutifController extends Controller
         if ($f['prof']) {
             $b->where('profesi_id', $f['prof']);
         }
+
         return $b;
     }
 
@@ -75,6 +121,7 @@ class EksekutifController extends Controller
             $q->whereIn('user_id', $userId);
         }
         $r = $q->first();
+
         return [
             'hadir' => (int) ($r->hadir ?? 0),
             'tepat' => (int) ($r->tepat ?? 0),
@@ -103,6 +150,7 @@ class EksekutifController extends Controller
             $q->whereIn('user_id', $userId);
         }
         $r = $q->first();
+
         return [
             'total' => (int) ($r->total ?? 0),
             'disetujui' => (int) ($r->disetujui ?? 0),
@@ -128,6 +176,7 @@ class EksekutifController extends Controller
             $q->whereIn('user_id', $userId);
         }
         $r = $q->first();
+
         return [
             'total' => (int) ($r->total ?? 0),
             'disetujui' => (int) ($r->disetujui ?? 0),
@@ -144,6 +193,7 @@ class EksekutifController extends Controller
             $q->whereIn('user_id', $userId);
         }
         $r = $q->first();
+
         return [
             'jumlah' => (int) ($r->jumlah ?? 0),
             'total_menit' => (int) ($r->total_menit ?? 0),
@@ -163,6 +213,7 @@ class EksekutifController extends Controller
             $q->whereIn('user_id', $userId);
         }
         $r = $q->first();
+
         return [
             'jumlah' => (int) ($r->jumlah ?? 0),
             'jumlah_hari' => (int) ($r->jumlah_hari ?? 0),
@@ -195,6 +246,32 @@ class EksekutifController extends Controller
         ];
     }
 
+    private function hitungHarian(string $dari, string $sampai, array $f): array
+    {
+        $hasil = [];
+        $tanggal = Carbon::parse($dari);
+        $akhir = Carbon::parse($sampai);
+
+        while ($tanggal->lte($akhir)) {
+            $t = $tanggal->toDateString();
+            $p = $this->hitungPeriode($t, $t, $f);
+            $hasil[] = [
+                'tanggal' => $t,
+                'label' => $tanggal->format('d').' '.substr(BULAN_ID[(int) $tanggal->format('n')], 0, 3).' '.$tanggal->format('Y'),
+                'hari' => HARI_ID[(int) $tanggal->format('w')],
+                'hadir' => $p['absensi']['hadir'],
+                'tepat' => $p['absensi']['tepat'],
+                'terlambat' => $p['absensi']['terlambat'],
+                'izin' => $p['izin']['disetujui'],
+                'jam_lembur' => $p['lembur']['total_jam'],
+                'logbook' => $p['logbook']['jumlah'],
+            ];
+            $tanggal->addDay();
+        }
+
+        return $hasil;
+    }
+
     public function index(Request $request)
     {
         $f = $this->ambilParam($request);
@@ -202,6 +279,7 @@ class EksekutifController extends Controller
 
         $tren = [];
         $perUnit = [];
+        $harian = [];
         $ringkasan = null;
 
         if ($f['mode'] === 'tren') {
@@ -231,7 +309,7 @@ class EksekutifController extends Controller
             }
             $ringkasan = $keseluruhan;
             $ringkasan['total_pegawai'] = $this->hitungPeriode($bulanMulai[0], date('Y-m-t', strtotime($bulanMulai[11])), $f)['total_pegawai'];
-        } else {
+        } elseif ($f['mode'] === 'unit') {
             // Perbandingan antar unit dalam rentang tanggal bebas.
             foreach ($unitList as $uk) {
                 $sub = $f;
@@ -250,6 +328,10 @@ class EksekutifController extends Controller
                 ];
             }
             $ringkasan = $this->hitungPeriode($f['dari'], $f['sampai'], $f);
+        } else {
+            // Rincian harian untuk periode bulanan/mingguan.
+            $ringkasan = $this->hitungPeriode($f['dari'], $f['sampai'], $f);
+            $harian = $this->hitungHarian($f['dari'], $f['sampai'], $f);
         }
 
         return view('admin.eksekutif.index', [
@@ -259,8 +341,11 @@ class EksekutifController extends Controller
             'unitList' => $unitList,
             'tren' => $tren,
             'perUnit' => $perUnit,
+            'harian' => $harian,
             'ringkasan' => $ringkasan,
             'kategoriJab' => kategori_jabatan_list(),
+            'labelPeriode' => $this->labelPeriode($f),
+            'mingguList' => $this->daftarMinggu($f['tahun']),
         ]);
     }
 
@@ -271,6 +356,7 @@ class EksekutifController extends Controller
 
         $tren = [];
         $perUnit = [];
+        $harian = [];
         $ringkasan = null;
 
         if ($f['mode'] === 'tren') {
@@ -290,7 +376,7 @@ class EksekutifController extends Controller
                 ];
             }
             $ringkasan = $this->hitungPeriode($tahun.'-01-01', $tahun.'-12-31', $f);
-        } else {
+        } elseif ($f['mode'] === 'unit') {
             foreach ($unitList as $uk) {
                 $sub = $f;
                 $sub['unit'] = (int) $uk->id;
@@ -306,16 +392,21 @@ class EksekutifController extends Controller
                 ];
             }
             $ringkasan = $this->hitungPeriode($f['dari'], $f['sampai'], $f);
+        } else {
+            $ringkasan = $this->hitungPeriode($f['dari'], $f['sampai'], $f);
+            $harian = $this->hitungHarian($f['dari'], $f['sampai'], $f);
         }
 
-        catat_aktivitas('Cetak Dashboard Eksekutif', $f['mode'] === 'tren' ? 'Tren '.$f['tahun'] : $f['dari'].' s/d '.$f['sampai']);
+        catat_aktivitas('Cetak Dashboard Eksekutif', $this->labelPeriode($f));
 
         return view('admin.eksekutif.cetak', [
             'f' => $f,
             'unitList' => $unitList,
             'tren' => $tren,
             'perUnit' => $perUnit,
+            'harian' => $harian,
             'ringkasan' => $ringkasan,
+            'labelPeriode' => $this->labelPeriode($f),
             'namaInstansi' => pengaturan('nama_instansi', 'RSUD Merauke'),
         ]);
     }
