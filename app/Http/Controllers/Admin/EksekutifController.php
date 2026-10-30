@@ -8,6 +8,8 @@ use App\Models\Absensi;
 use App\Models\Izin;
 use App\Models\Logbook;
 use App\Models\PengajuanLembur;
+use App\Models\Profesi;
+use App\Models\SubUnit;
 use App\Models\UnitKerja;
 use App\Models\User;
 use Carbon\Carbon;
@@ -47,6 +49,7 @@ class EksekutifController extends Controller
             'dari' => $dari,
             'sampai' => $sampai,
             'unit' => (int) $request->get('unit'),
+            'sub' => (int) $request->get('sub'),
             'jab' => in_array((string) $request->get('jab'), kategori_jabatan_list(), true) ? (string) $request->get('jab') : '',
             'prof' => (int) $request->get('prof'),
         ];
@@ -60,6 +63,25 @@ class EksekutifController extends Controller
             'unit' => $f['dari'].' s/d '.$f['sampai'],
             default => 'Tren '.$f['tahun'],
         };
+    }
+
+    private function labelFilter(array $f): string
+    {
+        $unit = $f['unit'] ? UnitKerja::find($f['unit'])?->nama : null;
+        $sub = $f['sub'] ? SubUnit::with('unitKerja:id,nama')->find($f['sub']) : null;
+        $prof = $f['prof'] ? Profesi::find($f['prof'])?->nama : null;
+
+        $subLabel = $sub ? $sub->nama : 'Semua Sub Unit';
+        if ($sub && $sub->unitKerja) {
+            $subLabel .= ' ('.$sub->unitKerja->nama.')';
+        }
+
+        return implode(' · ', [
+            'Unit: '.($unit ?: 'Semua Unit'),
+            'Sub Unit: '.$subLabel,
+            'Jabatan: '.($f['jab'] ?: 'Semua Jabatan'),
+            'Profesi: '.($prof ?: 'Semua Profesi'),
+        ]);
     }
 
     private function daftarMinggu(int $tahun): array
@@ -94,6 +116,9 @@ class EksekutifController extends Controller
         $b = User::query()->where('role', 'pegawai')->where('status', 'aktif');
         if ($f['unit']) {
             $b->where('unit_kerja_id', $f['unit']);
+        }
+        if ($f['sub']) {
+            $b->where('sub_unit_id', $f['sub']);
         }
         if ($f['jab']) {
             $b->where('jabatan_kategori', $f['jab']);
@@ -225,7 +250,7 @@ class EksekutifController extends Controller
     private function hitungPeriode(string $dari, string $sampai, array $f): array
     {
         $users = $this->userWhere($f)->pluck('id')->all();
-        $adaFilter = (bool) ($f['unit'] || $f['jab'] || $f['prof']);
+        $adaFilter = (bool) ($f['unit'] || $f['sub'] || $f['jab'] || $f['prof']);
         $userId = $adaFilter ? $users : null;
 
         $absensi = $this->agregatAbsensi($dari, $sampai, $userId);
@@ -276,6 +301,7 @@ class EksekutifController extends Controller
     {
         $f = $this->ambilParam($request);
         $unitList = UnitKerja::orderBy('id')->get()->all();
+        $subUnitList = SubUnit::with('unitKerja:id,nama')->orderBy('unit_kerja_id')->orderBy('nama')->get()->all();
 
         $tren = [];
         $perUnit = [];
@@ -339,12 +365,14 @@ class EksekutifController extends Controller
             'menuAktif' => 'eksekutif',
             'f' => $f,
             'unitList' => $unitList,
+            'subUnitList' => $subUnitList,
             'tren' => $tren,
             'perUnit' => $perUnit,
             'harian' => $harian,
             'ringkasan' => $ringkasan,
             'kategoriJab' => kategori_jabatan_list(),
             'labelPeriode' => $this->labelPeriode($f),
+            'labelFilter' => $this->labelFilter($f),
             'mingguList' => $this->daftarMinggu($f['tahun']),
         ]);
     }
@@ -407,6 +435,7 @@ class EksekutifController extends Controller
             'harian' => $harian,
             'ringkasan' => $ringkasan,
             'labelPeriode' => $this->labelPeriode($f),
+            'labelFilter' => $this->labelFilter($f),
             'namaInstansi' => pengaturan('nama_instansi', 'RSUD Merauke'),
         ]);
     }

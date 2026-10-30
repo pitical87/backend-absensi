@@ -54,6 +54,12 @@
         <option value="{{ (int) $uk->id }}" {{ $f['unit'] === (int) $uk->id ? 'selected' : '' }}>{{ $uk->nama }}</option>
       @endforeach
     </select>
+    <select name="sub">
+      <option value="">Semua Sub Unit</option>
+      @foreach($subUnitList as $su)
+        <option value="{{ (int) $su->id }}" {{ $f['sub'] === (int) $su->id ? 'selected' : '' }}>{{ $su->unitKerja->nama ?? 'Tanpa Unit' }} — {{ $su->nama }}</option>
+      @endforeach
+    </select>
     <select name="jab" title="Kategori jabatan">
       <option value="">Semua Jabatan</option>
       @foreach($kategoriJab as $k)
@@ -78,10 +84,11 @@
         'minggu' => $f['mode'] === 'minggu' ? $f['minggu'] : null,
         'dari' => $f['mode'] === 'unit' ? $f['dari'] : null,
         'sampai' => $f['mode'] === 'unit' ? $f['sampai'] : null,
-        'unit' => $f['unit'] ?: null, 'jab' => $f['jab'] ?: null, 'prof' => $f['prof'] ?: null,
+        'unit' => $f['unit'] ?: null, 'sub' => $f['sub'] ?: null,
+        'jab' => $f['jab'] ?: null, 'prof' => $f['prof'] ?: null,
       ]));
     @endphp
-    <a class="btn btn-garis btn-kecil" href="{{ url('admin/eksekutif/cetak?' . $sqs) }}">{!! ikon('cetak', 15) !!} Cetak Laporan (PDF)</a>
+    <a class="btn btn-garis btn-kecil" target="__blank" href="{{ url('admin/eksekutif/cetak?' . $sqs) }}">{!! ikon('cetak', 15) !!} Cetak Laporan (PDF)</a>
   </div>
 
   @if($ringkasan)

@@ -13,7 +13,8 @@
   .kop p  { font-size: 11px; color: #333; }
   h2.judul { text-align: center; font-size: 14px; margin: 16px 0 2px; text-transform: uppercase;
              text-decoration: underline; }
-  p.periode { text-align: center; font-size: 12px; margin-bottom: 14px; }
+  p.periode { text-align: center; font-size: 12px; margin-bottom: 2px; }
+  p.filter { text-align: center; font-size: 10.5px; color: #444; margin-bottom: 14px; }
   .ringkasan-tabel { width: 60%; margin-top: 8px; }
   .ringkasan-tabel td:first-child { width: 70%; }
   table { width: 100%; border-collapse: collapse; margin-top: 8px; }
@@ -66,6 +67,7 @@
   @endif
   &nbsp;·&nbsp; {{ $namaInstansi }}
 </p>
+<p class="filter">Filter: <strong>{{ $labelFilter }}</strong></p>
 
 @if($ringkasan)
 <h3 class="judul2">Ringkasan Periode</h3>
