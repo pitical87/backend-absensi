@@ -29,9 +29,9 @@ class BintangService
         $eff = max(0, $menitSetelahJadwal - self::GRACE_MENIT);
 
         return match (true) {
-            $eff <= 5 => 4,
-            $eff <= 10 => 3,
-            $eff <= 15 => 2,
+           $eff <= 10 => 4,
+            $eff < 15 => 3,
+            $eff <= 30  => 2,
             default => self::MIN,
         };
     }
@@ -55,9 +55,9 @@ class BintangService
         $eff = max(0, $menitLebihAwal - self::GRACE_MENIT);
 
         return match (true) {
-            $eff <= 5 => 4,
-            $eff <= 10 => 3,
-            $eff <= 15 => 2,
+            $eff <= 10 => 4,
+            $eff < 15 => 3,
+            $eff <= 30  => 2,
             default => self::MIN,
         };
     }
