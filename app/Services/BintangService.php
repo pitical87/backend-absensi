@@ -22,16 +22,16 @@ class BintangService
      */
     public static function bintangMasuk(int $menitSetelahJadwal): int
     {
-        if ($menitSetelahJadwal < 0) {
+        if ($menitSetelahJadwal <= 0) {
             return 5;
         }
 
         $eff = max(0, $menitSetelahJadwal - self::GRACE_MENIT);
 
         return match (true) {
-           $eff <= 10 => 4,
-            $eff < 15 => 3,
-            $eff <= 30  => 2,
+           $eff <= 5 => 4,
+            $eff <= 10 => 3,
+            $eff <= 15  => 2,
             default => self::MIN,
         };
     }
@@ -44,7 +44,7 @@ class BintangService
      */
     public static function bintangPulang(int $menitLebihAwal): int
     {
-        if ($menitLebihAwal < 0) {
+        if ($menitLebihAwal <= 0) {
             return 5;
         }
 
@@ -55,9 +55,9 @@ class BintangService
         $eff = max(0, $menitLebihAwal - self::GRACE_MENIT);
 
         return match (true) {
-            $eff <= 10 => 4,
-            $eff < 15 => 3,
-            $eff <= 30  => 2,
+            $eff <= 5 => 4,
+            $eff <= 10 => 3,
+            $eff <= 15  => 2,
             default => self::MIN,
         };
     }

@@ -16,9 +16,9 @@
 
 <section class="kartu" id="panel-kehadiran" role="tabpanel">
   <div class="kartu-kepala">
-    <h2>{!! ikon('kalender') !!} Kehadiran — <span id="label-tanggal">{{ tgl_id($tanggal) }}</span></h2>
+    <h2>{!! ikon('kalender') !!} Data Kehadiran </h2>
     <div class="flex items-center gap-3">
-      <span class="badge badge-biru"><span id="total-catatan">…</span> catatan</span>
+      <span class="badge badge-biru"><span id="total-catatan">…</span> Data</span>
       <button type="button" id="tombol-peta" class="btn btn-navy btn-kecil">
         {!! ikon('peta', 14) !!} Peta Sebaran Absen
       </button>
