@@ -32,6 +32,12 @@
     <td>{!! badge_status(! $r->waktu_pulang ? 'Belum Pulang'
            : ($r->status_masuk === 'Terlambat' ? 'Terlambat' : 'Tepat Waktu'),
            (int) $r->menit_terlambat) !!}</td>
+    <td class="angka teks-kecil">
+      @php $bintang = app(\App\Services\BintangService::class); @endphp
+      <span class="block">In : <span class="text-amber-500 tracking-wider">{{ $r->bintang_masuk !== null ? $bintang->simbol((int) $r->bintang_masuk) : '—' }}</span></span>
+      <span class="block">Out : <span class="text-amber-500 tracking-wider">{{ $r->bintang_pulang !== null ? $bintang->simbol((int) $r->bintang_pulang) : '—' }}</span></span>
+      <span class="block">Total : <span class="font-semibold text-amber-500 tracking-wider">{{ $r->bintang_harian !== null ? $bintang->simbol((int) round((float) $r->bintang_harian)) : '—' }}</span></span>
+    </td>
     <td class="angka">{{ $r->logLokasiDatang?->jarak_meter !== null
           ? number_format((float) $r->logLokasiDatang->jarak_meter, 0, ',', '.') . ' m' : '—' }}</td>
     <td class="angka teks-kecil">
@@ -65,5 +71,5 @@
     </td>
   </tr>
 @empty
-  <tr><td colspan="8" class="tengah teks-redup">Tidak ada catatan kehadiran pada tanggal ini.</td></tr>
+  <tr><td colspan="9" class="tengah teks-redup">Tidak ada catatan kehadiran pada tanggal ini.</td></tr>
 @endforelse

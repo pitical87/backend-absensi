@@ -30,7 +30,7 @@ class JadwalEfektifService
      */
     public function shiftsUntukPegawai(iterable $users, string $tanggal): array
     {
-        $daftar = collect($users)->keyBy('id');
+        $daftar = collect($users)->filter()->keyBy('id');
         if ($daftar->isEmpty()) {
             return [];
         }
@@ -75,7 +75,7 @@ class JadwalEfektifService
      */
     public function petaUntukBanyakPegawai(iterable $users, string $mulai, string $sampai): array
     {
-        $daftar = collect($users)->keyBy('id');
+        $daftar = collect($users)->filter()->keyBy('id');
         if ($daftar->isEmpty()) {
             return [];
         }

@@ -57,6 +57,7 @@
         <tr>
           <th>Nama Pegawai</th><th>Foto</th><th>Shift</th>
           <th>Jam Absen</th><th>Status</th>
+          <th>Bintang</th>
           <th>Jarak</th><th>Koordinat Masuk</th><th>Aksi</th>
         </tr>
       </thead>
@@ -68,6 +69,7 @@
             <td><div class="skel h-3.5 w-20"></div></td>
             <td><div class="skel h-3.5 w-16"></div></td>
             <td><div class="skel h-4 w-20 rounded-full"></div></td>
+            <td><div class="skel h-3.5 w-24"></div></td>
             <td><div class="skel h-3.5 w-10"></div></td>
             <td><div class="skel h-3.5 w-28"></div></td>
             <td><div class="skel h-6 w-20"></div></td>
