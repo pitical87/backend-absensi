@@ -64,6 +64,11 @@
           {{ $pr->nama }}</option>
       @endforeach
     </select>
+    <select name="absen" data-kategori="absen" title="Status kehadiran pada bulan terpilih">
+      <option value="">Semua Kehadiran</option>
+      <option value="belum" {{ $f['absen'] === 'belum' ? 'selected' : '' }}>Belum Pernah Absen</option>
+      <option value="sudah" {{ $f['absen'] === 'sudah' ? 'selected' : '' }}>Sudah Ada Absensi</option>
+    </select>
   </form>
   
 
@@ -78,6 +83,7 @@
       <input type="hidden" name="njab" value="{{ $f['njab'] }}">
       <input type="hidden" name="org" value="{{ $f['org'] }}">
       <input type="hidden" name="prof" value="{{ $f['prof'] }}">
+      <input type="hidden" name="absen" value="{{ $f['absen'] }}">
       <input type="hidden" name="q" value="{{ $q }}">
       <button type="submit" class="btn btn-primer btn-kecil">{!! ikon('centang', 15) !!} Generate &amp; Simpan Rekap</button>
     </form>

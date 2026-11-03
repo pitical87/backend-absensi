@@ -25,6 +25,7 @@ class RekapController extends Controller
     {
         $sumber = $request->isMethod('POST') ? 'input' : 'query';
         $jab = (string) $request->$sumber('jab');
+        $absen = (string) $request->$sumber('absen');
 
         return [
             'bulan' => min(12, max(1, (int) ($request->$sumber('bulan') ?: now()->format('n')))),
@@ -36,6 +37,7 @@ class RekapController extends Controller
             'org' => (int) $request->$sumber('org'),
             'prof' => (int) $request->$sumber('prof'),
             'q' => mb_substr(trim((string) $request->$sumber('q')), 0, 60),
+            'absen' => in_array($absen, ['belum', 'sudah'], true) ? $absen : '',
             'hal' => max(1, (int) $request->$sumber('hal', 1)),
             'perHalaman' => $this->perHalamanAjax(),
         ];
@@ -49,6 +51,7 @@ class RekapController extends Controller
             'jab' => $f['jab'] ?: null,
             'njab' => $f['njab'] ?: null, 'org' => $f['org'] ?: null,
             'prof' => $f['prof'] ?: null, 'q' => $f['q'] ?: null,
+            'absen' => $f['absen'] ?: null,
         ]));
     }
 
@@ -88,6 +91,11 @@ class RekapController extends Controller
                 $bagian[] = 'Profesi '.$p->nama;
             }
         }
+        if ($f['absen'] === 'belum') {
+            $bagian[] = 'Belum Pernah Absen';
+        } elseif ($f['absen'] === 'sudah') {
+            $bagian[] = 'Sudah Ada Absensi';
+        }
 
         return $bagian ? implode(' · ', $bagian) : 'Seluruh Pegawai';
     }
@@ -126,6 +134,13 @@ class RekapController extends Controller
                 $sub->where('users.nama_lengkap', 'like', "%{$f['q']}%")
                     ->orWhere('users.nip', 'like', "%{$f['q']}%");
             });
+        }
+        if ($f['absen'] !== '') {
+            $cekAbsen = fn ($sub) => $sub->whereMonth('absensi.tanggal', $f['bulan'])
+                ->whereYear('absensi.tanggal', $f['tahun']);
+            $f['absen'] === 'belum'
+                ? $b->whereDoesntHave('absensi', $cekAbsen)
+                : $b->whereHas('absensi', $cekAbsen);
         }
 
         return $b->orderBy('uk.id')->orderBy('users.nama_lengkap');
