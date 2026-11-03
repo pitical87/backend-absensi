@@ -406,7 +406,9 @@
         paginasiKehadiran.innerHTML = h.paginasi || '';
         halKehadiran = h.hal || 1;
         totalCatatan.textContent = h.total;
-        labelTanggalEl.textContent = h.labelTanggal || labelTanggalEl.textContent;
+        if (labelTanggalEl) {
+          labelTanggalEl.textContent = h.labelTanggal || labelTanggalEl.textContent;
+        }
         titikPeta = h.titik || [];
         if (peta) gambarTitik();
         tampilPesan('', true);
