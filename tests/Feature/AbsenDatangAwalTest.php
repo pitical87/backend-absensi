@@ -302,4 +302,40 @@ class AbsenDatangAwalTest extends TestCase
 
         $this->assertTrue($hasil['sukses']);
     }
+
+    public function test_dokter_berjadwal_datang_lebih_awal_mendapat_lima_bintang(): void
+    {
+        $this->pengaturanDasar();
+        simpan_pengaturan('batas_awal_absen_menit', '60');
+
+        $u = $this->pegawai();
+        $u['profesi_nama'] = 'Dokter';
+
+        $hasil = $this->absenDatang($u, '07:35');
+
+        $this->assertTrue($hasil['sukses']);
+        $this->assertSame(5, $hasil['bintang']);
+        $this->assertSame(5, Absensi::first()->bintang_masuk);
+    }
+
+    public function test_dokter_berjadwal_pulang_melewati_jam_mendapat_lima_bintang(): void
+    {
+        $this->pengaturanDasar();
+        simpan_pengaturan('batas_awal_absen_menit', '60');
+
+        $u = $this->pegawai();
+        $u['profesi_nama'] = 'Dokter';
+        $this->absenDatang($u, '07:35');
+
+        $respons = app(AbsenService::class)->absenPulang(
+            $u, -8.4991120, 140.4049840, 12.0,
+            new DateTime(now()->toDateString().' 16:30'),
+            null, false, []
+        );
+        $hasil = (array) $respons->getData(true);
+
+        $this->assertTrue($hasil['sukses']);
+        $this->assertSame(5, $hasil['bintang']);
+        $this->assertSame(5, Absensi::first()->bintang_pulang);
+    }
 }

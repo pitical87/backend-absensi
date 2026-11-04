@@ -32,25 +32,27 @@ class AbsenService
 
         $jadwalMasuk = null;
         $selisih = null;
-        if (! $isDokter && $u['shift_id'] && ! empty($u['shift_jam_masuk'])) {
+        if ($u['shift_id'] && ! empty($u['shift_jam_masuk'])) {
             [$jadwalMasuk, $selisih] = $this->jadwalMasukPegawai($u, $now);
 
-            $batasAwal = max(0, (int) pengaturan('batas_awal_absen_menit', 60));
-            $lebihAwal = (int) ceil(-$selisih);
-            if ($lebihAwal > $batasAwal) {
-                $this->catatLog((int) $u['id'], null, 'datang', $lat, $lng, $akurasi, $jarak, $now, true);
+            if (! $isDokter) {
+                $batasAwal = max(0, (int) pengaturan('batas_awal_absen_menit', 60));
+                $lebihAwal = (int) ceil(-$selisih);
+                if ($lebihAwal > $batasAwal) {
+                    $this->catatLog((int) $u['id'], null, 'datang', $lat, $lng, $akurasi, $jarak, $now, true);
 
-                return response()->json([
-                    'sukses' => false,
-                    'pesan' => 'Absensi ditolak. Absen datang Anda belum sesuai jadwal shift, silakan tunggu hingga jam masuk atau ajukan pergantian jadwal.',
-                    'keterangan' => 'Jam masuk Anda '.jam_singkat($u['shift_jam_masuk'])
-                                  .', Anda datang pukul '.$now->format('H.i')
-                                  .' ('.menit_ke_teks($lebihAwal).' lebih awal). '
-                                  .($batasAwal > 0
-                                      ? 'Absen hanya dapat dilakukan paling cepat '.menit_ke_teks($batasAwal)
-                                        .' sebelum jam masuk.'
-                                      : 'Absen hanya dapat dilakukan tepat pada jam masuk.'),
-                ]);
+                    return response()->json([
+                        'sukses' => false,
+                        'pesan' => 'Absensi ditolak. Absen datang Anda belum sesuai jadwal shift, silakan tunggu hingga jam masuk atau ajukan pergantian jadwal.',
+                        'keterangan' => 'Jam masuk Anda '.jam_singkat($u['shift_jam_masuk'])
+                                      .', Anda datang pukul '.$now->format('H.i')
+                                      .' ('.menit_ke_teks($lebihAwal).' lebih awal). '
+                                      .($batasAwal > 0
+                                          ? 'Absen hanya dapat dilakukan paling cepat '.menit_ke_teks($batasAwal)
+                                            .' sebelum jam masuk.'
+                                          : 'Absen hanya dapat dilakukan tepat pada jam masuk.'),
+                    ]);
+                }
             }
         }
 
@@ -125,7 +127,9 @@ class AbsenService
             $menit = 0;
             $jenis = 'sukses';
             $pesan = 'Terima kasih sudah hadir hari ini';
-            $bintangMasuk = 1;
+            $bintangMasuk = $selisih !== null
+                ? app(BintangService::class)->bintangMasuk((int) ceil($selisih))
+                : 1;
             $sesi = (Absensi::where('user_id', $u['id'])
                 ->where('tanggal', $tanggalShift)->max('sesi') ?? 0) + 1;
         } else {
@@ -349,25 +353,34 @@ class AbsenService
         $bintangPulang = null;
         $bintangHarian = null;
 
+        $bintang = app(BintangService::class);
+        $jamMasuk = $u['shift_jam_masuk'] ?? null;
+        $jamPulang = $u['shift_jam_pulang'] ?? null;
+        $adaJadwal = $jamPulang && $jamMasuk;
+
         if ($isDokter) {
             $totalMenit = null;
             $bintangPulang = 1;
             $bintangHarian = 1;
-        } else {
-            $bintang = app(BintangService::class);
-            $jamMasuk = $u['shift_jam_masuk'] ?? null;
-            $jamPulang = $u['shift_jam_pulang'] ?? null;
 
-            if ($jamPulang && $jamMasuk) {
+            if ($adaJadwal) {
                 $menitAwal = $bintang->selisihMenitPulang(
                     $jamMasuk, $jamPulang, $rec->tanggal->format('Y-m-d'), $now
                 );
                 $bintangPulang = $bintang->bintangPulang($menitAwal);
-                $statusPulang = $menitAwal > 0 ? 'Lebih Awal' : 'Tepat Waktu';
+                $bintangHarian = $rec->bintang_masuk !== null
+                    ? $bintang->bintangHarian((int) $rec->bintang_masuk, $bintangPulang)
+                    : (float) $bintangPulang;
+            }
+        } elseif ($adaJadwal) {
+            $menitAwal = $bintang->selisihMenitPulang(
+                $jamMasuk, $jamPulang, $rec->tanggal->format('Y-m-d'), $now
+            );
+            $bintangPulang = $bintang->bintangPulang($menitAwal);
+            $statusPulang = $menitAwal > 0 ? 'Lebih Awal' : 'Tepat Waktu';
 
-                if ($rec->bintang_masuk !== null) {
-                    $bintangHarian = $bintang->bintangHarian((int) $rec->bintang_masuk, $bintangPulang);
-                }
+            if ($rec->bintang_masuk !== null) {
+                $bintangHarian = $bintang->bintangHarian((int) $rec->bintang_masuk, $bintangPulang);
             }
         }
 
