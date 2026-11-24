@@ -3,11 +3,18 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\HariLibur;
+use App\Models\Izin;
+use App\Models\User;
+use App\Services\AtasanLangsungService;
 use App\Services\BintangService;
 use App\Services\RekapService;
 use Carbon\Carbon;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 
 class RekapController extends Controller
@@ -133,6 +140,226 @@ class RekapController extends Controller
             ],
             'detail' => $detail,
         ]);
+    }
+
+    public function rekapBawahanPdf(
+        Request $req,
+        RekapService $rekap,
+        AtasanLangsungService $atasanService
+    ): Response|JsonResponse {
+        $user = $req->get('user');
+        $bulan = (int) ($req->query('bulan') ?: now()->month);
+        $tahun = (int) ($req->query('tahun') ?: now()->year);
+
+        if ($bulan < 1 || $bulan > 12 || $tahun < 2000 || $tahun > (int) now()->year + 1) {
+            return response()->json([
+                'sukses' => false,
+                'pesan' => 'Parameter bulan/tahun tidak valid.',
+            ], 422);
+        }
+
+        $rawIds = $req->query('user_ids');
+        if (is_string($rawIds)) {
+            $rawIds = explode(',', $rawIds);
+        }
+        $requestedIds = collect(is_array($rawIds) ? $rawIds : [])
+            ->map(fn ($id) => (int) trim((string) $id))
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($requestedIds === []) {
+            return response()->json([
+                'sukses' => false,
+                'pesan' => 'Pilih minimal satu pegawai.',
+            ], 422);
+        }
+
+        if (! $user->isAdmin()) {
+            $bolehIds = collect($atasanService->daftarBawahan($user))
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            if (array_diff($requestedIds, $bolehIds) !== []) {
+                return response()->json([
+                    'sukses' => false,
+                    'pesan' => 'Anda tidak memiliki akses ke rekap pegawai yang dipilih.',
+                ], 403);
+            }
+        }
+
+        $pegawaiList = User::with(['unitKerja', 'subUnit', 'jabatan', 'profesi'])
+            ->whereIn('id', $requestedIds)
+            ->orderBy('nama_lengkap')
+            ->get();
+
+        if ($pegawaiList->isEmpty()) {
+            return response()->json([
+                'sukses' => false,
+                'pesan' => 'Pegawai tidak ditemukan.',
+            ], 404);
+        }
+
+        $hariDalamBulan = (int) Carbon::createFromDate($tahun, $bulan, 1)->daysInMonth;
+        $awal = sprintf('%04d-%02d-01', $tahun, $bulan);
+        $akhir = sprintf('%04d-%02d-%02d', $tahun, $bulan, $hariDalamBulan);
+
+        pastikan_libur_tetap($tahun);
+        $liburMap = [];
+        foreach (HariLibur::where('tanggal', '>=', $awal)->where('tanggal', '<=', $akhir)->get() as $libur) {
+            $liburMap[$libur->tanggal->format('Y-m-d')] = $libur->keterangan ?: 'Hari Libur';
+        }
+
+        $izinPerUser = [];
+        foreach (Izin::whereIn('user_id', $pegawaiList->pluck('id')->all())
+            ->where('status', 'Disetujui')
+            ->where('tanggal_mulai', '<=', $akhir)
+            ->where('tanggal_selesai', '>=', $awal)
+            ->get() as $iz) {
+            $mulaiTs = max($iz->tanggal_mulai->timestamp, strtotime($awal));
+            $selesaiTs = min($iz->tanggal_selesai->timestamp, strtotime($akhir));
+            for ($ts = $mulaiTs; $ts <= $selesaiTs; $ts += 86400) {
+                $izinPerUser[(int) $iz->user_id][date('Y-m-d', $ts)] = $iz->jenis;
+            }
+        }
+
+        $instansiDefault = strtoupper((string) pengaturan('nama_instansi', 'RSUD MERAUKE'));
+        $lembarList = [];
+
+        foreach ($pegawaiList as $pegawai) {
+            $hasil = $rekap->hitung((int) $pegawai->id, $bulan, $tahun);
+            $baris = [];
+
+            for ($hari = 1; $hari <= $hariDalamBulan; $hari++) {
+                $tgl = sprintf('%04d-%02d-%02d', $tahun, $bulan, $hari);
+                $carbon = Carbon::createFromDate($tahun, $bulan, $hari);
+                $isMinggu = $carbon->dayOfWeek === Carbon::SUNDAY;
+                $hariTanggal = HARI_ID[(int) $carbon->dayOfWeek].', '.$carbon->format('d/m/Y');
+
+                $jamMasuk = '';
+                $jamPulang = '';
+                $ket = '';
+
+                if (isset($hasil['per_tanggal'][$tgl])) {
+                    $entri = $hasil['per_tanggal'][$tgl];
+                    $rec = $entri['rec'];
+
+                    if ($rec) {
+                        $jamMasuk = $rec->waktu_masuk ? substr((string) $rec->waktu_masuk, 11, 5) : '';
+                        $jamPulang = $rec->waktu_pulang ? substr((string) $rec->waktu_pulang, 11, 5) : '';
+
+                        $bagianKet = [];
+                        if ($hasil['is_dokter']) {
+                            if ($entri['status'] === 'Belum Pulang') {
+                                $bagianKet[] = 'Belum Pulang';
+                            } else {
+                                $sesi = (int) ($entri['jumlah_sesi'] ?? 1);
+                                $bagianKet[] = $sesi > 1 ? "Hadir ({$sesi} sesi)" : 'Hadir';
+                            }
+                        } else {
+                            if ($entri['status'] === 'Belum Pulang') {
+                                $bagianKet[] = 'Belum Pulang';
+                            } elseif ($entri['status'] === 'Terlambat') {
+                                $bagianKet[] = 'Terlambat '.((int) $rec->menit_terlambat).' mnt';
+                            } else {
+                                $bagianKet[] = 'Hadir';
+                            }
+
+                            $awalPulang = (int) ($rec->menit_awal_pulang ?? 0);
+                            if ($awalPulang > 0) {
+                                $bagianKet[] = 'Pulang awal '.$awalPulang.' mnt';
+                            }
+                        }
+                        $ket = implode(', ', $bagianKet);
+                    } elseif ($entri['status'] === 'Libur') {
+                        $ket = $entri['keterangan'] ?: ($isMinggu ? '' : 'Libur');
+                    } else {
+                        $ket = (string) $entri['status'];
+                    }
+                } else {
+                    $ket = $izinPerUser[(int) $pegawai->id][$tgl] ?? ($liburMap[$tgl] ?? '');
+                }
+
+                $baris[] = [
+                    'no' => $hari,
+                    'hari_tanggal' => $hariTanggal,
+                    'minggu' => $isMinggu,
+                    'jam_masuk' => $jamMasuk,
+                    'jam_pulang' => $jamPulang,
+                    'ket' => $ket,
+                ];
+            }
+
+            $unitNama = $pegawai->unitKerja?->nama;
+            $subUnitNama = $pegawai->subUnit?->nama;
+            $unitKerja = $unitNama
+                ? ($subUnitNama ? "{$unitNama} — {$subUnitNama}" : $unitNama)
+                : $instansiDefault;
+
+            $lembarList[] = [
+                'pegawai' => [
+                    'nama' => (string) $pegawai->nama_lengkap,
+                    'nip' => (string) ($pegawai->nip ?? ''),
+                    'pangkat_gol' => '',
+                    'jabatan' => (string) ($pegawai->jabatan?->nama ?: ($pegawai->jabatan_kategori ?: ($pegawai->posisi ?: ''))),
+                    'unit_kerja' => $unitKerja,
+                ],
+                'baris' => $baris,
+            ];
+        }
+
+        $logoKiri = $this->gambarKeDataUri(public_path('assets/img/kop-kabupaten-merauke.png'));
+        $logoKanan = $this->gambarKeDataUri(public_path('assets/img/kop-rsud-merauke.png'));
+        $namaBulan = BULAN_ID[$bulan] ?? (string) $bulan;
+
+        $html = view('pdf.rekap_absen_harian', [
+            'lembarList' => $lembarList,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'namaBulan' => $namaBulan,
+            'logoKiri' => $logoKiri,
+            'logoKanan' => $logoKanan,
+        ])->render();
+
+        $options = new Options;
+        $options->set('isHtml5ParserEnabled', true);
+        $options->set('defaultFont', 'Helvetica');
+
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+
+        ini_set('memory_limit', '512M');
+        $dompdf->render();
+
+        catat_aktivitas(
+            'Cetak Rekap Bulanan Bawahan',
+            sprintf('%s mencetak PDF rekap %s %d (%d pegawai)', $user->nama_lengkap, $namaBulan, $tahun, $pegawaiList->count()),
+            (int) $user->id
+        );
+
+        $namaFile = sprintf('rekap-bulanan-%04d-%02d.pdf', $tahun, $bulan);
+
+        return response($dompdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$namaFile.'"',
+        ]);
+    }
+
+    private function gambarKeDataUri(string $path): ?string
+    {
+        if (! is_file($path)) {
+            return null;
+        }
+
+        $isi = file_get_contents($path);
+        if ($isi === false) {
+            return null;
+        }
+
+        return 'data:image/png;base64,'.base64_encode($isi);
     }
 
     public function rekapKeterlambatan(Request $req): JsonResponse

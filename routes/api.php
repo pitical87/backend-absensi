@@ -53,6 +53,7 @@ Route::prefix('mobile')->group(function (){
         Route::get('statistik', [RekapController::class, 'statistik']);
         Route::get('performa/bulan', [RekapController::class, 'performaBulan']);
         Route::get('rekap', [RekapController::class, 'rekapBulanan']);
+        Route::get('rekap/bawahan/pdf', [RekapController::class, 'rekapBawahanPdf']);
         Route::get('keterlambatan', [RekapController::class, 'rekapKeterlambatan']);
         Route::get('pegawai-teladan', [RekapController::class, 'pegawaiTeladan']);
 
