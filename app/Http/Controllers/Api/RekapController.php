@@ -322,6 +322,11 @@ class RekapController extends Controller
             'bulan' => $bulan,
             'tahun' => $tahun,
             'namaBulan' => $namaBulan,
+            'tanggalCetak' => tgl_id(now()->format('Y-m-d'), false),
+            'atasan' => [
+                'nama' => (string) $user->nama_lengkap,
+                'nip' => (string) ($user->nip ?? ''),
+            ],
             'logoKiri' => $logoKiri,
             'logoKanan' => $logoKanan,
         ])->render();

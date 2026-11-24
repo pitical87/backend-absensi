@@ -6,7 +6,7 @@
 <style>
   @page {
     size: A4 portrait;
-    margin: 7mm 14mm 7mm 14mm;
+    margin: 9mm 14mm 9mm 14mm;
   }
 
   body {
@@ -15,7 +15,7 @@
     font-family: Helvetica, Arial, "DejaVu Sans", sans-serif;
     font-size: 8.5pt;
     color: #000000;
-    line-height: 1.18;
+    line-height: 1.2;
   }
 
   .halaman {
@@ -31,13 +31,13 @@
     width: 100%;
     border-collapse: collapse;
     border-bottom: 2.2px solid #000000;
-    margin-bottom: 3px;
+    margin-bottom: 4px;
   }
 
   table.kop td {
     border: none;
     vertical-align: middle;
-    padding: 0 2px 3px 2px;
+    padding: 0 2px 4px 2px;
   }
 
   table.kop td.logo-kiri {
@@ -56,35 +56,35 @@
   }
 
   table.kop img {
-    width: 48px;
+    width: 52px;
     height: auto;
   }
 
   .kop-pemda {
-    font-size: 12pt;
+    font-size: 12.5pt;
     font-weight: normal;
     letter-spacing: 0.2px;
-    line-height: 1.12;
+    line-height: 1.15;
   }
 
   .kop-rsud {
-    font-size: 12.5pt;
+    font-size: 13pt;
     font-weight: bold;
     letter-spacing: 0.2px;
-    line-height: 1.12;
+    line-height: 1.15;
   }
 
   .kop-alamat {
-    font-size: 7.8pt;
+    font-size: 8pt;
     font-weight: bold;
-    margin-top: 1.5px;
-    line-height: 1.15;
+    margin-top: 2px;
+    line-height: 1.18;
   }
 
   .kop-kontak {
-    font-size: 7.8pt;
+    font-size: 8pt;
     font-weight: normal;
-    line-height: 1.15;
+    line-height: 1.18;
   }
 
   .kop-email {
@@ -97,11 +97,11 @@
   /* JUDUL */
   .judul-blok {
     text-align: center;
-    margin: 2px 0 3px 0;
+    margin: 3px 0 4px 0;
   }
 
   .judul-utama {
-    font-size: 9.5pt;
+    font-size: 10pt;
     font-weight: bold;
     letter-spacing: 0.3px;
   }
@@ -116,13 +116,13 @@
   table.identitas {
     width: 100%;
     border-collapse: collapse;
-    margin-bottom: 4px;
-    font-size: 8pt;
+    margin-bottom: 5px;
+    font-size: 8.2pt;
   }
 
   table.identitas td {
     border: none;
-    padding: 1px 2px;
+    padding: 1.5px 2px;
     vertical-align: top;
   }
 
@@ -154,13 +154,13 @@
     width: 100%;
     border-collapse: collapse;
     border: 1.5px solid #000000;
-    font-size: 7.8pt;
+    font-size: 8pt;
   }
 
   table.absen th {
     border: 1px solid #000000;
     border-bottom: 1.5px solid #000000;
-    padding: 3px 3px;
+    padding: 4px 4px;
     text-align: center;
     font-weight: bold;
     background-color: #FFFFFF;
@@ -168,19 +168,18 @@
 
   table.absen td {
     border: 1px solid #000000;
-    padding: 0 4px;
+    padding: 2.3px 5px;
     vertical-align: middle;
-    line-height: 1.1;
-    height: 22px;
+    line-height: 1.15;
   }
 
   table.absen td.col-no {
-    width: 5%;
+    width: 6%;
     text-align: center;
   }
 
   table.absen td.col-tgl {
-    width: 22%;
+    width: 25%;
     text-align: left;
     white-space: nowrap;
   }
@@ -191,60 +190,62 @@
   }
 
   table.absen td.col-jam {
-    width: 12%;
+    width: 15%;
     text-align: center;
-  }
-
-  table.absen td.col-paraf {
-    width: 12%;
-    text-align: center;
-    padding: 1px 2px;
-    line-height: 0;
-  }
-
-  img.qr-paraf {
-    width: 22px;
-    height: 22px;
-    display: inline-block;
-    vertical-align: middle;
   }
 
   table.absen td.col-ket {
-    width: 25%;
+    width: 39%;
     text-align: left;
-    font-size: 7.5pt;
+    font-size: 7.8pt;
   }
 
   /* FOOTER & TTD */
   .catatan {
-    font-size: 7.6pt;
+    font-size: 7.8pt;
     font-weight: bold;
-    margin-top: 3px;
-    margin-bottom: 3px;
+    margin-top: 5px;
+    margin-bottom: 8px;
   }
 
   table.ttd {
     width: 100%;
     border-collapse: collapse;
-    font-size: 8.3pt;
+    font-size: 8.5pt;
   }
 
   table.ttd td {
     border: none;
     vertical-align: top;
-  }
-
-  table.ttd td.ttd-kiri {
-    width: 56%;
-  }
-
-  table.ttd td.ttd-kanan {
-    width: 44%;
     text-align: center;
+    width: 50%;
+    padding: 0 8px;
+  }
+
+  .ttd-qr-wrap {
+    height: 76px;
+    padding-top: 4px;
+  }
+
+  .ttd-qr-wrap img {
+    width: 70px;
+    height: 70px;
+    display: inline-block;
   }
 
   .ttd-spasi {
-    height: 24px;
+    height: 76px;
+  }
+
+  .ttd-nama {
+    font-weight: bold;
+    text-decoration: underline;
+    margin-top: 2px;
+  }
+
+  .ttd-nip {
+    font-size: 7.8pt;
+    margin-top: 1px;
   }
 </style>
 </head>
@@ -307,13 +308,11 @@
     <table class="absen">
       <thead>
         <tr>
-          <th>NO</th>
+          <th>NO.</th>
           <th>HARI/TANGGAL</th>
           <th>JAM MASUK</th>
-          <th>PARAF</th>
           <th>JAM PULANG</th>
-          <th>PARAF</th>
-          <th>KET</th>
+          <th>KETERANGAN</th>
         </tr>
       </thead>
       <tbody>
@@ -322,17 +321,7 @@
             <td class="col-no">{{ $b['no'] }}</td>
             <td class="col-tgl{{ $b['minggu'] ? ' minggu' : '' }}">{{ $b['hari_tanggal'] }}</td>
             <td class="col-jam">{{ $b['jam_masuk'] }}</td>
-            <td class="col-paraf">
-              @if ($b['jam_masuk'] !== '' && ! empty($lembar['pegawai']['qr_paraf']))
-                <img class="qr-paraf" src="{{ $lembar['pegawai']['qr_paraf'] }}" alt="QR Paraf">
-              @endif
-            </td>
             <td class="col-jam">{{ $b['jam_pulang'] }}</td>
-            <td class="col-paraf">
-              @if ($b['jam_pulang'] !== '' && ! empty($lembar['pegawai']['qr_paraf']))
-                <img class="qr-paraf" src="{{ $lembar['pegawai']['qr_paraf'] }}" alt="QR Paraf">
-              @endif
-            </td>
             <td class="col-ket">{{ $b['ket'] }}</td>
           </tr>
         @endforeach
@@ -343,11 +332,27 @@
 
     <table class="ttd">
       <tr>
-        <td class="ttd-kiri"></td>
-        <td class="ttd-kanan">
-          <div>MERAUKE,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{{ strtoupper($namaBulan) }} {{ $tahun }}</div>
-          <div style="margin-top: 2px;">KEPALA RUANGAN</div>
+        <td>
+          <div>&nbsp;</div>
+          <div>Pegawai</div>
+          <div class="ttd-qr-wrap">
+            @if (! empty($lembar['pegawai']['qr_paraf']))
+              <img src="{{ $lembar['pegawai']['qr_paraf'] }}" alt="QR Verifikasi Pegawai">
+            @endif
+          </div>
+          <div class="ttd-nama">{{ $lembar['pegawai']['nama'] }}</div>
+          @if ($lembar['pegawai']['nip'] !== '')
+            <div class="ttd-nip">NIP. {{ $lembar['pegawai']['nip'] }}</div>
+          @endif
+        </td>
+        <td>
+          <div>Merauke, {{ $tanggalCetak }}</div>
+          <div>Atasan Langsung</div>
           <div class="ttd-spasi"></div>
+          <div class="ttd-nama">{{ $atasan['nama'] }}</div>
+          @if ($atasan['nip'] !== '')
+            <div class="ttd-nip">NIP. {{ $atasan['nip'] }}</div>
+          @endif
         </td>
       </tr>
     </table>
