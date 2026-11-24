@@ -6,20 +6,16 @@
 <style>
   @page {
     size: A4 portrait;
-    margin: 5.5mm 9mm 5.5mm 9mm;
-  }
-
-  * {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
+    margin: 7mm 14mm 7mm 14mm;
   }
 
   body {
+    margin: 0;
+    padding: 0;
     font-family: Helvetica, Arial, "DejaVu Sans", sans-serif;
-    font-size: 9pt;
+    font-size: 8.5pt;
     color: #000000;
-    line-height: 1.2;
+    line-height: 1.18;
   }
 
   .halaman {
@@ -35,13 +31,13 @@
     width: 100%;
     border-collapse: collapse;
     border-bottom: 2.2px solid #000000;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
   }
 
   table.kop td {
     border: none;
     vertical-align: middle;
-    padding: 0 2px 4px 2px;
+    padding: 0 2px 3px 2px;
   }
 
   table.kop td.logo-kiri {
@@ -60,35 +56,35 @@
   }
 
   table.kop img {
-    width: 56px;
+    width: 48px;
     height: auto;
   }
 
   .kop-pemda {
-    font-size: 13pt;
+    font-size: 12pt;
     font-weight: normal;
     letter-spacing: 0.2px;
-    line-height: 1.15;
+    line-height: 1.12;
   }
 
   .kop-rsud {
-    font-size: 13.5pt;
+    font-size: 12.5pt;
     font-weight: bold;
     letter-spacing: 0.2px;
-    line-height: 1.15;
+    line-height: 1.12;
   }
 
   .kop-alamat {
-    font-size: 8.2pt;
+    font-size: 7.8pt;
     font-weight: bold;
-    margin-top: 2px;
-    line-height: 1.2;
+    margin-top: 1.5px;
+    line-height: 1.15;
   }
 
   .kop-kontak {
-    font-size: 8.2pt;
+    font-size: 7.8pt;
     font-weight: normal;
-    line-height: 1.2;
+    line-height: 1.15;
   }
 
   .kop-email {
@@ -101,17 +97,17 @@
   /* JUDUL */
   .judul-blok {
     text-align: center;
-    margin: 3px 0 4px 0;
+    margin: 2px 0 3px 0;
   }
 
   .judul-utama {
-    font-size: 10pt;
+    font-size: 9.5pt;
     font-weight: bold;
     letter-spacing: 0.3px;
   }
 
   .judul-bulan {
-    font-size: 9.5pt;
+    font-size: 9pt;
     font-weight: normal;
     margin-top: 1px;
   }
@@ -120,18 +116,18 @@
   table.identitas {
     width: 100%;
     border-collapse: collapse;
-    margin-bottom: 5px;
-    font-size: 8.5pt;
+    margin-bottom: 4px;
+    font-size: 8pt;
   }
 
   table.identitas td {
     border: none;
-    padding: 1.5px 2px;
+    padding: 1px 2px;
     vertical-align: top;
   }
 
   table.identitas td.lbl-kiri {
-    width: 18%;
+    width: 16%;
     white-space: nowrap;
   }
 
@@ -141,30 +137,30 @@
   }
 
   table.identitas td.val-kiri {
-    width: 36%;
+    width: 31%;
   }
 
   table.identitas td.lbl-kanan {
-    width: 14%;
+    width: 12%;
     white-space: nowrap;
   }
 
   table.identitas td.val-kanan {
-    width: 28%;
+    width: 37%;
   }
 
   /* TABEL ABSEN HARIAN */
   table.absen {
     width: 100%;
     border-collapse: collapse;
-    border: 1.6px solid #000000;
-    font-size: 8.2pt;
+    border: 1.5px solid #000000;
+    font-size: 7.8pt;
   }
 
   table.absen th {
     border: 1px solid #000000;
-    border-bottom: 1.6px solid #000000;
-    padding: 4px 3px;
+    border-bottom: 1.5px solid #000000;
+    padding: 3px 3px;
     text-align: center;
     font-weight: bold;
     background-color: #FFFFFF;
@@ -172,10 +168,10 @@
 
   table.absen td {
     border: 1px solid #000000;
-    padding: 1px 4px;
+    padding: 0 4px;
     vertical-align: middle;
-    line-height: 1.15;
-    height: 19px;
+    line-height: 1.1;
+    height: 22px;
   }
 
   table.absen td.col-no {
@@ -195,20 +191,20 @@
   }
 
   table.absen td.col-jam {
-    width: 13%;
+    width: 12%;
     text-align: center;
   }
 
   table.absen td.col-paraf {
-    width: 11%;
+    width: 12%;
     text-align: center;
     padding: 1px 2px;
     line-height: 0;
   }
 
   img.qr-paraf {
-    width: 18px;
-    height: 18px;
+    width: 22px;
+    height: 22px;
     display: inline-block;
     vertical-align: middle;
   }
@@ -216,21 +212,21 @@
   table.absen td.col-ket {
     width: 25%;
     text-align: left;
-    font-size: 7.8pt;
+    font-size: 7.5pt;
   }
 
   /* FOOTER & TTD */
   .catatan {
-    font-size: 8pt;
+    font-size: 7.6pt;
     font-weight: bold;
-    margin-top: 5px;
-    margin-bottom: 6px;
+    margin-top: 3px;
+    margin-bottom: 3px;
   }
 
   table.ttd {
     width: 100%;
     border-collapse: collapse;
-    font-size: 8.8pt;
+    font-size: 8.3pt;
   }
 
   table.ttd td {
@@ -239,16 +235,16 @@
   }
 
   table.ttd td.ttd-kiri {
-    width: 58%;
+    width: 56%;
   }
 
   table.ttd td.ttd-kanan {
-    width: 42%;
+    width: 44%;
     text-align: center;
   }
 
   .ttd-spasi {
-    height: 44px;
+    height: 24px;
   }
 </style>
 </head>

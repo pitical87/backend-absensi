@@ -36,7 +36,7 @@ class ParafQrService
         $options = new QROptions([
             'outputInterface' => QRGdImagePNG::class,
             'eccLevel' => EccLevel::L,
-            'scale' => 4,
+            'scale' => 6,
             'quietzoneSize' => 1,
             'outputBase64' => true,
             'imageTransparent' => false,
