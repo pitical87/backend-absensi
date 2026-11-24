@@ -100,20 +100,6 @@ class DashboardController extends Controller
                 'telat' => (int) $r->telat,
             ];
         }
-        $grafikGaris = [];
-        foreach ($grafikBulan as $g) {
-            $s = $statMap[$g['tgl']] ?? [];
-            $hadirHari = $s['hadir'] ?? 0;
-            $grafikGaris[] = [
-                'tgl'   => $g['tgl'],
-                'hadir' => $hadirHari,
-                'tepat' => $s['tepat'] ?? 0,
-                'telat' => $s['telat'] ?? 0,
-                'tidak' => max(0, $totalPegawai - $hadirHari),
-            ];
-        }
-        $maksGaris = max(1, $totalPegawai,
-            ...array_column($grafikGaris, 'hadir'), ...array_column($grafikGaris, 'tidak'));
 
         $teladan = [];
         $rekapService = app(RekapService::class);
@@ -122,9 +108,15 @@ class DashboardController extends Controller
             ->where('users.role', 'pegawai')->where('users.status', 'aktif')
             ->get()->all();
         $rekapBulanIni = [];
+        $tidakPerTanggal = [];
         foreach ($pegawaiAktif as $pg) {
             $r = $rekapService->hitung((int) $pg->id, (int) now()->month, (int) now()->year);
             $rekapBulanIni[(int) $pg->id] = $r;
+            foreach ($r['per_tanggal'] as $tgl => $detail) {
+                if ($detail['status'] === 'Alpa') {
+                    $tidakPerTanggal[$tgl] = ($tidakPerTanggal[$tgl] ?? 0) + 1;
+                }
+            }
             if (($r['bintang_bulanan'] ?? 0) >= 4.5) {
                 $teladan[] = [
                     'id'      => (int) $pg->id,
@@ -137,6 +129,28 @@ class DashboardController extends Controller
         }
         usort($teladan, fn ($a, $b) => $b['bintang'] <=> $a['bintang']);
         $teladan = array_slice($teladan, 0, 5);
+
+        // Tidak Absen hanya menghitung pegawai aktif yang memang terjadwal masuk
+        // (bukan hari libur, punya jadwal efektif, dan tidak sedang izin/sakit/cuti/dinas)
+        // tetapi tidak melakukan absensi (status Alpa di RekapService).
+        $grafikGaris = [];
+        foreach ($grafikBulan as $g) {
+            $s = $statMap[$g['tgl']] ?? [];
+            $hadirHari = $s['hadir'] ?? 0;
+            $grafikGaris[] = [
+                'tgl'   => $g['tgl'],
+                'hadir' => $hadirHari,
+                'tepat' => $s['tepat'] ?? 0,
+                'telat' => $s['telat'] ?? 0,
+                'tidak' => $tidakPerTanggal[$g['tgl']] ?? 0,
+            ];
+        }
+        $maksGaris = max(
+            1,
+            ...array_column($grafikGaris, 'tepat'),
+            ...array_column($grafikGaris, 'telat'),
+            ...array_column($grafikGaris, 'tidak')
+        );
 
         pastikan_libur_tetap((int) now()->year);
         $mingguLibur = pengaturan('minggu_libur', '0') === '1';
