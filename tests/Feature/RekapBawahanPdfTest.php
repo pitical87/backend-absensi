@@ -5,9 +5,11 @@ namespace Tests\Feature;
 use App\Models\Absensi;
 use App\Models\ApiToken;
 use App\Models\AtasanLangsung;
+use App\Models\Jabatan;
 use App\Models\SubUnit;
 use App\Models\UnitKerja;
 use App\Models\User;
+use App\Services\ParafQrService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -67,15 +69,18 @@ class RekapBawahanPdfTest extends TestCase
         AtasanLangsung::create(['user_id' => $bawahan1->id, 'atasan_id' => $atasan->id]);
         AtasanLangsung::create(['user_id' => $bawahan2->id, 'atasan_id' => $atasan->id]);
 
-        Absensi::create([
-            'user_id' => $bawahan1->id,
-            'tanggal' => '2026-10-05',
-            'waktu_masuk' => '2026-10-05 08:02:00',
-            'waktu_pulang' => '2026-10-05 14:05:00',
-            'status_masuk' => 'Tepat Waktu',
-            'menit_terlambat' => 0,
-            'total_menit_kerja' => 363,
-        ]);
+        for ($hari = 1; $hari <= 31; $hari++) {
+            $tgl = sprintf('2026-10-%02d', $hari);
+            Absensi::create([
+                'user_id' => $bawahan1->id,
+                'tanggal' => $tgl,
+                'waktu_masuk' => $tgl.' 08:02:00',
+                'waktu_pulang' => $tgl.' 14:05:00',
+                'status_masuk' => 'Tepat Waktu',
+                'menit_terlambat' => 0,
+                'total_menit_kerja' => 363,
+            ]);
+        }
 
         // Uji bulan 31 hari (Oktober) dengan 2 pegawai => harus tepat 2 halaman (1 halaman per user)
         $response = $this->sebagai($atasan)
@@ -116,5 +121,42 @@ class RekapBawahanPdfTest extends TestCase
             ->getJson('/api/mobile/rekap/bawahan/pdf?bulan=13&tahun=2026&user_ids='.$atasan->id)
             ->assertStatus(422)
             ->assertJsonPath('sukses', false);
+    }
+
+    public function test_halaman_verifikasi_qr_paraf_dapat_diakses_publik_tanpa_login(): void
+    {
+        $unit = UnitKerja::create(['nama' => 'Penunjang dan Sarana Prasana', 'punya_sub' => true]);
+        $subUnit = SubUnit::create(['unit_kerja_id' => $unit->id, 'nama' => 'SIMRS']);
+        $jabatan = Jabatan::create([
+            'nama' => 'Kepala Seksi Penunjang',
+            'kategori' => 'Kepala Seksi',
+        ]);
+
+        $pegawai = $this->buatUser([
+            'nama_lengkap' => 'Firman Santoso',
+            'nip' => '199001012020011001',
+            'unit_kerja_id' => $unit->id,
+            'sub_unit_id' => $subUnit->id,
+            'jabatan_id' => $jabatan->id,
+        ]);
+
+        $qrService = app(ParafQrService::class);
+        $url = $qrService->urlPublik($pegawai->id);
+
+        $this->assertStringContainsString('/p/'.$pegawai->id.'/', $url);
+        $this->assertStringStartsWith('data:image/png;base64,', $qrService->qrDataUri($pegawai->id));
+
+        // Akses publik tanpa login
+        $this->get($url)
+            ->assertOk()
+            ->assertSee('RSUD MERAUKE')
+            ->assertSee('Firman Santoso')
+            ->assertSee('Kepala Seksi Penunjang')
+            ->assertSee('Penunjang dan Sarana Prasana — SIMRS');
+
+        // Tanda tangan QR tidak valid harus ditolak 404
+        $this->get('/p/'.$pegawai->id.'/salah1234567')
+            ->assertNotFound()
+            ->assertDontSee('Firman Santoso');
     }
 }

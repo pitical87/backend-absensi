@@ -8,6 +8,7 @@ use App\Models\Izin;
 use App\Models\User;
 use App\Services\AtasanLangsungService;
 use App\Services\BintangService;
+use App\Services\ParafQrService;
 use App\Services\RekapService;
 use Carbon\Carbon;
 use Dompdf\Dompdf;
@@ -145,7 +146,8 @@ class RekapController extends Controller
     public function rekapBawahanPdf(
         Request $req,
         RekapService $rekap,
-        AtasanLangsungService $atasanService
+        AtasanLangsungService $atasanService,
+        ParafQrService $parafQr
     ): Response|JsonResponse {
         $user = $req->get('user');
         $bulan = (int) ($req->query('bulan') ?: now()->month);
@@ -305,6 +307,7 @@ class RekapController extends Controller
                     'pangkat_gol' => '',
                     'jabatan' => (string) ($pegawai->jabatan?->nama ?: ($pegawai->jabatan_kategori ?: ($pegawai->posisi ?: ''))),
                     'unit_kerja' => $unitKerja,
+                    'qr_paraf' => $parafQr->qrDataUri((int) $pegawai->id),
                 ],
                 'baris' => $baris,
             ];

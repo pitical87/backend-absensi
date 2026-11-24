@@ -34,6 +34,9 @@ Route::get('captcha', [AuthController::class, 'captcha'])->name('captcha');
 Route::get('captcha/gambar/{token}', [AuthController::class, 'gambarCaptcha'])->name('captcha.gambar');
 Route::get('logout', [AuthController::class, 'logout'])->name('logout');
 Route::get('verifikasi/{kode?}', [VerifikasiController::class, 'index'])->name('verifikasi');
+Route::get('p/{id}/{sig}', [VerifikasiController::class, 'pegawai'])
+    ->whereNumber('id')
+    ->name('publik.pegawai');
 Route::get('verifikasi-email/konfirmasi/{id}/{token}', [VerifikasiEmailController::class, 'konfirmasi'])
     ->whereNumber('id')
     ->name('verifikasi-email.konfirmasi');

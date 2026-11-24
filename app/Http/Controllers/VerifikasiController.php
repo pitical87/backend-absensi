@@ -3,7 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Izin;
+use App\Models\User;
+use App\Services\ParafQrService;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 
 class VerifikasiController extends Controller
 {
@@ -22,5 +25,40 @@ class VerifikasiController extends Controller
         }
 
         return view('publik.verifikasi', ['kode' => $kode, 'hasil' => $hasil]);
+    }
+
+    public function pegawai(int $id, string $sig, ParafQrService $parafQr): Response
+    {
+        $valid = $parafQr->validasi($id, $sig);
+        $pegawai = $valid
+            ? User::with(['unitKerja', 'subUnit', 'jabatan', 'profesi'])->find($id)
+            : null;
+
+        if (! $pegawai) {
+            return response()->view('publik.pegawai', [
+                'valid' => false,
+                'pegawai' => null,
+                'jabatan' => null,
+                'unitKerja' => null,
+                'instansi' => (string) pengaturan('nama_instansi', 'RSUD Merauke'),
+            ], 404);
+        }
+
+        $jabatan = (string) ($pegawai->jabatan?->nama
+            ?: ($pegawai->jabatan_kategori ?: ($pegawai->posisi ?: '—')));
+
+        $unitNama = $pegawai->unitKerja?->nama;
+        $subUnitNama = $pegawai->subUnit?->nama;
+        $unitKerja = $unitNama
+            ? ($subUnitNama ? "{$unitNama} — {$subUnitNama}" : $unitNama)
+            : (string) pengaturan('nama_instansi', 'RSUD Merauke');
+
+        return response()->view('publik.pegawai', [
+            'valid' => true,
+            'pegawai' => $pegawai,
+            'jabatan' => $jabatan,
+            'unitKerja' => $unitKerja,
+            'instansi' => (string) pengaturan('nama_instansi', 'RSUD Merauke'),
+        ]);
     }
 }

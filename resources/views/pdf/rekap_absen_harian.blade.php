@@ -6,7 +6,7 @@
 <style>
   @page {
     size: A4 portrait;
-    margin: 7mm 10mm 7mm 10mm;
+    margin: 5.5mm 9mm 5.5mm 9mm;
   }
 
   * {
@@ -172,9 +172,10 @@
 
   table.absen td {
     border: 1px solid #000000;
-    padding: 2.6px 4px;
+    padding: 1px 4px;
     vertical-align: middle;
     line-height: 1.15;
+    height: 19px;
   }
 
   table.absen td.col-no {
@@ -201,6 +202,15 @@
   table.absen td.col-paraf {
     width: 11%;
     text-align: center;
+    padding: 1px 2px;
+    line-height: 0;
+  }
+
+  img.qr-paraf {
+    width: 18px;
+    height: 18px;
+    display: inline-block;
+    vertical-align: middle;
   }
 
   table.absen td.col-ket {
@@ -316,9 +326,17 @@
             <td class="col-no">{{ $b['no'] }}</td>
             <td class="col-tgl{{ $b['minggu'] ? ' minggu' : '' }}">{{ $b['hari_tanggal'] }}</td>
             <td class="col-jam">{{ $b['jam_masuk'] }}</td>
-            <td class="col-paraf"></td>
+            <td class="col-paraf">
+              @if ($b['jam_masuk'] !== '' && ! empty($lembar['pegawai']['qr_paraf']))
+                <img class="qr-paraf" src="{{ $lembar['pegawai']['qr_paraf'] }}" alt="QR Paraf">
+              @endif
+            </td>
             <td class="col-jam">{{ $b['jam_pulang'] }}</td>
-            <td class="col-paraf"></td>
+            <td class="col-paraf">
+              @if ($b['jam_pulang'] !== '' && ! empty($lembar['pegawai']['qr_paraf']))
+                <img class="qr-paraf" src="{{ $lembar['pegawai']['qr_paraf'] }}" alt="QR Paraf">
+              @endif
+            </td>
             <td class="col-ket">{{ $b['ket'] }}</td>
           </tr>
         @endforeach
