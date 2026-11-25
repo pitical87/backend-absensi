@@ -83,28 +83,57 @@ class CheckMobileAuth
             return false;
         }
 
+        // Fetch Metadata header dikirim otomatis oleh browser modern & tidak bisa dipalsukan JS.
+        // same-origin selalu sah (termasuk saat frontend memakai Nginx/Vite reverse proxy).
+        $fetchSite = strtolower(trim((string) $request->header('Sec-Fetch-Site', '')));
+        if ($fetchSite === 'same-origin') {
+            return true;
+        }
+        if ($fetchSite === 'cross-site') {
+            return false;
+        }
+
         $sumber = (string) ($request->header('Origin') ?: $request->header('Referer') ?: '');
         if ($sumber === '') {
             return true;
         }
 
-        $hostSumber = strtolower((string) (parse_url($sumber, PHP_URL_HOST) ?? ''));
+        $hostSumber = $this->ekstrakHost($sumber);
         if ($hostSumber === '') {
             return false;
         }
 
-        $hostDiizinkan = [strtolower((string) $request->getHost())];
+        $hostDiizinkan = array_filter([
+            strtolower((string) $request->getHost()),
+            $this->ekstrakHost((string) $request->header('X-Forwarded-Host', '')),
+            $this->ekstrakHost((string) config('app.url', '')),
+            $this->ekstrakHost((string) config('services.web_absen.url', '')),
+        ]);
+
         foreach ((array) config('cors.allowed_origins', []) as $origin) {
-            $h = strtolower((string) (parse_url((string) $origin, PHP_URL_HOST) ?? ''));
-            if ($h !== '') {
-                $hostDiizinkan[] = $h;
+            foreach (explode(',', (string) $origin) as $bagian) {
+                $h = $this->ekstrakHost($bagian);
+                if ($h !== '') {
+                    $hostDiizinkan[] = $h;
+                }
             }
-        }
-        $appHost = strtolower((string) (parse_url((string) config('app.url'), PHP_URL_HOST) ?? ''));
-        if ($appHost !== '') {
-            $hostDiizinkan[] = $appHost;
         }
 
         return in_array($hostSumber, array_unique($hostDiizinkan), true);
+    }
+
+    private function ekstrakHost(string $nilai): string
+    {
+        $bersih = trim($nilai);
+        if ($bersih === '') {
+            return '';
+        }
+
+        // Tangani format dengan skema (https://a.id/x) maupun host polos (absen.rsud-merauke.id)
+        if (! str_contains($bersih, '://')) {
+            $bersih = 'https://'.$bersih;
+        }
+
+        return strtolower((string) (parse_url($bersih, PHP_URL_HOST) ?? ''));
     }
 }

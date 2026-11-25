@@ -108,18 +108,29 @@ class MobileCookieSecurityTest extends TestCase
             ->postJson('/api/mobile/logout')
             ->assertStatus(403);
 
-        // Origin dari subdomain asing -> 403
+        // Origin dari subdomain asing (same-site tapi bukan same-origin) -> 403
         $this->withCredentials()
             ->withHeader('X-Requested-With', 'XMLHttpRequest')
+            ->withHeader('Sec-Fetch-Site', 'same-site')
             ->withHeader('Origin', 'https://jahat.rsud-merauke.id')
             ->withUnencryptedCookie('auth_token', $raw)
             ->postJson('/api/mobile/logout')
             ->assertStatus(403);
 
-        // Dengan header valid & origin sama -> 200
+        // Sec-Fetch-Site cross-site -> 403
         $this->withCredentials()
             ->withHeader('X-Requested-With', 'XMLHttpRequest')
-            ->withHeader('Origin', 'http://localhost')
+            ->withHeader('Sec-Fetch-Site', 'cross-site')
+            ->withHeader('Origin', 'https://evil.test')
+            ->withUnencryptedCookie('auth_token', $raw)
+            ->postJson('/api/mobile/logout')
+            ->assertStatus(403);
+
+        // Reverse proxy (Sec-Fetch-Site: same-origin + X-Requested-With) -> 200
+        $this->withCredentials()
+            ->withHeader('X-Requested-With', 'XMLHttpRequest')
+            ->withHeader('Sec-Fetch-Site', 'same-origin')
+            ->withHeader('Origin', 'https://absen.rsud-merauke.id')
             ->withUnencryptedCookie('auth_token', $raw)
             ->postJson('/api/mobile/logout')
             ->assertOk();
