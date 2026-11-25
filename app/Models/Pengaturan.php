@@ -29,6 +29,7 @@ class Pengaturan extends Model
     {
         static::updateOrCreate(['kunci' => $kunci], ['nilai' => $nilai]);
         Cache::forget("pengaturan_{$kunci}");
+        Cache::forget('pengaturan_semua');
     }
 
     public static function semua(): array

@@ -104,6 +104,7 @@ class MobileLoginTest extends TestCase
             'email' => $atasan->email,
             'password' => 'rahasia-kuat',
         ])->assertOk()
+            ->assertJsonPath('lembur_aktif', false)
             ->assertJsonPath('hak_akses.verifikasi_lembur', false)
             ->assertJsonPath('hak_akses.verifikasi_logbook', true)
             ->assertJsonPath('hak_akses.verifikasi_ijin', true);

@@ -27,7 +27,7 @@ class AtasanLangsungService
             'verifikasi_logbook' => $punyaBawahan,
             'buat_jadwal' => $punyaBawahan,
             'verifikasi_ijin' => $punyaBawahan,
-            'verifikasi_lembur' => $punyaBawahan && pengaturan('aktifkan_lembur', '1') === '1',
+            'verifikasi_lembur' => $punyaBawahan && trim((string) pengaturan('aktifkan_lembur', '1')) === '1',
             'verifikasi_perubahan_jadwal' => $punyaBawahan,
         ];
     }
@@ -40,6 +40,28 @@ class AtasanLangsungService
         return AtasanLangsung::where('atasan_id', $user->id)
             ->where('user_id', '!=', $user->id)
             ->exists();
+    }
+
+    /**
+     * Daftar atasan langsung untuk seorang pegawai dari tabel atasan_langsung.
+     *
+     * @return array<int, array{id: int, nama: string, email: string}>
+     */
+    public function daftarAtasan(User $user): array
+    {
+        return AtasanLangsung::where('atasan_langsung.user_id', (int) $user->id)
+            ->where('atasan_langsung.atasan_id', '!=', (int) $user->id)
+            ->join('users as au', 'au.id', '=', 'atasan_langsung.atasan_id')
+            ->whereNull('au.deleted_at')
+            ->orderBy('atasan_langsung.id')
+            ->get(['au.id', 'au.nama_lengkap', 'au.email'])
+            ->map(fn ($a) => [
+                'id' => (int) $a->id,
+                'nama' => (string) $a->nama_lengkap,
+                'email' => (string) $a->email,
+            ])
+            ->values()
+            ->all();
     }
 
     /**

@@ -69,9 +69,14 @@ trait TerbitkanTokenMobile
     {
         $servis = app(AtasanLangsungService::class);
 
+        $atasanLangsung = $servis->daftarAtasan($user);
+
         return [
+            'lembur_aktif' => trim((string) pengaturan('aktifkan_lembur', '1')) === '1',
             'hak_akses' => $servis->hakAkses($user),
             'bawahan' => $servis->daftarBawahan($user),
+            'atasan_langsung' => $atasanLangsung,
+            'atasan' => $atasanLangsung,
         ];
     }
 }
