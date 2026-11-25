@@ -28,6 +28,7 @@ use App\Http\Controllers\Admin\RekapController;
 use App\Http\Controllers\Admin\RekapKeterlambatanController;
 use App\Http\Controllers\Admin\RekapLemburController;
 use App\Http\Controllers\Admin\RekapLogbookController;
+use App\Http\Controllers\Admin\RekapStatusController;
 use App\Http\Controllers\Admin\ShiftController;
 use App\Http\Controllers\Admin\SimrsController;
 use App\Http\Controllers\Admin\StrukturController;
@@ -177,6 +178,10 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::post('rekap/generate', [RekapController::class, 'generate'])->name('admin.rekap.generate');
     Route::get('rekap/cetak', [RekapController::class, 'cetak'])->name('admin.rekap.cetak');
     Route::get('rekap/excel', [RekapController::class, 'excel'])->name('admin.rekap.excel');
+
+    Route::get('rekap_status', [RekapStatusController::class, 'index'])->name('admin.rekap_status.index');
+    Route::get('rekap_status/pdf', [RekapStatusController::class, 'pdf'])->name('admin.rekap_status.pdf');
+    Route::get('rekap_status/excel', [RekapStatusController::class, 'excel'])->name('admin.rekap_status.excel');
 
     Route::get('rekap_lembur', [RekapLemburController::class, 'index'])->name('admin.rekap_lembur.index');
     Route::get('rekap_lembur/cetak', [RekapLemburController::class, 'cetak'])->name('admin.rekap_lembur.cetak');

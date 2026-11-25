@@ -65,6 +65,7 @@ $grupMenu = [
     'ikon'  => 'grafik',
     'items' => [
       'rekap'         => ['admin/rekap',         'grafik',   'Rekap Absen'],
+      'rekap_status'  => ['admin/rekap_status',  'pegawai',  'Rekap Per Status'],
       'rekap_keterlambatan' => ['admin/rekap_keterlambatan', 'jam', 'Rekap Keterlambatan'],
       'pegawai_teladan'     => ['admin/pegawai_teladan', 'bintang', 'Pegawai Teladan'],
       'rekap_logbook' => ['admin/rekap_logbook', 'log',      'Rekap Logbook'],
