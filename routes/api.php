@@ -26,8 +26,12 @@ Route::prefix('mobile')->group(function (){
         Route::get('me',[AuthController::class, 'me']);
         Route::post('logout',[AuthController::class, 'logout']);
 
-        // Profil
+        // Profil & Mapping SIMRS
         Route::post('profil',[ProfilController::class, 'update']);
+        Route::get('mapping-simrs', [ProfilController::class, 'mappingSimrs']);
+        Route::get('mapping-simrs/tes', [ProfilController::class, 'tesMappingSimrs']);
+        Route::get('mapping-simrs/cek', [ProfilController::class, 'cekSimrsId']);
+        Route::post('mapping-simrs', [ProfilController::class, 'simpanMappingSimrs']);
 
         // Verifikasi email
         Route::get('verifikasi-email',[VerifikasiEmailController::class, 'status']);

@@ -6,9 +6,19 @@ use App\Models\LogLokasi;
 
 class AnomaliService
 {
-    public function periksa(int $userId, float $lat, float $lng, ?float $akurasi): array
+    /**
+     * @param  array<int, string>  $anomaliKlien
+     */
+    public function periksa(int $userId, float $lat, float $lng, ?float $akurasi, array $anomaliKlien = []): array
     {
         $alasan = [];
+
+        foreach (array_slice($anomaliKlien, 0, 5) as $catatan) {
+            $teks = trim((string) $catatan);
+            if ($teks !== '') {
+                $alasan[] = mb_substr($teks, 0, 200);
+            }
+        }
 
         if ($akurasi !== null) {
             if ($akurasi > 0 && $akurasi < 3) {

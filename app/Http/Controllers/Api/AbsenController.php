@@ -64,7 +64,12 @@ class AbsenController extends Controller
 
         $now = new DateTime;
 
-        [$flagAnomali, $alasanAnomali] = app(AnomaliService::class)->periksa($user->id, $lat, $lng, $akurasi);
+        $gpsAnomali = $req->input('gps_anomali');
+        $anomaliKlien = is_array($gpsAnomali)
+            ? array_values(array_filter($gpsAnomali, 'is_string'))
+            : [];
+
+        [$flagAnomali, $alasanAnomali] = app(AnomaliService::class)->periksa($user->id, $lat, $lng, $akurasi, $anomaliKlien);
 
         return $tipe === 'datang' ?
             $this->absenService->absenDatang($u, $lat, $lng, $akurasi, $now, $fileFoto, $flagAnomali, $alasanAnomali)
