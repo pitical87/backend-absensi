@@ -16,6 +16,7 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Conditional;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\Worksheet\PageSetup;
@@ -75,6 +76,9 @@ class RekapStatusController extends Controller
 
     public function pdf(Request $request, RekapStatusPegawaiService $service)
     {
+        @set_time_limit(300);
+        ini_set('memory_limit', '1024M');
+
         $f = $this->ambilParam($request);
         $matriks = $service->bangunMatriks($f);
 
@@ -95,8 +99,6 @@ class RekapStatusController extends Controller
         $dompdf = new Dompdf($options);
         $dompdf->loadHtml($html);
         $dompdf->setPaper('A4', 'landscape');
-
-        ini_set('memory_limit', '512M');
         $dompdf->render();
 
         $slugStatus = $f['status_pegawai'] !== ''
@@ -123,6 +125,9 @@ class RekapStatusController extends Controller
 
     public function excel(Request $request, RekapStatusPegawaiService $service)
     {
+        @set_time_limit(300);
+        ini_set('memory_limit', '1024M');
+
         $f = $this->ambilParam($request);
         $matriks = $service->bangunMatriks($f);
 
@@ -137,6 +142,12 @@ class RekapStatusController extends Controller
         $colJmlh = Coordinate::stringFromColumnIndex($kolomJmlhIdx);
         $colPersen = Coordinate::stringFromColumnIndex($kolomPersenIdx);
         $colKet = Coordinate::stringFromColumnIndex($kolomKetIdx);
+
+        // Precompute huruf kolom tanggal 1..31 sekali saja
+        $colHariList = [];
+        for ($d = 1; $d <= $hariDalamBulan; $d++) {
+            $colHariList[$d] = Coordinate::stringFromColumnIndex(2 + $d);
+        }
 
         $spreadsheet = new Spreadsheet;
         $ws = $spreadsheet->getActiveSheet();
@@ -300,59 +311,78 @@ class RekapStatusController extends Controller
                     $row++;
                 }
 
+                $dataStart = $row;
+                $barisNilai = [];
+                $mergeSpans = [];
                 $no = 1;
+
                 foreach ($kelompok['pegawai'] as $p) {
-                    $ws->setCellValue("A{$row}", $no++);
-                    $ws->setCellValue("B{$row}", $p['nama']);
-                    $ws->getStyle("A{$row}")->getAlignment()
-                        ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-                        ->setVertical(Alignment::VERTICAL_CENTER);
-                    $ws->getStyle("B{$row}")->getFont()->setBold(true)->setSize(8.5);
-                    $ws->getStyle("B{$row}")->getAlignment()
-                        ->setHorizontal(Alignment::HORIZONTAL_LEFT)
-                        ->setVertical(Alignment::VERTICAL_CENTER);
+                    $baris = array_fill(0, $kolomKetIdx, '');
+                    $baris[0] = $no++;
+                    $baris[1] = $p['nama'];
 
                     foreach ($p['sel'] as $cell) {
-                        $cMulai = Coordinate::stringFromColumnIndex(2 + $cell['mulai']);
-                        $cSampai = Coordinate::stringFromColumnIndex(2 + $cell['sampai']);
-                        if ($cell['colspan'] > 1) {
-                            $ws->mergeCells("{$cMulai}{$row}:{$cSampai}{$row}");
-                        }
-                        $ws->setCellValue("{$cMulai}{$row}", $cell['teks']);
-                        $styleCell = $ws->getStyle("{$cMulai}{$row}:{$cSampai}{$row}");
-                        $styleCell->getAlignment()
-                            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-                            ->setVertical(Alignment::VERTICAL_CENTER);
+                        $baris[1 + $cell['mulai']] = $cell['teks'];
 
-                        if ($cell['tipe'] === 'libur') {
-                            $styleCell->getFont()->setBold(true)->setSize(8.5)->getColor()->setARGB('FF111827');
-                            $styleCell->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFF9FAFB');
-                        } elseif ($cell['tipe'] === 'alpa') {
-                            $styleCell->getFont()->setBold(true)->setSize(8.5)->getColor()->setARGB('FFC00000');
-                        } elseif ($cell['tipe'] === 'izin' || $cell['tipe'] === 'dinas') {
-                            $styleCell->getFont()->setBold(true)->setSize(8)->getColor()->setARGB('FF1D4ED8');
-                            if ($cell['gabung']) {
-                                $styleCell->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFEFF6FF');
-                            }
-                        } elseif ($cell['tipe'] === 'hadir') {
-                            $styleCell->getFont()->setSize(8)->getColor()->setARGB('FF15803D');
+                        if ($cell['colspan'] > 1) {
+                            $mergeSpans[] = $colHariList[$cell['mulai']].$row.':'.$colHariList[$cell['sampai']].$row;
                         }
                     }
 
-                    $ws->setCellValue("{$colJmlh}{$row}", $p['jmlh']);
-                    $ws->setCellValue("{$colPersen}{$row}", $p['persen']);
-                    $ws->setCellValue("{$colKet}{$row}", $p['ket']);
+                    $baris[$kolomJmlhIdx - 1] = $p['jmlh'];
+                    $baris[$kolomPersenIdx - 1] = $p['persen'];
+                    $baris[$kolomKetIdx - 1] = $p['ket'];
+                    $barisNilai[] = $baris;
+                    $row++;
+                }
 
-                    $ws->getStyle("{$colJmlh}{$row}:{$colPersen}{$row}")->getAlignment()
+                $dataEnd = $row - 1;
+                if ($barisNilai !== []) {
+                    $ws->fromArray($barisNilai, null, "A{$dataStart}", true);
+
+                    // Styling massal per range + Conditional Formatting (O(1) meski 1000+ pegawai / banyak Alpa)
+                    $ws->getStyle("A{$dataStart}:A{$dataEnd}")->getAlignment()
                         ->setHorizontal(Alignment::HORIZONTAL_CENTER)
                         ->setVertical(Alignment::VERTICAL_CENTER);
-                    $ws->getStyle("{$colKet}{$row}")->getAlignment()
-                        ->setHorizontal(Alignment::HORIZONTAL_LEFT)
-                        ->setVertical(Alignment::VERTICAL_CENTER);
-                    $ws->getStyle("{$colKet}{$row}")->getFont()->setSize(8);
+                    $ws->getStyle("B{$dataStart}:B{$dataEnd}")->applyFromArray([
+                        'font' => ['bold' => true, 'size' => 8.5],
+                        'alignment' => [
+                            'horizontal' => Alignment::HORIZONTAL_LEFT,
+                            'vertical' => Alignment::VERTICAL_CENTER,
+                        ],
+                    ]);
 
-                    $ws->getRowDimension($row)->setRowHeight(16);
-                    $row++;
+                    $rentangHari = "{$colHariAwal}{$dataStart}:{$colHariAkhir}{$dataEnd}";
+                    $ws->getStyle($rentangHari)->applyFromArray([
+                        'font' => ['size' => 8],
+                        'alignment' => [
+                            'horizontal' => Alignment::HORIZONTAL_CENTER,
+                            'vertical' => Alignment::VERTICAL_CENTER,
+                        ],
+                    ]);
+                    $ws->getStyle($rentangHari)->setConditionalStyles($this->buatConditionalHari());
+
+                    $ws->getStyle("{$colJmlh}{$dataStart}:{$colPersen}{$dataEnd}")->getAlignment()
+                        ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                        ->setVertical(Alignment::VERTICAL_CENTER);
+                    $ws->getStyle("{$colKet}{$dataStart}:{$colKet}{$dataEnd}")->applyFromArray([
+                        'font' => ['size' => 8],
+                        'alignment' => [
+                            'horizontal' => Alignment::HORIZONTAL_LEFT,
+                            'vertical' => Alignment::VERTICAL_CENTER,
+                        ],
+                    ]);
+
+                    if ($mergeSpans !== []) {
+                        $gayaGabung = [
+                            'font' => ['bold' => true, 'size' => 8, 'color' => ['argb' => 'FF1D4ED8']],
+                            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFEFF6FF']],
+                        ];
+                        foreach ($mergeSpans as $range) {
+                            $ws->mergeCells($range);
+                            $ws->getStyle($range)->applyFromArray($gayaGabung);
+                        }
+                    }
                 }
 
                 $akhirBlok = $row - 1;
@@ -406,6 +436,35 @@ class RekapStatusController extends Controller
 
         return response()->download($temp, $namaBerkas)
             ->deleteFileAfterSend(true);
+    }
+
+    /**
+     * @return array<int, Conditional>
+     */
+    private function buatConditionalHari(): array
+    {
+        $buat = static function (string $kode, string $warna, bool $tebal = false, ?string $bg = null): Conditional {
+            $c = new Conditional;
+            $c->setConditionType(Conditional::CONDITION_CELLIS)
+                ->setOperatorType(Conditional::OPERATOR_EQUAL)
+                ->addCondition('"'.$kode.'"');
+            $c->getStyle()->getFont()->setBold($tebal)->getColor()->setARGB($warna);
+            if ($bg !== null) {
+                $c->getStyle()->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB($bg);
+            }
+
+            return $c;
+        };
+
+        return [
+            $buat('H', 'FF15803D', false),
+            $buat('L', 'FF111827', true, 'FFF9FAFB'),
+            $buat('A', 'FFC00000', true),
+            $buat('I', 'FF1D4ED8', true),
+            $buat('S', 'FF1D4ED8', true),
+            $buat('C', 'FF1D4ED8', true),
+            $buat('DL', 'FF1D4ED8', true),
+        ];
     }
 
     private function logoDataUri(string $path): ?string

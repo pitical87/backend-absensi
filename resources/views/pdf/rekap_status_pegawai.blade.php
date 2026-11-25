@@ -133,35 +133,38 @@
     padding: 2px 3px;
   }
 
-  table.matriks td.sel-hadir {
+  table.matriks td.h {
     color: #15803D;
     font-size: 6.4pt;
   }
 
-  table.matriks td.sel-libur {
+  table.matriks td.l {
     font-weight: bold;
     color: #111827;
     background-color: #F9FAFB;
     font-size: 6.6pt;
   }
 
-  table.matriks td.sel-alpa {
+  table.matriks td.a {
     font-weight: bold;
     color: #C00000;
     font-size: 6.6pt;
   }
 
-  table.matriks td.sel-izin,
-  table.matriks td.sel-dinas {
+  table.matriks td.i {
     font-weight: bold;
     color: #1D4ED8;
     font-size: 6.4pt;
   }
 
-  table.matriks td.sel-gabung {
+  table.matriks td.g {
     background-color: #EFF6FF;
     font-size: 6.3pt;
     letter-spacing: 0.1px;
+  }
+
+  .pindah-hal {
+    page-break-before: always;
   }
 
   .legenda {
@@ -222,47 +225,68 @@
   $totalKolom = $hariDalamBulan + 5;
   $lebarHariMm = round(128 / $hariDalamBulan, 2);
 @endphp
+<style>
+  table.matriks th.d { width: {{ $lebarHariMm }}mm; }
+  table.matriks th.c-no { width: 6mm; }
+  table.matriks th.c-nm { width: 48mm; }
+  table.matriks th.c-jm { width: 8.5mm; }
+  table.matriks th.c-ps { width: 7mm; }
+  table.matriks th.c-kt { width: 36mm; }
+</style>
+@php
+  $barisPerTabel = 24;
+  $kelasTipe = [
+    'hadir' => 'h',
+    'libur' => 'l',
+    'alpa' => 'a',
+    'izin' => 'i',
+    'dinas' => 'i',
+  ];
+@endphp
 
 @forelse($matriks['kelompok'] as $kelompok)
-  <table class="matriks">
-    <thead>
-      <tr>
-        <th rowspan="2" style="width: 6mm;">NO</th>
-        <th rowspan="2" style="width: 48mm;">N A M A</th>
-        <th colspan="{{ $hariDalamBulan }}">T A N G G A L</th>
-        <th rowspan="2" style="width: 8.5mm;">JMLH</th>
-        <th rowspan="2" style="width: 7mm;">%</th>
-        <th rowspan="2" style="width: 36mm;">KET</th>
-      </tr>
-      <tr>
-        @for($d = 1; $d <= $hariDalamBulan; $d++)
-          <th style="width: {{ $lebarHariMm }}mm;" class="{{ $matriks['tanggal_meta'][$d]['merah'] ? 'merah' : '' }}">{{ $d }}</th>
-        @endfor
-      </tr>
-    </thead>
-    <tbody>
-      @if($kelompok['nama'] !== '')
-        <tr class="grup-baris">
-          <td colspan="{{ $totalKolom }}">{{ $kelompok['nama'] }}</td>
-        </tr>
-      @endif
-      @foreach($kelompok['pegawai'] as $idx => $p)
+  @php
+    $potongan = array_chunk($kelompok['pegawai'], $barisPerTabel, true);
+  @endphp
+  @foreach($potongan as $idxPot => $barisPotongan)
+    <table class="matriks {{ $idxPot > 0 ? 'pindah-hal' : '' }}">
+      <thead>
         <tr>
-          <td class="kol-no">{{ $idx + 1 }}</td>
-          <td class="kol-nama">{{ $p['nama'] }}</td>
-          @foreach($p['sel'] as $cell)
-            <td
-              @if($cell['colspan'] > 1) colspan="{{ $cell['colspan'] }}" @endif
-              class="sel-{{ $cell['tipe'] }} {{ $cell['gabung'] ? 'sel-gabung' : '' }}"
-            >{{ $cell['teks'] }}</td>
-          @endforeach
-          <td>{{ $p['jmlh'] }}</td>
-          <td>{{ $p['persen'] }}</td>
-          <td class="kol-ket">{{ $p['ket'] }}</td>
+          <th rowspan="2" class="c-no">NO</th>
+          <th rowspan="2" class="c-nm">N A M A</th>
+          <th colspan="{{ $hariDalamBulan }}">T A N G G A L</th>
+          <th rowspan="2" class="c-jm">JMLH</th>
+          <th rowspan="2" class="c-ps">%</th>
+          <th rowspan="2" class="c-kt">KET</th>
         </tr>
-      @endforeach
-    </tbody>
-  </table>
+        <tr>
+          @for($d = 1; $d <= $hariDalamBulan; $d++)
+            <th class="d{{ $matriks['tanggal_meta'][$d]['merah'] ? ' merah' : '' }}">{{ $d }}</th>
+          @endfor
+        </tr>
+      </thead>
+      <tbody>
+        @if($kelompok['nama'] !== '')
+          <tr class="grup-baris">
+            <td colspan="{{ $totalKolom }}">{{ $kelompok['nama'] }}{{ $idxPot > 0 ? ' (Lanjutan)' : '' }}</td>
+          </tr>
+        @endif
+        @foreach($barisPotongan as $idx => $p)
+          <tr>
+            <td class="kol-no">{{ $idx + 1 }}</td>
+            <td class="kol-nama">{{ $p['nama'] }}</td>
+            @foreach($p['sel'] as $cell)
+              @php $c = ($kelasTipe[$cell['tipe']] ?? '') . ($cell['gabung'] ? ' g' : ''); @endphp
+              <td{!! $cell['colspan'] > 1 ? ' colspan="'.$cell['colspan'].'"' : '' !!}{!! $c !== '' ? ' class="'.$c.'"' : '' !!}>{{ $cell['teks'] }}</td>
+            @endforeach
+            <td>{{ $p['jmlh'] }}</td>
+            <td>{{ $p['persen'] }}</td>
+            <td class="kol-ket">{{ $p['ket'] }}</td>
+          </tr>
+        @endforeach
+      </tbody>
+    </table>
+  @endforeach
 @empty
   <table class="matriks">
     <tbody>

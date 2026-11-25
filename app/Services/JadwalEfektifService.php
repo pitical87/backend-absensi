@@ -8,6 +8,7 @@ use App\Models\JadwalTemplateMingguan;
 use App\Models\Shift;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class JadwalEfektifService
 {
@@ -81,52 +82,61 @@ class JadwalEfektifService
         }
 
         $peta = [];
-        $tersimpan = JadwalShift::whereIn('user_id', $daftar->keys())
-            ->whereBetween('tanggal_berlaku', [$mulai, $sampai])
-            ->get(['user_id', 'tanggal_berlaku', 'shift_id']);
-        foreach ($tersimpan as $jadwal) {
-            $peta[(int) $jadwal->user_id][Carbon::parse($jadwal->tanggal_berlaku)->toDateString()]
-                = (int) $jadwal->shift_id;
+        $userIds = $daftar->keys()->map(fn ($id) => (int) $id)->all();
+        foreach (array_chunk($userIds, 500) as $chunkIds) {
+            $tersimpan = DB::table('jadwal_shift')
+                ->whereIn('user_id', $chunkIds)
+                ->whereBetween('tanggal_berlaku', [$mulai, $sampai])
+                ->get(['user_id', 'tanggal_berlaku', 'shift_id']);
+            foreach ($tersimpan as $jadwal) {
+                $peta[(int) $jadwal->user_id][substr((string) $jadwal->tanggal_berlaku, 0, 10)]
+                    = (int) $jadwal->shift_id;
+            }
         }
 
-        $subUnitIds = $daftar->pluck('sub_unit_id')->filter()->unique()->values();
-        $template = $subUnitIds->isNotEmpty()
-            ? JadwalTemplateMingguan::whereIn('sub_unit_id', $subUnitIds)
-                ->get(['sub_unit_id', 'hari', 'shift_id'])
-                ->groupBy('sub_unit_id')
-                ->map(fn ($rows) => $rows->mapWithKeys(fn ($row) => [(int) $row->hari => (int) $row->shift_id])->all())
-                ->all()
-            : [];
-        if (! $template) {
+        $subUnitIds = $daftar->pluck('sub_unit_id')->filter()->unique()->values()->all();
+        $template = [];
+        if ($subUnitIds !== []) {
+            $tplRows = DB::table('jadwal_template_mingguan')
+                ->whereIn('sub_unit_id', $subUnitIds)
+                ->get(['sub_unit_id', 'hari', 'shift_id']);
+            foreach ($tplRows as $row) {
+                $template[(int) $row->sub_unit_id][(int) $row->hari] = (int) $row->shift_id;
+            }
+        }
+        if ($template === []) {
             return $peta;
         }
 
-        $libur = HariLibur::whereBetween('tanggal', [$mulai, $sampai])
-            ->pluck('tanggal')
-            ->map(fn ($tanggal) => Carbon::parse($tanggal)->toDateString())
-            ->flip()
-            ->all();
+        $libur = [];
+        foreach (DB::table('hari_libur')->whereBetween('tanggal', [$mulai, $sampai])->pluck('tanggal') as $tglLibur) {
+            $libur[substr((string) $tglLibur, 0, 10)] = true;
+        }
 
-        for ($tanggal = Carbon::parse($mulai); $tanggal->lte(Carbon::parse($sampai)); $tanggal->addDay()) {
-            $tgl = $tanggal->toDateString();
-            if (isset($libur[$tgl])) {
-                continue;
+        $userSubMap = [];
+        foreach ($daftar as $user) {
+            $subId = (int) ($user->sub_unit_id ?? 0);
+            if ($subId > 0 && isset($template[$subId])) {
+                $userSubMap[(int) $user->id] = $subId;
             }
-            $hari = $tanggal->dayOfWeekIso;
+        }
 
-            foreach ($daftar as $user) {
-                $userId = (int) $user->id;
-                if (! array_key_exists($tgl, $peta[$userId] ?? [])
-                    && isset($template[$user->sub_unit_id][$hari])) {
-                    $peta[$userId][$tgl] = $template[$user->sub_unit_id][$hari];
+        if ($userSubMap !== []) {
+            $akhir = Carbon::parse($sampai);
+            for ($tanggal = Carbon::parse($mulai); $tanggal->lte($akhir); $tanggal->addDay()) {
+                $tgl = $tanggal->toDateString();
+                if (isset($libur[$tgl])) {
+                    continue;
+                }
+                $hari = $tanggal->dayOfWeekIso;
+
+                foreach ($userSubMap as $userId => $subId) {
+                    if (! isset($peta[$userId][$tgl]) && isset($template[$subId][$hari])) {
+                        $peta[$userId][$tgl] = $template[$subId][$hari];
+                    }
                 }
             }
         }
-
-        foreach ($peta as &$jadwalPegawai) {
-            ksort($jadwalPegawai);
-        }
-        unset($jadwalPegawai);
 
         return $peta;
     }

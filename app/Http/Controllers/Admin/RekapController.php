@@ -258,6 +258,9 @@ class RekapController extends Controller
 
     public function cetak(Request $request)
     {
+        @set_time_limit(300);
+        ini_set('memory_limit', '512M');
+
         $f = $this->ambilParam($request);
         $pegawai = $this->semuaPegawai($f);
         $label = $this->labelFilter($f);
@@ -275,6 +278,9 @@ class RekapController extends Controller
 
     public function excel(Request $request)
     {
+        @set_time_limit(300);
+        ini_set('memory_limit', '512M');
+
         $f = $this->ambilParam($request);
         [$bulan, $tahun] = [$f['bulan'], $f['tahun']];
         $mode = $request->get('mode') === 'detail' ? 'detail' : 'rekap';

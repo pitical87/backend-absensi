@@ -2,11 +2,10 @@
 
 namespace App\Services;
 
-use App\Models\Absensi;
 use App\Models\HariLibur;
-use App\Models\Izin;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class RekapStatusPegawaiService
 {
@@ -142,33 +141,38 @@ class RekapStatusPegawaiService
         $jadwalMap = [];
 
         if ($userIds !== []) {
-            $absensiRows = Absensi::whereIn('user_id', $userIds)
-                ->where('tanggal', '>=', $awal)
-                ->where('tanggal', '<=', $akhir)
-                ->get(['user_id', 'tanggal']);
-            foreach ($absensiRows as $row) {
-                $absensiMap[(int) $row->user_id][$row->tanggal->format('Y-m-d')] = true;
-            }
-
-            $izinRows = Izin::whereIn('user_id', $userIds)
-                ->where('status', 'Disetujui')
-                ->where('tanggal_mulai', '<=', $akhir)
-                ->where('tanggal_selesai', '>=', $awal)
-                ->orderBy('tanggal_mulai')
-                ->get(['id', 'user_id', 'jenis', 'jenis_cuti', 'tanggal_mulai', 'tanggal_selesai', 'keterangan']);
-
             $tsAwal = strtotime($awal);
             $tsAkhir = strtotime($akhir);
-            foreach ($izinRows as $iz) {
-                $mulai = max($iz->tanggal_mulai->timestamp, $tsAwal);
-                $selesai = min($iz->tanggal_selesai->timestamp, $tsAkhir);
-                $ketRingkas = trim((string) ($iz->keterangan ?: $iz->jenis_cuti ?: ''));
-                for ($t = $mulai; $t <= $selesai; $t += 86400) {
-                    $izinMap[(int) $iz->user_id][date('Y-m-d', $t)] = [
-                        'id' => (int) $iz->id,
-                        'jenis' => (string) $iz->jenis,
-                        'keterangan' => $ketRingkas,
-                    ];
+
+            foreach (array_chunk($userIds, 500) as $chunkIds) {
+                $absensiRows = DB::table('absensi')
+                    ->whereIn('user_id', $chunkIds)
+                    ->where('tanggal', '>=', $awal)
+                    ->where('tanggal', '<=', $akhir)
+                    ->get(['user_id', 'tanggal']);
+                foreach ($absensiRows as $row) {
+                    $absensiMap[(int) $row->user_id][substr((string) $row->tanggal, 0, 10)] = true;
+                }
+
+                $izinRows = DB::table('pengajuan_izin')
+                    ->whereIn('user_id', $chunkIds)
+                    ->where('status', 'Disetujui')
+                    ->where('tanggal_mulai', '<=', $akhir)
+                    ->where('tanggal_selesai', '>=', $awal)
+                    ->orderBy('tanggal_mulai')
+                    ->get(['id', 'user_id', 'jenis', 'jenis_cuti', 'tanggal_mulai', 'tanggal_selesai', 'keterangan']);
+
+                foreach ($izinRows as $iz) {
+                    $mulai = max(strtotime(substr((string) $iz->tanggal_mulai, 0, 10)), $tsAwal);
+                    $selesai = min(strtotime(substr((string) $iz->tanggal_selesai, 0, 10)), $tsAkhir);
+                    $ketRingkas = trim((string) ($iz->keterangan ?: $iz->jenis_cuti ?: ''));
+                    for ($t = $mulai; $t <= $selesai; $t += 86400) {
+                        $izinMap[(int) $iz->user_id][date('Y-m-d', $t)] = [
+                            'id' => (int) $iz->id,
+                            'jenis' => (string) $iz->jenis,
+                            'keterangan' => $ketRingkas,
+                        ];
+                    }
                 }
             }
 
