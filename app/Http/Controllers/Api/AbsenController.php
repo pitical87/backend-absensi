@@ -81,6 +81,8 @@ class AbsenController extends Controller
         $user = $req->get('user');
         $absen = Absensi::where('user_id', $user->id)
             ->where('tanggal', now()->toDateString())
+            ->orderByDesc('sesi')
+            ->orderByDesc('id')
             ->first();
 
         return response()->json([

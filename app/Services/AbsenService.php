@@ -4,10 +4,11 @@ namespace App\Services;
 
 use App\Models\Absensi;
 use App\Models\AtasanLangsung;
-use App\Models\HariLibur;
 use App\Models\Izin;
 use App\Models\LogLokasi;
+use App\Models\User;
 use DateTime;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
@@ -56,27 +57,6 @@ class AbsenService
             }
         }
 
-        $pesanAutoClose = null;
-
-        $hariSebelumnya = $this->hariKerjaSebelumnya($now);
-        $belumPulang = Absensi::where('user_id', $u['id'])
-            ->whereDate('tanggal', $hariSebelumnya->format('Y-m-d'))
-            ->whereNull('waktu_pulang')
-            ->first();
-        if ($belumPulang) {
-            $this->tutupOtomatisAbsensi($belumPulang, $u, $now);
-            $pesanAutoClose = 'Anda belum absen pulang pada '.tgl_id($belumPulang->tanggal, false)
-                .', sehingga dicatat otomatis mengikuti jadwal shift dan mendapat bintang 1.';
-        }
-
-        $buka = Absensi::where('user_id', $u['id'])->whereNull('waktu_pulang')
-            ->first();
-        if ($buka) {
-            $this->tutupOtomatisAbsensi($buka, $u, $now);
-            $pesanAutoClose = 'Anda belum absen pulang pada '.tgl_id($buka->tanggal, false)
-                .', sehingga dicatat otomatis mengikuti jadwal shift dan mendapat bintang 1.';
-        }
-
         if (! $isDokter && ! $u['shift_id']) {
             $namaAtasan = '';
             try {
@@ -116,80 +96,131 @@ class AbsenService
             $tanggalShift = $jadwalMasuk->format('Y-m-d');
         }
 
-        $sudah = Absensi::where('user_id', $u['id'])->whereDate('tanggal', $tanggalShift)
-            ->count() > 0;
-        if (! $isDokter && $sudah) {
-            return response()->json(['sukses' => false, 'pesan' => 'Anda sudah melakukan absen datang untuk tanggal ini.']);
-        }
+        return DB::transaction(function () use (
+            $u,
+            $lat,
+            $lng,
+            $akurasi,
+            $jarak,
+            $now,
+            $foto,
+            $flagAnomali,
+            $alasanAnomali,
+            $isDokter,
+            $tanggalShift,
+            $jadwalMasuk,
+            $selisih
+        ) {
+            // Kunci baris user untuk mencegah race condition saat double-tap / retry
+            User::where('id', $u['id'])->lockForUpdate()->first();
 
-        if ($isDokter) {
-            $status = null;
-            $menit = 0;
-            $jenis = 'sukses';
-            $pesan = 'Terima kasih sudah hadir hari ini';
-            $bintangMasuk = $selisih !== null
-                ? app(BintangService::class)->bintangMasuk((int) ceil($selisih))
-                : 1;
-            $sesi = (Absensi::where('user_id', $u['id'])
-                ->where('tanggal', $tanggalShift)->max('sesi') ?? 0) + 1;
-        } else {
-            $toleransi = (int) pengaturan('toleransi_menit', 5);
-            $jadwalMasuk ??= $this->jadwalMasukPegawai($u, $now)[0];
-            $selisih ??= ($now->getTimestamp() - $jadwalMasuk->getTimestamp()) / 60;
-
-            if ($selisih <= $toleransi) {
-                $status = 'Tepat Waktu';
-                $menit = 0;
-                $jenis = 'sukses';
-                $pesan = 'Terima kasih sudah datang Tepat Waktu';
+            // Cek absensi hari ini SEBELUM melakukan auto-close agar double-tap/retry
+            // tidak pernah menutup absensi yang baru dibuat hari ini.
+            if (! $isDokter) {
+                $sudah = Absensi::where('user_id', $u['id'])
+                    ->whereDate('tanggal', $tanggalShift)
+                    ->exists();
+                if ($sudah) {
+                    return response()->json([
+                        'sukses' => false,
+                        'pesan' => 'Anda sudah melakukan absen datang untuk tanggal ini.',
+                    ]);
+                }
             } else {
-                $status = 'Terlambat';
-                $menit = (int) ceil($selisih);
-                $jenis = 'telat';
-                $pesan = 'Anda terlambat datang sebanyak '.$menit.' menit';
+                $sesiAktifHariIni = Absensi::where('user_id', $u['id'])
+                    ->whereDate('tanggal', $tanggalShift)
+                    ->whereNull('waktu_pulang')
+                    ->exists();
+                if ($sesiAktifHariIni) {
+                    return response()->json([
+                        'sukses' => false,
+                        'pesan' => 'Anda masih memiliki sesi absensi aktif hari ini. Silakan absen pulang terlebih dahulu.',
+                    ]);
+                }
             }
 
-            $bintang = app(BintangService::class);
-            $bintangMasuk = $bintang->bintangMasuk((int) ceil($selisih));
-        }
+            // Hanya tutup otomatis absensi yang belum pulang dari TANGGAL SEBELUMNYA (< $tanggalShift)
+            $pesanAutoClose = null;
+            $belumPulangLama = Absensi::where('user_id', $u['id'])
+                ->whereDate('tanggal', '<', $tanggalShift)
+                ->whereNull('waktu_pulang')
+                ->orderBy('tanggal')
+                ->get();
+            foreach ($belumPulangLama as $recLama) {
+                $this->tutupOtomatisAbsensi($recLama, $u, $now);
+                $pesanAutoClose = 'Anda belum absen pulang pada '.tgl_id($recLama->tanggal, false)
+                    .', sehingga dicatat otomatis mengikuti jadwal shift dan mendapat bintang 1.';
+            }
 
-        $absensiId = Absensi::insertGetId([
-            'user_id' => $u['id'],
-            'sesi' => $isDokter ? $sesi : 1,
-            'tanggal' => $tanggalShift,
-            'waktu_masuk' => $now->format('Y-m-d H:i:s'),
-            'lat_masuk' => round($lat, 7),
-            'lng_masuk' => round($lng, 7),
-            'foto_masuk' => $foto,
-            'status_masuk' => $status,
-            'menit_terlambat' => $menit,
-            'bintang_masuk' => $bintangMasuk,
-            'bintang_harian' => $bintangMasuk,
-            'flag_anomali' => $flagAnomali ? 1 : 0,
-            'catatan_anomali' => $alasanAnomali ? implode(' | ', $alasanAnomali) : null,
-        ]);
-        $this->catatLog($u['id'], $absensiId, 'datang', $lat, $lng, $akurasi, $jarak, $now);
-        $ket = $isDokter ? null : app(KeterlambatanService::class)->catatDatang($absensiId, (int) ceil($selisih));
+            if ($isDokter) {
+                $status = null;
+                $menit = 0;
+                $jenis = 'sukses';
+                $pesan = 'Terima kasih sudah hadir hari ini';
+                $bintangMasuk = $selisih !== null
+                    ? app(BintangService::class)->bintangMasuk((int) ceil($selisih))
+                    : 1;
+                $sesi = (Absensi::where('user_id', $u['id'])
+                    ->whereDate('tanggal', $tanggalShift)->max('sesi') ?? 0) + 1;
+            } else {
+                $toleransi = (int) pengaturan('toleransi_menit', 5);
+                $jadwalMasuk ??= $this->jadwalMasukPegawai($u, $now)[0];
+                $selisih ??= ($now->getTimestamp() - $jadwalMasuk->getTimestamp()) / 60;
 
-        return response()->json([
-            'sukses' => true,
-            'jenis' => $jenis,
-            'pesan' => $pesanAutoClose
-                ? $pesan.' '.$pesanAutoClose
-                : $pesan,
-            'keterangan' => 'Absen datang tercatat pukul '.$now->format('H.i')
-                          .' · jarak '.number_format($jarak, 0, ',', '.').' m dari titik RSUD.',
-            'status' => $status,
-            'menit' => $menit,
-            'bintang' => $bintangMasuk,
-            'total_bintang' => $bintangMasuk,
-            'keterlambatan' => $isDokter ? null : [
-                'menit_telat' => $ket->menit_telat,
-                'bintang_masuk' => $ket->bintang_masuk,
-                'total_bintang' => $ket->bintang_masuk,
-            ],
-            'jam' => $now->format('H.i'),
-        ]);
+                if ($selisih <= $toleransi) {
+                    $status = 'Tepat Waktu';
+                    $menit = 0;
+                    $jenis = 'sukses';
+                    $pesan = 'Terima kasih sudah datang Tepat Waktu';
+                } else {
+                    $status = 'Terlambat';
+                    $menit = (int) ceil($selisih);
+                    $jenis = 'telat';
+                    $pesan = 'Anda terlambat datang sebanyak '.$menit.' menit';
+                }
+
+                $bintang = app(BintangService::class);
+                $bintangMasuk = $bintang->bintangMasuk((int) ceil($selisih));
+            }
+
+            $absensiId = Absensi::insertGetId([
+                'user_id' => $u['id'],
+                'sesi' => $isDokter ? $sesi : 1,
+                'tanggal' => $tanggalShift,
+                'waktu_masuk' => $now->format('Y-m-d H:i:s'),
+                'lat_masuk' => round($lat, 7),
+                'lng_masuk' => round($lng, 7),
+                'foto_masuk' => $foto,
+                'status_masuk' => $status,
+                'menit_terlambat' => $menit,
+                'bintang_masuk' => $bintangMasuk,
+                'bintang_harian' => $bintangMasuk,
+                'flag_anomali' => $flagAnomali ? 1 : 0,
+                'catatan_anomali' => $alasanAnomali ? implode(' | ', $alasanAnomali) : null,
+            ]);
+            $this->catatLog($u['id'], $absensiId, 'datang', $lat, $lng, $akurasi, $jarak, $now);
+            $ket = $isDokter ? null : app(KeterlambatanService::class)->catatDatang($absensiId, (int) ceil($selisih));
+
+            return response()->json([
+                'sukses' => true,
+                'jenis' => $jenis,
+                'pesan' => $pesanAutoClose
+                    ? $pesan.' '.$pesanAutoClose
+                    : $pesan,
+                'keterangan' => 'Absen datang tercatat pukul '.$now->format('H.i')
+                              .' · jarak '.number_format($jarak, 0, ',', '.').' m dari titik RSUD.',
+                'status' => $status,
+                'menit' => $menit,
+                'bintang' => $bintangMasuk,
+                'total_bintang' => $bintangMasuk,
+                'keterlambatan' => $isDokter ? null : [
+                    'menit_telat' => $ket->menit_telat,
+                    'bintang_masuk' => $ket->bintang_masuk,
+                    'total_bintang' => $ket->bintang_masuk,
+                ],
+                'jam' => $now->format('H.i'),
+            ]);
+        });
     }
 
     /**
@@ -217,18 +248,30 @@ class AbsenService
 
     private function tutupOtomatisAbsensi(Absensi $rec, array $u, DateTime $now): void
     {
-        $jamPulang = $u['shift_jam_pulang'] ?? null;
+        $tglRec = $rec->tanggal->format('Y-m-d');
+        $userModel = User::find((int) $rec->user_id);
+        $shiftRec = $userModel
+            ? app(JadwalEfektifService::class)->shiftUntukTanggal($userModel, $tglRec)
+            : null;
+
+        $jamMasuk = $shiftRec?->jam_masuk?->format('H:i:s') ?? ($u['shift_jam_masuk'] ?? null);
+        $jamPulang = $shiftRec?->jam_pulang?->format('H:i:s') ?? ($u['shift_jam_pulang'] ?? null);
+        $isLintasHari = (bool) ($shiftRec?->lintas_hari ?? ($u['shift_lintas_hari'] ?? false));
+
         if ($jamPulang) {
-            $waktuPulang = new DateTime($rec->tanggal->format('Y-m-d').' '.$jamPulang);
-            $isLintasHari = (bool) ($u['shift_lintas_hari'] ?? false);
-            if (! $isLintasHari && isset($u['shift_jam_masuk'])) {
-                $isLintasHari = ($jamPulang <= $u['shift_jam_masuk']);
+            $waktuPulang = new DateTime($tglRec.' '.$jamPulang);
+            if (! $isLintasHari && $jamMasuk !== null) {
+                $isLintasHari = ($jamPulang <= $jamMasuk);
             }
-            if ($isLintasHari || $jamPulang <= ($u['shift_jam_masuk'] ?? $jamPulang)) {
+            if ($isLintasHari) {
                 $waktuPulang->modify('+1 day');
             }
         } else {
             $waktuPulang = (clone $rec->waktu_masuk)->modify('+8 hours');
+        }
+
+        if ($waktuPulang->getTimestamp() < $rec->waktu_masuk->getTimestamp()) {
+            $waktuPulang = clone $rec->waktu_masuk;
         }
 
         $totalMenit = max(0, (int) floor(
@@ -247,30 +290,6 @@ class AbsenService
         ]);
 
         $this->catatLog($rec->user_id, $rec->id, 'pulang', 0, 0, null, 0, $now);
-    }
-
-    private function hariKerjaSebelumnya(DateTime $now): DateTime
-    {
-        $cek = (clone $now)->modify('-1 day');
-        $batas = (clone $cek)->modify('-60 days');
-        $mingguLibur = pengaturan('minggu_libur', '0') === '1';
-
-        $libur = [];
-        foreach (HariLibur::whereBetween('tanggal', [
-            $batas->format('Y-m-d'), $now->format('Y-m-d'),
-        ])->get() as $h) {
-            $libur[$h->tanggal->format('Y-m-d')] = true;
-        }
-
-        while ($cek >= $batas) {
-            $tgl = $cek->format('Y-m-d');
-            if (! isset($libur[$tgl]) && ! ($mingguLibur && (int) $cek->format('w') === 0)) {
-                break;
-            }
-            $cek->modify('-1 day');
-        }
-
-        return $cek;
     }
 
     public function absenPulang(array $u, float $lat, float $lng, ?float $akurasi, DateTime $now, ?string $foto, bool $flagAnomali, array $alasanAnomali): JsonResponse
