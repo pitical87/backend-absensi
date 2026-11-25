@@ -49,7 +49,9 @@ class VerifikasiLogbookAtasanTest extends TestCase
         // route api tidak memakai middleware EncryptCookies dan token disimpan
         // lewat Cookie::make, jadi cookie dikirim apa adanya; withCredentials
         // wajib karena request JSON tidak mengirim cookie secara default
-        return $this->withUnencryptedCookie('auth_token', $token->token)->withCredentials();
+        return $this->withHeader('X-Requested-With', 'XMLHttpRequest')
+            ->withUnencryptedCookie('auth_token', $token->token)
+            ->withCredentials();
     }
 
     private function entri(User $u, array $atribut = []): Logbook

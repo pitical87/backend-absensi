@@ -32,7 +32,7 @@ class SsoController extends Controller
 
         ApiToken::create([
             'user_id'        => $user->id,
-            'token'          => $token,
+            'token'          => ApiToken::hashToken($token),
             'expires_at'     => $expiresAt,
             'perangkat'      => 'SSO Web Absen',
             'ip'             => request()->ip(),

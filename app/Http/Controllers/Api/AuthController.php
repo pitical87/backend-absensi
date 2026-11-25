@@ -264,18 +264,20 @@ class AuthController extends Controller
     public function logout(Request $req): JsonResponse
     {
         $token = $req->cookie('auth_token');
-        ApiToken::where('token', $token)->delete();
+        if (is_string($token) && $token !== '') {
+            ApiToken::hapusDenganToken($token);
+        }
 
-        catat_aktivitas('Logout Mobile', $req->get('user')->nama_lengkap.'logout dari aplikasi mobile');
+        catat_aktivitas('Logout Mobile', $req->get('user')->nama_lengkap.' logout dari aplikasi mobile');
+
+        $secure = $req->isSecure() || app()->isProduction();
 
         return response()->json([
-
             'sukses' => true,
             'pesan' => 'Berhasil logout',
-        ])->withCookie((
-            Cookie::forget('auth_token', '/', null)
-        ));
-
+        ])->withCookie(
+            Cookie::make('auth_token', '', -2628000, '/', null, $secure, true, false, 'Lax')
+        );
     }
 
     public function lupaPassword(Request $req): JsonResponse

@@ -18,6 +18,39 @@ class ApiToken extends Model
         ];
     }
 
+    public static function hashToken(string $rawToken): string
+    {
+        return hash('sha256', $rawToken);
+    }
+
+    /**
+     * Cari sesi berdasarkan nilai mentah cookie auth_token.
+     * Masa transisi otomatis: token plaintext lama tetap dikenali lalu langsung
+     * di-upgrade ke SHA-256 di database agar user aktif tidak ter-logout.
+     */
+    public static function cariDenganToken(string $rawToken): ?self
+    {
+        $hashed = self::hashToken($rawToken);
+        $record = self::where('token', $hashed)->first();
+        if ($record) {
+            return $record;
+        }
+
+        $legacy = self::where('token', $rawToken)->first();
+        if ($legacy) {
+            $legacy->forceFill(['token' => $hashed])->save();
+
+            return $legacy;
+        }
+
+        return null;
+    }
+
+    public static function hapusDenganToken(string $rawToken): int
+    {
+        return self::whereIn('token', [self::hashToken($rawToken), $rawToken])->delete();
+    }
+
     public function user():BelongsTo{
         return $this->belongsTo(User::class);
     }

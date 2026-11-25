@@ -36,7 +36,9 @@ class MobileMappingSimrsTest extends TestCase
             'last_aktivitas' => now(),
         ]);
 
-        return $this->withUnencryptedCookie('auth_token', $token)->withCredentials();
+        return $this->withHeader('X-Requested-With', 'XMLHttpRequest')
+            ->withUnencryptedCookie('auth_token', $token)
+            ->withCredentials();
     }
 
     public function test_status_cek_simpan_dan_tes_mapping_simrs(): void

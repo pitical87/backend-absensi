@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\ApiToken;
 use App\Models\Notifikasi;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -78,6 +79,9 @@ class PasswordService
     public function tandaiDiubah(User $user, ?string $oleh = null, bool $kirimNotifikasi = true): void
     {
         $user->forceFill(['password_changed_at' => now()])->save();
+
+        // Cabut semua token mobile aktif agar perangkat lama wajib login ulang dengan password baru.
+        ApiToken::where('user_id', (int) $user->id)->delete();
 
         if (! $kirimNotifikasi) {
             return;

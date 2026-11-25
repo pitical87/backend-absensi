@@ -9,32 +9,45 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 
-class  CheckMobileAuth {
-    public function handle(Request $request, Closure $next): Response{
+class CheckMobileAuth
+{
+    public function handle(Request $request, Closure $next): Response
+    {
         $token = $request->cookie('auth_token');
-        if(!$token){
+        if (! is_string($token) || $token === '') {
             return response()->json([
-                "sukses"=>false,
-                "pesan"=>"Token tidak ditemukan"
+                'sukses' => false,
+                'pesan' => 'Token tidak ditemukan',
             ], 401);
         }
-        $apitoken = ApiToken::where('token',$token)
-            ->first();
-        if(!$apitoken){
-            return response()->json([
-                "sukses"=>false,
-                "pesan"=>"Token tidak valid atau kadaluarsa. Silahkan login kembali"
-            ],401);
+
+        // Proteksi CSRF untuk request mutasi yang diautentikasi lewat cookie
+        if (in_array($request->method(), ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
+            if (! $this->csrfValid($request)) {
+                return response()->json([
+                    'sukses' => false,
+                    'pesan' => 'Permintaan ditolak demi keamanan (verifikasi asal/CSRF gagal). Muat ulang halaman lalu coba lagi.',
+                ], 403);
+            }
         }
-        if(now()->greaterThan($apitoken->expires_at)){
-            ApiToken::where('id',$apitoken->id)
+
+        $apitoken = ApiToken::cariDenganToken($token);
+        if (! $apitoken) {
+            return response()->json([
+                'sukses' => false,
+                'pesan' => 'Token tidak valid atau kadaluarsa. Silahkan login kembali',
+            ], 401);
+        }
+        if (now()->greaterThan($apitoken->expires_at)) {
+            ApiToken::where('id', $apitoken->id)
                 ->delete();
+
             return response()->json([
-                "sukses"=>false,
-                "pesan"=>"Token tidak valid atau kadaluarsa. Silahkan login kembali"
-            ],401);
+                'sukses' => false,
+                'pesan' => 'Token tidak valid atau kadaluarsa. Silahkan login kembali',
+            ], 401);
         }
-        if(!$apitoken->last_aktivitas || $apitoken->last_aktivitas->lte(now()->subMinute())){
+        if (! $apitoken->last_aktivitas || $apitoken->last_aktivitas->lte(now()->subMinute())) {
             $ubah = ['last_aktivitas' => now()];
             if (! $apitoken->ip) {
                 $ubah['ip'] = $request->ip();
@@ -47,18 +60,51 @@ class  CheckMobileAuth {
             }
             $apitoken->forceFill($ubah)->save();
         }
-        $user = User::where('id',$apitoken->user_id)
+        $user = User::where('id', $apitoken->user_id)
             ->first();
-        if(!$user || $user->status !== 'aktif'){
-            ApiToken::where('id',$apitoken->id)
+        if (! $user || $user->status !== 'aktif') {
+            ApiToken::where('id', $apitoken->id)
                 ->delete();
+
             return response()->json([
-                "sukses"=>false,
-                "pesan"=>"Akun tidak aktif"
-            ],401);
+                'sukses' => false,
+                'pesan' => 'Akun tidak aktif',
+            ], 401);
         }
 
-        $request->attributes->set('user',$user);
+        $request->attributes->set('user', $user);
+
         return $next($request);
+    }
+
+    private function csrfValid(Request $request): bool
+    {
+        if (strcasecmp((string) $request->header('X-Requested-With'), 'XMLHttpRequest') !== 0) {
+            return false;
+        }
+
+        $sumber = (string) ($request->header('Origin') ?: $request->header('Referer') ?: '');
+        if ($sumber === '') {
+            return true;
+        }
+
+        $hostSumber = strtolower((string) (parse_url($sumber, PHP_URL_HOST) ?? ''));
+        if ($hostSumber === '') {
+            return false;
+        }
+
+        $hostDiizinkan = [strtolower((string) $request->getHost())];
+        foreach ((array) config('cors.allowed_origins', []) as $origin) {
+            $h = strtolower((string) (parse_url((string) $origin, PHP_URL_HOST) ?? ''));
+            if ($h !== '') {
+                $hostDiizinkan[] = $h;
+            }
+        }
+        $appHost = strtolower((string) (parse_url((string) config('app.url'), PHP_URL_HOST) ?? ''));
+        if ($appHost !== '') {
+            $hostDiizinkan[] = $appHost;
+        }
+
+        return in_array($hostSumber, array_unique($hostDiizinkan), true);
     }
 }

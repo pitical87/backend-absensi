@@ -37,7 +37,9 @@ class StatusPegawaiTest extends TestCase
             'last_aktivitas' => now(),
         ]);
 
-        return $this->withUnencryptedCookie('auth_token', $token)->withCredentials();
+        return $this->withHeader('X-Requested-With', 'XMLHttpRequest')
+            ->withUnencryptedCookie('auth_token', $token)
+            ->withCredentials();
     }
 
     public function test_profil_mobile_dapat_memperbarui_status_pegawai_pns_non_pns_honor_blud(): void

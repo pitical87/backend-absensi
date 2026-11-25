@@ -92,7 +92,7 @@ class MobileController extends Controller
         $expiresAt = Carbon::now()->addDays(self::TOKEN_EXP_DAYS);
         ApiToken::create([
             "user_id"=>$user->id,
-            "token"=>$token,
+            "token"=>ApiToken::hashToken($token),
             "expires_at"=>$expiresAt
         ]);
 
@@ -100,7 +100,8 @@ class MobileController extends Controller
         catat_aktivitas('Login Mobile', $user->nama_lengkap . ' masuk dari aplikasi mobile');
 
         $menit =  self::TOKEN_EXP_DAYS * 24 * 60;
-        $cookie = Cookie::make("auth_token",$token,$menit,"/",null,false,true,false,'Lax');
+        $secure = $req->isSecure() || app()->isProduction();
+        $cookie = Cookie::make("auth_token",$token,$menit,"/",null,$secure,true,false,'Lax');
 
         return response()->json([
             'sukses'     => true,
@@ -342,16 +343,18 @@ class MobileController extends Controller
 
     public function logout(Request $req):JsonResponse{
         $token = $req->cookie('auth_token');
-        ApiToken::where('token',$token)->delete();
+        if (is_string($token) && $token !== '') {
+            ApiToken::hapusDenganToken($token);
+        }
 
-        catat_aktivitas('Logout Mobile', $req->get('user')->nama_lengkap.'logout dari aplikasi mobile');
+        catat_aktivitas('Logout Mobile', $req->get('user')->nama_lengkap.' logout dari aplikasi mobile');
+        $secure = $req->isSecure() || app()->isProduction();
         return response()->json([
-
             "sukses"=>true,
             "pesan"=>"Berhasil logout"
-        ])->withCookie((
-            Cookie::forget('auth_token','/',null)
-        ));
+        ])->withCookie(
+            Cookie::make('auth_token', '', -2628000, '/', null, $secure, true, false, 'Lax')
+        );
         
     }
 

@@ -29,7 +29,7 @@ trait TerbitkanTokenMobile
 
         ApiToken::create([
             'user_id' => $user->id,
-            'token' => $token,
+            'token' => ApiToken::hashToken($token),
             'expires_at' => Carbon::now()->addDays(self::MASA_TOKEN_HARI),
             'perangkat' => substr(trim((string) ($req->input('perangkat') ?: $req->header('X-Device-Name', ''))), 0, 150),
             'ip' => $ip,
@@ -42,7 +42,8 @@ trait TerbitkanTokenMobile
         catat_aktivitas('Login Mobile', $detail);
 
         $menit = self::MASA_TOKEN_HARI * 24 * 60;
-        $cookie = Cookie::make('auth_token', $token, $menit, '/', null, false, true, false, 'Lax');
+        $secure = $req->isSecure() || app()->isProduction();
+        $cookie = Cookie::make('auth_token', $token, $menit, '/', null, $secure, true, false, 'Lax');
 
         return response()->json([
             'sukses' => true,

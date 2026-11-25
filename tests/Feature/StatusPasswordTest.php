@@ -62,7 +62,7 @@ class StatusPasswordTest extends TestCase
     }
 
     /** Login mobile sungguhan supaya token & cookie-nya valid untuk middleware. */
-    private function loginMobile(User $user): ApiToken
+    private function loginMobile(User $user): object
     {
         $respons = $this->postJson('/api/mobile/login', [
             'email' => $user->email,
@@ -70,7 +70,17 @@ class StatusPasswordTest extends TestCase
         ]);
         $respons->assertStatus(200);
 
-        return ApiToken::where('user_id', $user->id)->latest('id')->first();
+        $cookie = collect($respons->headers->getCookies())
+            ->first(fn ($c) => $c->getName() === 'auth_token');
+
+        return (object) ['token' => (string) $cookie?->getValue()];
+    }
+
+    private function denganTokenMobile(object $token): self
+    {
+        return $this->withCredentials()
+            ->withHeader('X-Requested-With', 'XMLHttpRequest')
+            ->withUnencryptedCookie('auth_token', $token->token);
     }
 
     // ── STATUS DASAR ────────────────────────────────────────────────
@@ -317,7 +327,7 @@ class StatusPasswordTest extends TestCase
 
         $token = $this->loginMobile($saya);
 
-        $this->withCredentials()->withUnencryptedCookie('auth_token', $token->token)
+        $this->denganTokenMobile($token)
             ->postJson("/api/mobile/notifikasi/{$milikSaya->id}/baca")
             ->assertStatus(200)
             ->assertJsonPath('sukses', true)
@@ -325,7 +335,7 @@ class StatusPasswordTest extends TestCase
 
         $this->assertTrue((bool) $milikSaya->fresh()->is_read);
 
-        $this->withCredentials()->withUnencryptedCookie('auth_token', $token->token)
+        $this->denganTokenMobile($token)
             ->postJson("/api/mobile/notifikasi/{$milikOrangLain->id}/baca")
             ->assertStatus(404);
 
@@ -342,7 +352,7 @@ class StatusPasswordTest extends TestCase
 
         $token = $this->loginMobile($user);
 
-        $respons = $this->withCredentials()->withUnencryptedCookie('auth_token', $token->token)
+        $respons = $this->denganTokenMobile($token)
             ->postJson('/api/mobile/notifikasi/baca-semua');
 
         $respons->assertStatus(200)
@@ -378,7 +388,7 @@ class StatusPasswordTest extends TestCase
 
         $token = $this->loginMobile($saya);
 
-        $this->withCredentials()->withUnencryptedCookie('auth_token', $token->token)
+        $this->denganTokenMobile($token)
             ->deleteJson("/api/mobile/notifikasi/{$notifikasi->id}")
             ->assertStatus(200);
 
