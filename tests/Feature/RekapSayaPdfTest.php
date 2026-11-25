@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\ApiToken;
 use App\Models\AtasanLangsung;
+use App\Models\Logbook;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -49,12 +50,25 @@ class RekapSayaPdfTest extends TestCase
             'atasan_id' => $atasan->id,
         ]);
 
+        Logbook::create([
+            'user_id' => $pegawai->id,
+            'tanggal' => '2026-11-10',
+            'jam' => '08:30:00',
+            'isi' => 'Monitoring layanan aplikasi absensi',
+            'is_verified' => true,
+            'verified_at' => now(),
+            'verified_by' => $atasan->id,
+        ]);
+
         $res = $this->sebagai($pegawai)
             ->get('/api/mobile/rekap/pdf?bulan=11&tahun=2026')
             ->assertOk();
 
         $this->assertStringContainsString('application/pdf', (string) $res->headers->get('Content-Type'));
-        $this->assertStringStartsWith('%PDF', $res->getContent());
+        $pdf = $res->getContent();
+        $this->assertStringStartsWith('%PDF', $pdf);
+        $jumlahHalaman = preg_match_all('/\/Type\s*\/Page\b/', $pdf);
+        $this->assertSame(2, $jumlahHalaman, 'Rekap pribadi harus menghasilkan 1 halaman absen + 1 halaman logbook.');
     }
 
     public function test_menolak_bulan_tidak_valid(): void

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AtasanLangsung;
 use App\Models\HariLibur;
 use App\Models\Izin;
+use App\Models\Logbook;
 use App\Models\User;
 use App\Services\AtasanLangsungService;
 use App\Services\BintangService;
@@ -294,7 +295,8 @@ class RekapController extends Controller
     }
 
     /**
-     * Render PDF rekap absen harian (1 halaman per pegawai) dengan KOP RSUD & QR verifikasi.
+     * Render PDF rekap absen harian (1 halaman per pegawai) diikuti lembaran daftar logbook per pegawai,
+     * lengkap dengan KOP RSUD & QR verifikasi.
      *
      * @param  Collection<int, User>  $pegawaiList
      * @param  array{nama: string, nip: string}  $atasan
@@ -310,6 +312,7 @@ class RekapController extends Controller
         $hariDalamBulan = (int) Carbon::createFromDate($tahun, $bulan, 1)->daysInMonth;
         $awal = sprintf('%04d-%02d-01', $tahun, $bulan);
         $akhir = sprintf('%04d-%02d-%02d', $tahun, $bulan, $hariDalamBulan);
+        $pegawaiIds = $pegawaiList->pluck('id')->all();
 
         pastikan_libur_tetap($tahun);
         $liburMap = [];
@@ -318,7 +321,7 @@ class RekapController extends Controller
         }
 
         $izinPerUser = [];
-        foreach (Izin::whereIn('user_id', $pegawaiList->pluck('id')->all())
+        foreach (Izin::whereIn('user_id', $pegawaiIds)
             ->where('status', 'Disetujui')
             ->where('tanggal_mulai', '<=', $akhir)
             ->where('tanggal_selesai', '>=', $awal)
@@ -327,6 +330,30 @@ class RekapController extends Controller
             $selesaiTs = min($iz->tanggal_selesai->timestamp, strtotime($akhir));
             for ($ts = $mulaiTs; $ts <= $selesaiTs; $ts += 86400) {
                 $izinPerUser[(int) $iz->user_id][date('Y-m-d', $ts)] = $iz->jenis;
+            }
+        }
+
+        $logbookPerUser = [];
+        if ($pegawaiIds !== []) {
+            $logbookRows = Logbook::query()
+                ->whereIn('user_id', $pegawaiIds)
+                ->where('tanggal', '>=', $awal)
+                ->where('tanggal', '<=', $akhir)
+                ->orderBy('tanggal')
+                ->orderBy('jam')
+                ->orderBy('id')
+                ->get();
+
+            foreach ($logbookRows as $lb) {
+                $carbonLb = $lb->tanggal instanceof Carbon ? $lb->tanggal : Carbon::parse($lb->tanggal);
+                $uid = (int) $lb->user_id;
+                $logbookPerUser[$uid][] = [
+                    'tanggal_key' => $carbonLb->format('Y-m-d'),
+                    'hari_tanggal' => HARI_ID[(int) $carbonLb->dayOfWeek].', '.$carbonLb->format('d/m/Y'),
+                    'jam' => substr((string) $lb->jam, 0, 5),
+                    'isi' => trim((string) $lb->isi),
+                    'terverifikasi' => (bool) $lb->is_verified,
+                ];
             }
         }
 
@@ -403,6 +430,25 @@ class RekapController extends Controller
                 ? ($subUnitNama ? "{$unitNama} — {$subUnitNama}" : $unitNama)
                 : $instansiDefault;
 
+            $entriLogbook = $logbookPerUser[(int) $pegawai->id] ?? [];
+            $logbookBaris = [];
+            $hariLogbookUnik = [];
+            $jumlahTerverifikasi = 0;
+
+            foreach ($entriLogbook as $idx => $item) {
+                $hariLogbookUnik[$item['tanggal_key']] = true;
+                if ($item['terverifikasi']) {
+                    $jumlahTerverifikasi++;
+                }
+                $logbookBaris[] = [
+                    'no' => $idx + 1,
+                    'hari_tanggal' => $item['hari_tanggal'],
+                    'jam' => $item['jam'],
+                    'isi' => $item['isi'],
+                    'terverifikasi' => $item['terverifikasi'],
+                ];
+            }
+
             $lembarList[] = [
                 'pegawai' => [
                     'nama' => (string) $pegawai->nama_lengkap,
@@ -413,6 +459,12 @@ class RekapController extends Controller
                     'qr_paraf' => $parafQr->qrDataUri((int) $pegawai->id),
                 ],
                 'baris' => $baris,
+                'logbook' => $logbookBaris,
+                'logbook_ringkasan' => [
+                    'total_entri' => count($logbookBaris),
+                    'total_hari' => count($hariLogbookUnik),
+                    'terverifikasi' => $jumlahTerverifikasi,
+                ],
             ];
         }
 

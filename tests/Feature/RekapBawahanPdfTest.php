@@ -6,6 +6,7 @@ use App\Models\Absensi;
 use App\Models\ApiToken;
 use App\Models\AtasanLangsung;
 use App\Models\Jabatan;
+use App\Models\Logbook;
 use App\Models\SubUnit;
 use App\Models\UnitKerja;
 use App\Models\User;
@@ -82,7 +83,33 @@ class RekapBawahanPdfTest extends TestCase
             ]);
         }
 
-        // Uji bulan 31 hari (Oktober) dengan 2 pegawai => harus tepat 2 halaman (1 halaman per user)
+        Logbook::create([
+            'user_id' => $bawahan1->id,
+            'tanggal' => '2026-10-05',
+            'jam' => '09:15:00',
+            'isi' => 'Pengecekan server SIMRS harian',
+            'is_verified' => true,
+            'verified_at' => now(),
+            'verified_by' => $atasan->id,
+        ]);
+        Logbook::create([
+            'user_id' => $bawahan1->id,
+            'tanggal' => '2026-10-06',
+            'jam' => '11:00:00',
+            'isi' => 'Perbaikan jaringan ruang rawat inap',
+            'is_verified' => false,
+        ]);
+        // Logbook di bulan lain tidak boleh ikut tercetak di Oktober
+        Logbook::create([
+            'user_id' => $bawahan1->id,
+            'tanggal' => '2026-09-25',
+            'jam' => '10:00:00',
+            'isi' => 'Kegiatan bulan sebelumnya',
+            'is_verified' => true,
+        ]);
+
+        // Uji bulan 31 hari (Oktober) dengan 2 pegawai =>
+        // 2 halaman absen harian diikuti 2 lembar daftar logbook (1 per pegawai) = 4 halaman
         $response = $this->sebagai($atasan)
             ->get('/api/mobile/rekap/bawahan/pdf?bulan=10&tahun=2026&user_ids='.$bawahan1->id.','.$bawahan2->id);
 
@@ -94,7 +121,70 @@ class RekapBawahanPdfTest extends TestCase
         $this->assertStringStartsWith('%PDF', $pdf);
         // Dompdf menulis "/Type /Page" (bukan "/Type /Pages") untuk tiap halaman
         $jumlahHalaman = preg_match_all('/\/Type\s*\/Page\b/', $pdf);
-        $this->assertSame(2, $jumlahHalaman, 'Setiap pegawai harus menempati tepat 1 halaman PDF.');
+        $this->assertSame(4, $jumlahHalaman, '2 pegawai harus menghasilkan 2 halaman absen + 2 halaman logbook (4 halaman).');
+    }
+
+    public function test_urutan_halaman_semua_absen_dulu_baru_logbook_per_pegawai(): void
+    {
+        $lembarList = [
+            [
+                'pegawai' => [
+                    'nama' => 'Firman',
+                    'nip' => '199001012020011001',
+                    'pangkat_gol' => '',
+                    'jabatan' => 'Pranata Komputer',
+                    'unit_kerja' => 'SIMRS',
+                    'qr_paraf' => null,
+                ],
+                'baris' => [
+                    ['no' => 1, 'hari_tanggal' => 'Kamis, 01/10/2026', 'minggu' => false, 'jam_masuk' => '08:00', 'jam_pulang' => '14:00', 'ket' => 'Hadir'],
+                ],
+                'logbook' => [
+                    ['no' => 1, 'hari_tanggal' => 'Kamis, 01/10/2026', 'jam' => '09:00', 'isi' => 'Backup database SIMRS', 'terverifikasi' => true],
+                ],
+                'logbook_ringkasan' => ['total_entri' => 1, 'total_hari' => 1, 'terverifikasi' => 1],
+            ],
+            [
+                'pegawai' => [
+                    'nama' => 'Rina Wijaya',
+                    'nip' => '199202022021022002',
+                    'pangkat_gol' => '',
+                    'jabatan' => 'Perawat',
+                    'unit_kerja' => 'IGD',
+                    'qr_paraf' => null,
+                ],
+                'baris' => [
+                    ['no' => 1, 'hari_tanggal' => 'Kamis, 01/10/2026', 'minggu' => false, 'jam_masuk' => '08:00', 'jam_pulang' => '14:00', 'ket' => 'Hadir'],
+                ],
+                'logbook' => [],
+                'logbook_ringkasan' => ['total_entri' => 0, 'total_hari' => 0, 'terverifikasi' => 0],
+            ],
+        ];
+
+        $html = view('pdf.rekap_absen_harian', [
+            'lembarList' => $lembarList,
+            'bulan' => 10,
+            'tahun' => 2026,
+            'namaBulan' => 'Oktober',
+            'tanggalCetak' => '25 November 2026',
+            'atasan' => ['nama' => 'Firmansyah Diana', 'nip' => '198001012005011001'],
+            'logoKiri' => null,
+            'logoKanan' => null,
+        ])->render();
+
+        $this->assertSame(2, substr_count($html, '<div class="judul-utama">ABSEN HARIAN</div>'));
+        $this->assertSame(2, substr_count($html, '<div class="judul-utama">DAFTAR LOGBOOK HARIAN</div>'));
+        $this->assertSame(4, substr_count($html, '<div class="halaman">'));
+
+        // Pastikan seluruh halaman ABSEN HARIAN muncul sebelum halaman DAFTAR LOGBOOK HARIAN pertama
+        $posAbsenTerakhir = strrpos($html, '<div class="judul-utama">ABSEN HARIAN</div>');
+        $posLogbookPertama = strpos($html, '<div class="judul-utama">DAFTAR LOGBOOK HARIAN</div>');
+        $this->assertNotFalse($posAbsenTerakhir);
+        $this->assertNotFalse($posLogbookPertama);
+        $this->assertLessThan($posLogbookPertama, $posAbsenTerakhir);
+
+        $this->assertStringContainsString('Backup database SIMRS', $html);
+        $this->assertStringContainsString('Belum ada catatan logbook pada bulan Oktober 2026.', $html);
     }
 
     public function test_menolak_akses_jika_memilih_pegawai_bukan_bawahan(): void

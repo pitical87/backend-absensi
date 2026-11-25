@@ -200,6 +200,97 @@
     font-size: 7.8pt;
   }
 
+  /* TABEL LOGBOOK HARIAN */
+  table.logbook {
+    width: 100%;
+    border-collapse: collapse;
+    border: 1.5px solid #000000;
+    font-size: 8pt;
+  }
+
+  table.logbook thead {
+    display: table-header-group;
+  }
+
+  table.logbook th {
+    border: 1px solid #000000;
+    border-bottom: 1.5px solid #000000;
+    padding: 4px 4px;
+    text-align: center;
+    font-weight: bold;
+    background-color: #FFFFFF;
+  }
+
+  table.logbook tbody tr {
+    page-break-inside: avoid;
+  }
+
+  table.logbook td {
+    border: 1px solid #000000;
+    padding: 3px 5px;
+    vertical-align: top;
+    line-height: 1.25;
+  }
+
+  table.logbook th.col-lb-no,
+  table.logbook td.col-lb-no {
+    width: 6%;
+    text-align: center;
+  }
+
+  table.logbook th.col-lb-tgl,
+  table.logbook td.col-lb-tgl {
+    width: 22%;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  table.logbook th.col-lb-jam,
+  table.logbook td.col-lb-jam {
+    width: 9%;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  table.logbook th.col-lb-isi,
+  table.logbook td.col-lb-isi {
+    width: 50%;
+    text-align: left;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  table.logbook th.col-lb-status,
+  table.logbook td.col-lb-status {
+    width: 13%;
+    text-align: center;
+    font-size: 7.5pt;
+    white-space: nowrap;
+  }
+
+  table.logbook td.col-lb-kosong {
+    text-align: center;
+    font-style: italic;
+    color: #555555;
+    padding: 16px 8px;
+  }
+
+  .lb-status-ok {
+    color: #166534;
+    font-weight: bold;
+  }
+
+  .lb-status-pending {
+    color: #6B7280;
+  }
+
+  .ringkasan-logbook {
+    font-size: 7.8pt;
+    font-weight: bold;
+    margin-top: 5px;
+    margin-bottom: 10px;
+  }
+
   /* FOOTER & TTD */
   .catatan {
     font-size: 7.8pt;
@@ -212,6 +303,7 @@
     width: 100%;
     border-collapse: collapse;
     font-size: 8.5pt;
+    page-break-inside: avoid;
   }
 
   table.ttd td {
@@ -329,6 +421,130 @@
     </table>
 
     <div class="catatan">*Bagi Pegawai Negeri Tolong Diisi NIP</div>
+
+    <table class="ttd">
+      <tr>
+        <td>
+          <div>&nbsp;</div>
+          <div>Pegawai</div>
+          <div class="ttd-qr-wrap">
+            @if (! empty($lembar['pegawai']['qr_paraf']))
+              <img src="{{ $lembar['pegawai']['qr_paraf'] }}" alt="QR Verifikasi Pegawai">
+            @endif
+          </div>
+          <div class="ttd-nama">{{ $lembar['pegawai']['nama'] }}</div>
+          @if ($lembar['pegawai']['nip'] !== '')
+            <div class="ttd-nip">NIP. {{ $lembar['pegawai']['nip'] }}</div>
+          @endif
+        </td>
+        <td>
+          <div>Merauke, {{ $tanggalCetak }}</div>
+          <div>Atasan Langsung</div>
+          <div class="ttd-spasi"></div>
+          <div class="ttd-nama">{{ $atasan['nama'] !== '' ? $atasan['nama'] : '(______________________________)' }}</div>
+          @if ($atasan['nip'] !== '')
+            <div class="ttd-nip">NIP. {{ $atasan['nip'] }}</div>
+          @endif
+        </td>
+      </tr>
+    </table>
+  </div>
+@endforeach
+
+@foreach ($lembarList as $lembar)
+  <div class="halaman">
+    <table class="kop">
+      <tr>
+        <td class="logo-kiri">
+          @if ($logoKiri)
+            <img src="{{ $logoKiri }}" alt="Logo Kabupaten Merauke">
+          @endif
+        </td>
+        <td class="kop-tengah">
+          <div class="kop-pemda">PEMERINTAH KABUPATEN MERAUKE</div>
+          <div class="kop-rsud">RUMAH SAKIT UMUM DAERAH KELAS C<br>MERAUKE</div>
+          <div class="kop-alamat">Jalan Soekarjo Wiryopranoto No. 1 &ndash; Kelurahan Karang Indah - Merauke</div>
+          <div class="kop-kontak">Pos-el : <span class="kop-email">humasrsudmerauke@gmail.com</span> . Kode Pos : 99614</div>
+        </td>
+        <td class="logo-kanan">
+          @if ($logoKanan)
+            <img src="{{ $logoKanan }}" alt="Logo RSUD Merauke">
+          @endif
+        </td>
+      </tr>
+    </table>
+
+    <div class="judul-blok">
+      <div class="judul-utama">DAFTAR LOGBOOK HARIAN</div>
+      <div class="judul-bulan">BULAN : {{ strtoupper($namaBulan) }} {{ $tahun }}</div>
+    </div>
+
+    <table class="identitas">
+      <tr>
+        <td class="lbl-kiri">NAMA PEGAWAI</td>
+        <td class="titik">:</td>
+        <td class="val-kiri">{{ $lembar['pegawai']['nama'] }}</td>
+        <td class="lbl-kanan">JABATAN</td>
+        <td class="titik">:</td>
+        <td class="val-kanan">{{ $lembar['pegawai']['jabatan'] }}</td>
+      </tr>
+      <tr>
+        <td class="lbl-kiri">NIP</td>
+        <td class="titik">:</td>
+        <td class="val-kiri">{{ $lembar['pegawai']['nip'] }}</td>
+        <td class="lbl-kanan">UNIT KERJA</td>
+        <td class="titik">:</td>
+        <td class="val-kanan">{{ $lembar['pegawai']['unit_kerja'] }}</td>
+      </tr>
+      <tr>
+        <td class="lbl-kiri">PANGKAT/GOL</td>
+        <td class="titik">:</td>
+        <td class="val-kiri">{{ $lembar['pegawai']['pangkat_gol'] }}</td>
+        <td class="lbl-kanan"></td>
+        <td class="titik"></td>
+        <td class="val-kanan"></td>
+      </tr>
+    </table>
+
+    <table class="logbook">
+      <thead>
+        <tr>
+          <th class="col-lb-no">NO.</th>
+          <th class="col-lb-tgl">HARI/TANGGAL</th>
+          <th class="col-lb-jam">JAM</th>
+          <th class="col-lb-isi">URAIAN KEGIATAN / AKTIVITAS</th>
+          <th class="col-lb-status">STATUS</th>
+        </tr>
+      </thead>
+      <tbody>
+        @forelse ($lembar['logbook'] as $lb)
+          <tr>
+            <td class="col-lb-no">{{ $lb['no'] }}</td>
+            <td class="col-lb-tgl">{{ $lb['hari_tanggal'] }}</td>
+            <td class="col-lb-jam">{{ $lb['jam'] }}</td>
+            <td class="col-lb-isi">{!! nl2br(e($lb['isi'])) !!}</td>
+            <td class="col-lb-status">
+              @if ($lb['terverifikasi'])
+                <span class="lb-status-ok">Terverifikasi</span>
+              @else
+                <span class="lb-status-pending">Belum Verifikasi</span>
+              @endif
+            </td>
+          </tr>
+        @empty
+          <tr>
+            <td colspan="5" class="col-lb-kosong">
+              Belum ada catatan logbook pada bulan {{ $namaBulan }} {{ $tahun }}.
+            </td>
+          </tr>
+        @endforelse
+      </tbody>
+    </table>
+
+    <div class="ringkasan-logbook">
+      Total: {{ $lembar['logbook_ringkasan']['total_entri'] }} kegiatan pada {{ $lembar['logbook_ringkasan']['total_hari'] }} hari
+      ({{ $lembar['logbook_ringkasan']['terverifikasi'] }} terverifikasi)
+    </div>
 
     <table class="ttd">
       <tr>
