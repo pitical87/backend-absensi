@@ -17,7 +17,22 @@ class User extends Authenticatable
 {
     use HasFactory, SoftDeletes, Notifiable, HasPushSubscriptions;
 
+    public const STATUS_PEGAWAI = ['PNS', 'Non-PNS', 'Honor', 'BLUD'];
+
     protected $table = 'users';
+
+    public static function normalStatusPegawai(?string $nilai, ?string $default = 'Non-PNS'): ?string
+    {
+        $bersih = strtolower(trim((string) $nilai));
+
+        return match ($bersih) {
+            'pns' => 'PNS',
+            'non-pns', 'non pns', 'nonpns' => 'Non-PNS',
+            'honor', 'honorer' => 'Honor',
+            'blud' => 'BLUD',
+            default => $default,
+        };
+    }
 
     protected $guarded = [];
 

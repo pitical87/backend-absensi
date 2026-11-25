@@ -123,7 +123,7 @@ class PegawaiImportService
                 continue;
             }
 
-            $statusPegawai = strtoupper(trim((string) ($d['status_pegawai'] ?? ''))) === 'PNS' ? 'PNS' : 'Non-PNS';
+            $statusPegawai = User::normalStatusPegawai((string) ($d['status_pegawai'] ?? ''));
             $namaSeksi = trim((string) ($d['seksi_pembina'] ?? ''));
             $seksiPembinaId = null;
             if ($namaSeksi !== '') {

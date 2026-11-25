@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Database\Query\Builder;
@@ -42,7 +43,7 @@ class PegawaiRequest extends FormRequest
             'jabatan_kategori'  => ['nullable', 'string'],
             'jabatan_id'        => ['nullable', 'integer'],
             'posisi'            => ['nullable', 'string'],
-            'status_pegawai'    => ['nullable', 'string'],
+            'status_pegawai'    => ['nullable', Rule::in(User::STATUS_PEGAWAI)],
             'seksi_pembina_id'  => ['nullable', 'integer'],
         ];
     }
@@ -58,6 +59,7 @@ class PegawaiRequest extends FormRequest
             'password.required'     => 'Password wajib diisi untuk pegawai baru.',
             'password.min'          => 'Password minimal 6 karakter.',
             'nip.required_if'       => 'NIP wajib diisi untuk pegawai berstatus PNS.',
+            'status_pegawai.in'     => 'Status pegawai tidak valid.',
             'unit_kerja_id.required' => 'Tempat kerja wajib dipilih.',
             'unit_kerja_id.exists'  => 'Unit kerja tidak valid.',
             'sub_unit_id.exists'    => 'Sub unit tidak sesuai dengan unit kerja yang dipilih.',

@@ -10,6 +10,8 @@ class ProfilService
 
     public const JENIS_KELAMIN = ['Laki-Laki', 'Perempuan'];
 
+    public const STATUS_PEGAWAI = User::STATUS_PEGAWAI;
+
     /**
      * Validasi dan simpan data profil milik pengguna sendiri.
      *
@@ -108,6 +110,15 @@ class ProfilService
                 $galat['nip'] = 'NIP maksimal 30 karakter.';
             } else {
                 $data['nip'] = $nilai !== '' ? mb_substr($nilai, 0, 30) : null;
+            }
+        }
+
+        if (array_key_exists('status_pegawai', $input)) {
+            $nilai = User::normalStatusPegawai((string) $input['status_pegawai'], null);
+            if ($nilai === null) {
+                $galat['status_pegawai'] = 'Status pegawai tidak valid. Pilih: PNS, Non-PNS, Honor, atau BLUD.';
+            } else {
+                $data['status_pegawai'] = $nilai;
             }
         }
 

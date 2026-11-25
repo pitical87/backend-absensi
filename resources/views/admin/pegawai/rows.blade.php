@@ -7,8 +7,16 @@
     @if(! empty($p->posisi) && $p->posisi !== 'Staf')
       <br><span class="badge badge-ungu teks-kecil">{{ $p->posisi }}</span>
     @endif
-    @if(($p->status_pegawai ?? '') === 'PNS')
-      <span class="badge badge-teal teks-kecil">PNS</span>
+    @if(! empty($p->status_pegawai))
+      @php
+        $badgeStatus = match ($p->status_pegawai) {
+            'PNS' => 'badge-teal',
+            'BLUD' => 'badge-ungu',
+            'Honor' => 'badge-amber',
+            default => 'badge-abu',
+        };
+      @endphp
+      <span class="badge {{ $badgeStatus }} teks-kecil">{{ $p->status_pegawai }}</span>
     @endif</td>
   <td>{{ $p->email }}</td>
 

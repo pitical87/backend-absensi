@@ -212,7 +212,7 @@ class MobileController extends Controller
         $d['jabatan_kategori'] = $kategoriJab;
         $d['jabatan_id']       = $jabatanId;
 
-        $statusPegawai = (string) $req->input('status_pegawai') === 'PNS' ? 'PNS' : 'Non-PNS';
+        $statusPegawai = User::normalStatusPegawai($req->input('status_pegawai'));
         [$posisi, $seksiPembinaId, $galatPosisi] = $struktur->resolusiPosisi(
             (string) $req->input('posisi'),
             $kategoriJab,

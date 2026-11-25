@@ -121,18 +121,19 @@
 
     <section class="kartu">
       <div class="kartu-kepala"><h3>Status Pegawai</h3></div>
+      @php $statusTerpilih = old('status_pegawai', $edit->status_pegawai ?? 'Non-PNS'); @endphp
       <div class="form-grup">
-        <label class="teks-kecil flex items-center gap-2">
-          <input type="checkbox" name="status_pegawai" value="PNS" class="w-auto"
-            id="status-pegawai-pns"
-            {{ old('status_pegawai', $edit->status_pegawai ?? '') === 'PNS' ? 'checked' : '' }}>
-          Pegawai Negeri Sipil (PNS)
-        </label>
+        <label class="wajib">Status Pegawai</label>
+        <select name="status_pegawai" id="status-pegawai" required>
+          @foreach($statusPegawaiList as $sp)
+            <option value="{{ $sp }}" {{ $statusTerpilih === $sp ? 'selected' : '' }}>{{ $sp }}</option>
+          @endforeach
+        </select>
       </div>
-      <div class="form-grup {{ old('status_pegawai', $edit->status_pegawai ?? '') === 'PNS' ? '' : 'hidden' }}" id="grup-nip">
+      <div class="form-grup {{ $statusTerpilih === 'PNS' ? '' : 'hidden' }}" id="grup-nip">
         <label class="wajib">NIP</label>
         <input type="text" name="nip" id="input-nip" value="{{ $v('nip') }}" placeholder="Nomor Induk Pegawai"
-               {{ old('status_pegawai', $edit->status_pegawai ?? '') === 'PNS' ? 'required' : '' }}>
+               {{ $statusTerpilih === 'PNS' ? 'required' : '' }}>
       </div>
     </section>
 
@@ -312,16 +313,17 @@ function saringAtasanForm(kata) {
 }
 
 (function () {
-  const pns = document.getElementById('status-pegawai-pns');
+  const statusSelect = document.getElementById('status-pegawai');
   const grupNip = document.getElementById('grup-nip');
   const inputNip = document.getElementById('input-nip');
-  if (pns && grupNip && inputNip) {
+  if (statusSelect && grupNip && inputNip) {
     function segarkanNip() {
-      grupNip.classList.toggle('hidden', !pns.checked);
-      inputNip.required = pns.checked;
-      if (!pns.checked) inputNip.value = '';
+      const isPns = statusSelect.value === 'PNS';
+      grupNip.classList.toggle('hidden', !isPns);
+      inputNip.required = isPns;
+      if (!isPns) inputNip.value = '';
     }
-    pns.addEventListener('change', segarkanNip);
+    statusSelect.addEventListener('change', segarkanNip);
     segarkanNip();
   }
 })();

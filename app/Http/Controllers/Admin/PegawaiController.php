@@ -366,6 +366,7 @@ class PegawaiController extends Controller
             'subPerUnit' => $sub,
             'shiftGrup' => $shiftGrup,
             'agamaList' => self::AGAMA,
+            'statusPegawaiList' => User::STATUS_PEGAWAI,
             'jabPilihan' => $struktur->pilihan(),
             'kategoriJab' => kategori_jabatan_list(),
             'posisiList' => posisi_list(),
@@ -409,7 +410,7 @@ class PegawaiController extends Controller
             throw ValidationException::withMessages(['posisi' => $galatPosisi]);
         }
 
-        $data['status_pegawai'] = $request->input('status_pegawai') === 'PNS' ? 'PNS' : 'Non-PNS';
+        $data['status_pegawai'] = User::normalStatusPegawai($request->input('status_pegawai'));
         if ($data['status_pegawai'] !== 'PNS') {
             $data['nip'] = null;
         }
@@ -572,7 +573,7 @@ class PegawaiController extends Controller
             'F' => posisi_list(),
             'G' => Jabatan::whereIn('kategori', ['Kepala Seksi', 'Kepala Sub Bagian'])
                 ->orderBy('nama')->pluck('nama')->all(),
-            'H' => ['PNS', 'Non-PNS'],
+            'H' => User::STATUS_PEGAWAI,
             'I' => Shift::where('aktif', 1)->distinct()->orderBy('kategori')->pluck('kategori')->all(),
             'J' => ['Laki-Laki', 'Perempuan'],
             'K' => self::AGAMA,
