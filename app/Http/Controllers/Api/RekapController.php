@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\AtasanLangsung;
 use App\Models\HariLibur;
 use App\Models\Izin;
 use App\Models\User;
@@ -16,6 +17,7 @@ use Dompdf\Options;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class RekapController extends Controller
@@ -143,6 +145,66 @@ class RekapController extends Controller
         ]);
     }
 
+    public function rekapSayaPdf(
+        Request $req,
+        RekapService $rekap,
+        ParafQrService $parafQr
+    ): Response|JsonResponse {
+        $user = $req->get('user');
+        $bulan = (int) ($req->query('bulan') ?: now()->month);
+        $tahun = (int) ($req->query('tahun') ?: now()->year);
+
+        if ($bulan < 1 || $bulan > 12 || $tahun < 2000 || $tahun > (int) now()->year + 1) {
+            return response()->json([
+                'sukses' => false,
+                'pesan' => 'Parameter bulan/tahun tidak valid.',
+            ], 422);
+        }
+
+        $pegawai = User::with(['unitKerja', 'subUnit', 'jabatan', 'profesi'])
+            ->find((int) $user->id);
+
+        if (! $pegawai) {
+            return response()->json([
+                'sukses' => false,
+                'pesan' => 'Pegawai tidak ditemukan.',
+            ], 404);
+        }
+
+        $atasanId = AtasanLangsung::where('user_id', (int) $pegawai->id)
+            ->where('atasan_id', '!=', (int) $pegawai->id)
+            ->value('atasan_id');
+        $atasanUser = $atasanId ? User::find((int) $atasanId) : null;
+
+        $atasan = [
+            'nama' => (string) ($atasanUser?->nama_lengkap ?? ''),
+            'nip' => (string) ($atasanUser?->nip ?? ''),
+        ];
+
+        $pdf = $this->buatPdfRekapHarian(
+            collect([$pegawai]),
+            $bulan,
+            $tahun,
+            $atasan,
+            $rekap,
+            $parafQr
+        );
+
+        $namaBulan = BULAN_ID[$bulan] ?? (string) $bulan;
+        catat_aktivitas(
+            'Cetak Rekap Kehadiran Pribadi',
+            sprintf('%s mencetak PDF rekap %s %d', $pegawai->nama_lengkap, $namaBulan, $tahun),
+            (int) $pegawai->id
+        );
+
+        $namaFile = sprintf('rekap-kehadiran-%04d-%02d.pdf', $tahun, $bulan);
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$namaFile.'"',
+        ]);
+    }
+
     public function rekapBawahanPdf(
         Request $req,
         RekapService $rekap,
@@ -204,6 +266,47 @@ class RekapController extends Controller
             ], 404);
         }
 
+        $pdf = $this->buatPdfRekapHarian(
+            $pegawaiList,
+            $bulan,
+            $tahun,
+            [
+                'nama' => (string) $user->nama_lengkap,
+                'nip' => (string) ($user->nip ?? ''),
+            ],
+            $rekap,
+            $parafQr
+        );
+
+        $namaBulan = BULAN_ID[$bulan] ?? (string) $bulan;
+        catat_aktivitas(
+            'Cetak Rekap Bulanan Bawahan',
+            sprintf('%s mencetak PDF rekap %s %d (%d pegawai)', $user->nama_lengkap, $namaBulan, $tahun, $pegawaiList->count()),
+            (int) $user->id
+        );
+
+        $namaFile = sprintf('rekap-bulanan-%04d-%02d.pdf', $tahun, $bulan);
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$namaFile.'"',
+        ]);
+    }
+
+    /**
+     * Render PDF rekap absen harian (1 halaman per pegawai) dengan KOP RSUD & QR verifikasi.
+     *
+     * @param  Collection<int, User>  $pegawaiList
+     * @param  array{nama: string, nip: string}  $atasan
+     */
+    private function buatPdfRekapHarian(
+        Collection $pegawaiList,
+        int $bulan,
+        int $tahun,
+        array $atasan,
+        RekapService $rekap,
+        ParafQrService $parafQr
+    ): string {
         $hariDalamBulan = (int) Carbon::createFromDate($tahun, $bulan, 1)->daysInMonth;
         $awal = sprintf('%04d-%02d-01', $tahun, $bulan);
         $akhir = sprintf('%04d-%02d-%02d', $tahun, $bulan, $hariDalamBulan);
@@ -323,10 +426,7 @@ class RekapController extends Controller
             'tahun' => $tahun,
             'namaBulan' => $namaBulan,
             'tanggalCetak' => tgl_id(now()->format('Y-m-d'), false),
-            'atasan' => [
-                'nama' => (string) $user->nama_lengkap,
-                'nip' => (string) ($user->nip ?? ''),
-            ],
+            'atasan' => $atasan,
             'logoKiri' => $logoKiri,
             'logoKanan' => $logoKanan,
         ])->render();
@@ -339,21 +439,11 @@ class RekapController extends Controller
         $dompdf->loadHtml($html);
         $dompdf->setPaper('A4', 'portrait');
 
+        @set_time_limit(300);
         ini_set('memory_limit', '512M');
         $dompdf->render();
 
-        catat_aktivitas(
-            'Cetak Rekap Bulanan Bawahan',
-            sprintf('%s mencetak PDF rekap %s %d (%d pegawai)', $user->nama_lengkap, $namaBulan, $tahun, $pegawaiList->count()),
-            (int) $user->id
-        );
-
-        $namaFile = sprintf('rekap-bulanan-%04d-%02d.pdf', $tahun, $bulan);
-
-        return response($dompdf->output(), 200, [
-            'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="'.$namaFile.'"',
-        ]);
+        return $dompdf->output();
     }
 
     private function gambarKeDataUri(string $path): ?string

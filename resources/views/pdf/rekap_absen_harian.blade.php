@@ -349,7 +349,7 @@
           <div>Merauke, {{ $tanggalCetak }}</div>
           <div>Atasan Langsung</div>
           <div class="ttd-spasi"></div>
-          <div class="ttd-nama">{{ $atasan['nama'] }}</div>
+          <div class="ttd-nama">{{ $atasan['nama'] !== '' ? $atasan['nama'] : '(______________________________)' }}</div>
           @if ($atasan['nip'] !== '')
             <div class="ttd-nip">NIP. {{ $atasan['nip'] }}</div>
           @endif
