@@ -92,6 +92,7 @@ class VerifikasiLogbookService
     public function entriBawahan(int $pegawaiId, int $bulan, int $tahun): array
     {
         $entri = Logbook::query()
+            ->with('verifikator:id,nama_lengkap')
             ->where('user_id', $pegawaiId)
             ->whereMonth('tanggal', $bulan)
             ->whereYear('tanggal', $tahun)
