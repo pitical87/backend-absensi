@@ -113,7 +113,7 @@
           <td class="teks-kecil">
             @if(! empty($tahapPer[$r->id]))
               @foreach($tahapPer[$r->id] as $t)
-                {!! label_tahap_izin((int) $t->tahap) !!} {!! badge_tahap($t->status) !!}
+                {{ $t->posisi_tahap ?: label_tahap_izin((int) $t->tahap) }} {!! badge_tahap($t->status) !!}
                 @if($t->user)<span class="teks-redup">— {{ $t->user->nama_lengkap }}</span>@endif
                 <br>
               @endforeach

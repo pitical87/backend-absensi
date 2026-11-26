@@ -9,6 +9,7 @@ use App\Models\PengajuanJadwal;
 use App\Models\PengajuanLembur;
 use App\Models\User;
 use App\Services\AlurIzinService;
+use App\Services\AtasanLangsungService;
 use App\Services\PengajuanLemburService;
 use App\Services\UbahJadwalService;
 
@@ -22,35 +23,36 @@ class PersetujuanController extends Controller
         if (! $u) {
             return redirect('login');
         }
-        if ($u['posisi'] === 'Staf') {
+        $userObj = User::find($u['id']);
+        $punyaBawahan = $userObj && app(AtasanLangsungService::class)->punyaBawahan($userObj);
+        if (! $punyaBawahan && $u['posisi'] === 'Staf' && $u['role'] !== 'admin') {
             return redirect('dashboard')
-                ->with('error', 'Menu ini hanya tersedia bagi pejabat dalam alur persetujuan.');
+                ->with('error', 'Menu ini hanya tersedia bagi atasan langsung.');
         }
 
         $lib = app(AlurIzinService::class);
-
-        $kandidat = Izin::with([
-            'user:id,nama_lengkap,jabatan_kategori,jabatan_id,seksi_pembina_id,posisi,unit_kerja_id,sub_unit_id,nip',
-            'user.unitKerja:id,nama',
-            'user.subUnit:id,nama',
-        ])
-            ->where('status', 'Menunggu')
-            ->where('tahap_aktif', '>', 0)
-            ->orderBy('tahap_aktif')
-            ->orderBy('id')
-            ->get();
+        $bawahanIds = $lib->idBawahanLangsung((int) $u['id']);
 
         $tugasSaya = [];
-        $userObj = User::find($u['id']);
-        foreach ($kandidat as $r) {
-            $pemohon = [
-                'id' => $r->user_id, 'posisi' => $r->user->posisi,
-                'jabatan_id' => $r->user->jabatan_id, 'seksi_pembina_id' => $r->user->seksi_pembina_id,
-                'unit_kerja_id' => $r->user->unit_kerja_id, 'sub_unit_id' => $r->user->sub_unit_id,
-            ];
-            $pengajuanRingkas = ['id' => $r->id, 'tahap_aktif' => $r->tahap_aktif];
-            if ($lib->bolehBertindak($pengajuanRingkas, $pemohon, $userObj) && $u['role'] !== 'admin') {
-                $tugasSaya[] = $r;
+        if ($bawahanIds !== [] && $u['role'] !== 'admin' && $userObj) {
+            $kandidat = Izin::with([
+                'user:id,nama_lengkap,jabatan_kategori,jabatan_id,seksi_pembina_id,posisi,unit_kerja_id,sub_unit_id,nip',
+                'user.unitKerja:id,nama',
+                'user.subUnit:id,nama',
+            ])
+                ->where('status', 'Menunggu')
+                ->where('tahap_aktif', '>', 0)
+                ->whereIn('user_id', $bawahanIds)
+                ->orderBy('tahap_aktif')
+                ->orderBy('id')
+                ->get();
+
+            foreach ($kandidat as $r) {
+                $pemohon = ['id' => $r->user_id];
+                $pengajuanRingkas = ['id' => $r->id, 'tahap_aktif' => $r->tahap_aktif];
+                if ($lib->bolehBertindak($pengajuanRingkas, $pemohon, $userObj)) {
+                    $tugasSaya[] = $r;
+                }
             }
         }
 
@@ -122,13 +124,17 @@ class PersetujuanController extends Controller
                 ->with('error', 'Anda tidak berwenang memutus pengajuan ini pada tahap saat ini.');
         }
 
+        $tahapLabel = IzinPersetujuan::where('pengajuan_id', $iz->id)
+            ->where('tahap', (int) $iz->tahap_aktif)
+            ->value('posisi_tahap') ?: 'Atasan Langsung';
+
         $hasil = $lib->proses($izArr, $pemohonArr, (int) $u['id'], $putusan, $catatan);
-        catat_aktivitas('Persetujuan ' . $iz->jenis, $iz->user->nama_lengkap . ' — tahap '
-            . label_tahap_izin((int) $iz->tahap_aktif) . ' oleh ' . $u['nama_lengkap'] . ' → ' . $hasil);
+        catat_aktivitas('Persetujuan ' . $iz->jenis, $iz->user->nama_lengkap . ' — '
+            . $tahapLabel . ' oleh ' . $u['nama_lengkap'] . ' → ' . $hasil);
 
         $pesan = match ($hasil) {
             'Ditolak'   => 'Pengajuan ditolak.',
-            'Disetujui' => 'Pengajuan disetujui penuh — dokumen resmi kini tersedia untuk pemohon.',
+            'Disetujui' => 'Pengajuan disetujui.',
             default     => 'Persetujuan Anda tercatat, pengajuan diteruskan ke tahap berikutnya.',
         };
         return redirect('persetujuan')->with('success', $pesan);

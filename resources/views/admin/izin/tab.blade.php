@@ -6,13 +6,20 @@
           <th>Alur / Tahap</th><th>Status</th><th class="min-w-[260px]">Tindakan / Catatan</th></tr>
     </thead>
     <tbody>
-      @foreach($daftar as $r) @php $berjenjang = in_array($r->jenis, ['Izin', 'Cuti'], true); @endphp
+      @foreach($daftar as $r)
+      @php
+        $pakaiAlur = (int) $r->tahap_aktif > 0 || ! empty($tahapPer[$r->id]) || in_array($r->jenis, ['Izin', 'Cuti'], true);
+        $tahapAktifRow = ! empty($tahapPer[$r->id])
+            ? collect($tahapPer[$r->id])->firstWhere('tahap', (int) $r->tahap_aktif)
+            : null;
+        $labelMenunggu = $tahapAktifRow?->posisi_tahap ?: 'Atasan Langsung';
+      @endphp
       <tr>
         <td>
           <strong>{{ $r->nama_lengkap }}</strong>
           <br><span class="teks-kecil teks-redup">{{ $r->unit_nama ?? '—' }}@if(
             $r->sub_nama) — {{ $r->sub_nama }}@endif</span>
-          @if($berjenjang)
+          @if($pakaiAlur)
             <br><span class="badge badge-ungu teks-kecil">{{ $r->posisi_pemohon }}</span>
           @endif
         </td>
@@ -29,22 +36,23 @@
           @endif
         </td>
         <td class="teks-kecil">
-          @if($berjenjang && ! empty($tahapPer[$r->id]))
+          @if(! empty($tahapPer[$r->id]))
             @foreach($tahapPer[$r->id] as $t)
+              @php $labelTahap = $t->posisi_tahap ?: label_tahap_izin((int) $t->tahap); @endphp
               @if($t->status === 'Dilewati' && ! $t->user)
-                <span class="teks-redup">{!! label_tahap_izin((int) $t->tahap) !!}: dilewati</span><br>
+                <span class="teks-redup">{{ $labelTahap }}: dilewati</span><br>
               @else
-                {!! label_tahap_izin((int) $t->tahap) !!} {!! badge_tahap($t->status) !!}
+                {{ $labelTahap }} {!! badge_tahap($t->status) !!}
                 @if($t->user)<span class="teks-redup">({{ $t->user->nama_lengkap }})</span>@endif<br>
               @endif
             @endforeach
-          @elseif(! $berjenjang)
+          @elseif(! $pakaiAlur)
             <span class="teks-redup">Satu tahap (admin)</span>
           @endif
         </td>
         <td>{!! badge_izin($r->status) !!}</td>
         <td>
-          @if(! $berjenjang && $r->status === 'Menunggu')
+          @if(! $pakaiAlur && $r->status === 'Menunggu')
             <form method="post" action="{{ url('admin/izin/proses') }}" class="bilah-alat m-0" data-izin="proses">
               @csrf
               <input type="hidden" name="id" value="{{ (int) $r->id }}">
@@ -54,7 +62,7 @@
               <button type="submit" name="putusan" value="tolak" class="btn btn-bahaya btn-kecil"
                       data-konfirmasi="Tolak pengajuan ini?">Tolak</button>
             </form>
-          @elseif($berjenjang && $r->status === 'Menunggu')
+          @elseif($pakaiAlur && $r->status === 'Menunggu')
             <form method="post" action="{{ url('admin/izin/ambil-alih') }}" class="bilah-alat m-0" data-izin="ambil-alih">
               @csrf
               <input type="hidden" name="id" value="{{ (int) $r->id }}">
@@ -62,10 +70,10 @@
               <input type="text" name="catatan" placeholder="Catatan (opsional)…" class="min-w-[120px]">
               <button type="submit" name="putusan" value="setuju" class="btn btn-garis btn-kecil">Ambil Alih: Setujui</button>
               <button type="submit" name="putusan" value="tolak" class="btn btn-bahaya btn-kecil"
-                      data-konfirmasi="Tolak pengajuan ini pada tahap saat ini?">Ambil Alih: Tolak</button>
+                      data-konfirmasi="Tolak pengajuan ini?">Ambil Alih: Tolak</button>
             </form>
-            <div class="petunjuk">Sedang menunggu {!! label_tahap_izin((int) $r->tahap_aktif) !!}.
-              Gunakan tombol ini hanya bila pejabat terkait belum terdaftar/berhalangan.</div>
+            <div class="petunjuk">Sedang menunggu {{ $labelMenunggu }}.
+              Gunakan tombol ini bila atasan langsung belum terdaftar atau berhalangan.</div>
           @else
             <span class="teks-kecil">
               {{ $r->catatan_admin ? $r->catatan_admin : ($r->nomor_surat ? 'No. ' . $r->nomor_surat : '—') }}

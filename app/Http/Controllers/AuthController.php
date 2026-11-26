@@ -7,6 +7,7 @@ use App\Models\SubUnit;
 use App\Models\UnitKerja;
 use App\Models\User;
 use App\Services\PeringatanLoginService;
+use App\Services\RememberLoginService;
 use App\Services\StrukturService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -16,7 +17,7 @@ class AuthController extends Controller
     private const MAKS_GAGAL = 5;
     private const JENDELA_MNT = 10;
     private const MIN_ISI_DETIK = 3;
-    private const KUNCI_CACHE_LOGIN = 'auth.login.html.v3';
+    private const KUNCI_CACHE_LOGIN = 'auth.login.html.v4';
 
     public function beranda()
     {
@@ -164,23 +165,23 @@ class AuthController extends Controller
             'email'  => $u->email,
         ]);
         if ($remember) {
-            session()->put('remember_login_until', now()->addDay()->timestamp);
-            config([
-                'session.lifetime' => 24 * 60,
-                'session.expire_on_close' => false,
-            ]);
+            app(RememberLoginService::class)->aktifkan($request, $u);
+        } else {
+            app(RememberLoginService::class)->cabut($request);
         }
         catat_aktivitas('Masuk', $u->nama_lengkap . ' (' . $u->role . ') masuk ke sistem');
 
         return redirect($u->role === 'admin' ? 'admin' : 'dashboard');
     }
-   
-    public function logout()
+
+    public function logout(Request $request)
     {
         if (session('uid')) {
             catat_aktivitas('Keluar', session('nama') . ' keluar dari sistem');
         }
+        app(RememberLoginService::class)->cabut($request);
         session()->flush();
+        session()->regenerate(true);
         return redirect('login');
     }
 

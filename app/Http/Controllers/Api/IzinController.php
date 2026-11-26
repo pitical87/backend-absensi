@@ -63,28 +63,41 @@ class IzinController extends Controller
     {
         $lib = app(AlurIzinService::class);
 
-        $kandidat = Izin::with([
+        $query = Izin::with([
             'user:id,nama_lengkap,nip,unit_kerja_id,sub_unit_id,jabatan_id,seksi_pembina_id,posisi',
             'user.unitKerja:id,nama',
             'user.subUnit:id,nama',
+            'persetujuan',
         ])
             ->where('status', 'Menunggu')
             ->where('tahap_aktif', '>', 0)
             ->orderBy('tahap_aktif')
-            ->orderBy('id')
-            ->get();
+            ->orderBy('id');
 
-        return $kandidat->filter(function ($r) use ($lib, $user) {
-            $pemohon = [
-                'id' => $r->user_id, 'posisi' => $r->user->posisi,
-                'jabatan_id' => $r->user->jabatan_id, 'seksi_pembina_id' => $r->user->seksi_pembina_id,
-                'unit_kerja_id' => $r->user->unit_kerja_id, 'sub_unit_id' => $r->user->sub_unit_id,
-            ];
+        if ($user->role !== 'admin') {
+            $bawahanIds = $lib->idBawahanLangsung((int) $user->id);
+            if ($bawahanIds === []) {
+                return collect();
+            }
+            $query->whereIn('user_id', $bawahanIds);
+        }
+
+        return $query->get()->filter(function ($r) use ($lib, $user) {
+            if (! $r->user) {
+                return false;
+            }
+            $pemohon = ['id' => $r->user_id];
 
             return $lib->bolehBertindak(
                 ['id' => $r->id, 'tahap_aktif' => $r->tahap_aktif],
-                $pemohon, $user
+                $pemohon,
+                $user
             );
+        })->map(function ($r) {
+            $tahapAktif = $r->persetujuan->firstWhere('tahap', (int) $r->tahap_aktif);
+            $r->setAttribute('posisi_tahap', $tahapAktif?->posisi_tahap ?: 'Atasan Langsung');
+
+            return $r;
         })->values();
     }
 
@@ -125,38 +138,73 @@ class IzinController extends Controller
     public function riwayatIzin(Request $req): JsonResponse
     {
         $u = $req->get('user');
-        $izin = Izin::with(['diprosesOleh:id,nama_lengkap'])
+        $alur = app(AlurIzinService::class);
+        $punyaAtasan = $alur->atasanLangsungUntuk((int) $u->id)->isNotEmpty();
+        $labelDefault = $punyaAtasan ? 'Atasan Langsung' : 'Admin';
+
+        $izin = Izin::with(['diprosesOleh:id,nama_lengkap', 'persetujuan.user:id,nama_lengkap'])
             ->where('user_id', $u->id)
             ->orderByDesc('id')
             ->limit(50)
             ->get()
-            ->map(fn ($i) => [
-                'id' => $i->id,
-                'jenis' => $i->jenis,
-                'jenis_cuti' => $i->jenis_cuti,
-                'tanggal_mulai' => $i->tanggal_mulai->format('Y-m-d'),
-                'tanggal_selesai' => $i->tanggal_selesai->format('Y-m-d'),
-                'lama_hari' => $i->lama_hari,
-                'keterangan' => $i->keterangan,
-                'alamat_izin' => $i->alamat_izin,
-                'lampiran' => $i->lampiran,
-                'status' => $i->status,
-                'tahap_aktif' => $i->tahap_aktif,
-                'nomor_surat' => $i->nomor_surat,
-                'ttd_digital' => $i->ttd_digital,
-                'created_at' => $i->created_at?->toISOString(),
-                'persetujuan' => $i->persetujuan->map(fn ($p) => [
-                    'tahap' => $p->tahap,
-                    'posisi_tahap' => $p->posisi_tahap,
-                    'status' => $p->status,
-                    'oleh_nama' => $p->user?->nama_lengkap,
-                    'waktu' => $p->waktu?->toISOString(),
-                ]),
-            ]);
+            ->map(function ($i) use ($labelDefault) {
+                // Tampilkan hanya tahap aktif/diputuskan (hilangkan tahap struktur lama yang Dilewati)
+                $tahapAktif = $i->persetujuan
+                    ->filter(fn ($p) => $p->status !== 'Dilewati')
+                    ->values();
+
+                if ($i->status === 'Menunggu') {
+                    $persetujuan = [[
+                        'tahap' => 1,
+                        'posisi_tahap' => $labelDefault,
+                        'status' => 'Menunggu',
+                        'oleh_nama' => null,
+                        'waktu' => null,
+                    ]];
+                } elseif ($tahapAktif->isNotEmpty()) {
+                    $terakhir = $tahapAktif->last();
+                    $persetujuan = [[
+                        'tahap' => $terakhir->tahap,
+                        'posisi_tahap' => in_array($terakhir->posisi_tahap, ['Atasan Langsung', 'Admin'], true)
+                            ? $terakhir->posisi_tahap
+                            : $labelDefault,
+                        'status' => $terakhir->status,
+                        'oleh_nama' => $terakhir->user?->nama_lengkap ?? $i->diprosesOleh?->nama_lengkap,
+                        'waktu' => $terakhir->waktu?->toISOString(),
+                    ]];
+                } else {
+                    $persetujuan = [[
+                        'tahap' => 1,
+                        'posisi_tahap' => 'Admin',
+                        'status' => $i->status,
+                        'oleh_nama' => $i->diprosesOleh?->nama_lengkap,
+                        'waktu' => $i->processed_at?->toISOString(),
+                    ]];
+                }
+
+                return [
+                    'id' => $i->id,
+                    'jenis' => $i->jenis,
+                    'jenis_cuti' => $i->jenis_cuti,
+                    'tanggal_mulai' => $i->tanggal_mulai->format('Y-m-d'),
+                    'tanggal_selesai' => $i->tanggal_selesai->format('Y-m-d'),
+                    'lama_hari' => $i->lama_hari,
+                    'keterangan' => $i->keterangan,
+                    'alamat_izin' => $i->alamat_izin,
+                    'lampiran' => $i->lampiran,
+                    'status' => $i->status,
+                    'tahap_aktif' => $i->tahap_aktif,
+                    'nomor_surat' => $i->nomor_surat,
+                    'ttd_digital' => $i->ttd_digital,
+                    'created_at' => $i->created_at?->toISOString(),
+                    'persetujuan' => $persetujuan,
+                ];
+            });
         if ($izin->isEmpty()) {
             return response()->json([
                 'sukses' => true,
                 'message' => 'belum ada pengajuan izin',
+                'izin' => [],
             ]);
         }
 
@@ -271,22 +319,25 @@ class IzinController extends Controller
         $izinId = null;
 
         $namaAtasan = AtasanLangsung::where('atasan_langsung.user_id', $u->id)
+            ->where('atasan_langsung.atasan_id', '!=', $u->id)
             ->join('users as atasan_user', 'atasan_user.id', '=', 'atasan_langsung.atasan_id')
+            ->where('atasan_user.status', 'aktif')
+            ->whereNull('atasan_user.deleted_at')
             ->orderBy('atasan_langsung.id')
             ->pluck('atasan_user.nama_lengkap');
 
-        $keteranganAtasan = $namaAtasan->isNotEmpty()
+        $punyaAtasan = $namaAtasan->isNotEmpty();
+        $keteranganAtasan = $punyaAtasan
             ? 'Pengajuan telah diajukan ke atasan langsung Anda: '.$namaAtasan->implode(', ').'.'
             : 'Anda belum memiliki atasan langsung; pengajuan diteruskan ke admin untuk disetujui.';
 
-        if ($berjenjang) {
+        $izinTerbuat = null;
+
+        if ($berjenjang || $punyaAtasan) {
             $tahapAktif = 0;
             $statusAwal = 'Menunggu';
-            $nomorSurat = null;
-            $kodeVerifikasi = null;
-            $processedAt = null;
 
-            DB::transaction(function () use ($u, $jenis, $jenisCuti, $mulai, $selesai, $lamaHari, $alamat, $alasan, $lampiran, &$tahapAktif, &$statusAwal, &$nomorSurat, &$kodeVerifikasi, &$processedAt, &$izinId) {
+            DB::transaction(function () use ($u, $jenis, $jenisCuti, $mulai, $selesai, $lamaHari, $alamat, $alasan, $lampiran, &$tahapAktif, &$statusAwal, &$izinId, &$izinTerbuat) {
                 $izin = Izin::create([
                     'user_id' => $u->id,
                     'jenis' => $jenis,
@@ -303,28 +354,13 @@ class IzinController extends Controller
                 ]);
                 $izinId = $izin->id;
                 [$tahapAktif, $statusAwal] = app(AlurIzinService::class)->mulai($izinId, $u->toArray());
-                $update = ['tahap_aktif' => $tahapAktif, 'status' => $statusAwal];
-                if ($statusAwal === 'Disetujui') {
-                    $processedAt = now();
-                    $nomorSurat = sprintf('800/%03d/RSUD-MRK/%02d/%d',
-                        Izin::whereNotNull('nomor_surat')
-                            ->whereMonth('created_at', now()->format('n'))
-                            ->whereYear('created_at', now()->format('Y'))
-                            ->count() + 1, now()->format('n'), now()->format('Y'));
-                    $kodeVerifikasi = strtoupper(bin2hex(random_bytes(5)));
-                    $update['processed_at'] = $processedAt;
-                    $update['nomor_surat'] = $nomorSurat;
-                    $update['kode_verifikasi'] = $kodeVerifikasi;
-                }
-                $izin->update($update);
+                $izin->update(['tahap_aktif' => $tahapAktif, 'status' => $statusAwal]);
+                $izinTerbuat = $izin;
                 catat_aktivitas('Pengajuan '.$jenis, $u->nama_lengkap.' — '.($jenisCuti ?: $jenis)
-                    .' ('.$mulai.' s.d. '.$selesai.", {$lamaHari} hr kerja)");
+                    .' ('.$mulai.' s.d. '.$selesai.($lamaHari ? ", {$lamaHari} hr kerja" : '').')');
             });
 
-            $pesan = $statusAwal === 'Disetujui'
-                ? "Pengajuan {$jenis} langsung disetujui (posisi Anda berada di puncak alur persetujuan)."
-                : 'Pengajuan '.$jenis.' terkirim dan menunggu persetujuan '
-                    .label_tahap_izin($tahapAktif).'.';
+            $pesan = 'Pengajuan '.$jenis.' terkirim. '.$keteranganAtasan;
         } else {
             $izin = Izin::create([
                 'user_id' => $u->id,
@@ -340,12 +376,16 @@ class IzinController extends Controller
                 'tahap_aktif' => 0,
                 'created_at' => now(),
             ]);
+            $izinId = $izin->id;
+            $izinTerbuat = $izin;
             catat_aktivitas('Pengajuan '.$jenis, $u->nama_lengkap.' mengajukan '.$jenis
             .' ('.$mulai.' s.d. '.$selesai.')');
-            $pesan = 'Pengajuan '.$jenis.' terkirim dan menunggu persetujuan.';
+            $pesan = 'Pengajuan '.$jenis.' terkirim. '.$keteranganAtasan;
         }
 
-        $pesan .= ' '.$keteranganAtasan;
+        if ($izinTerbuat) {
+            app(AlurIzinService::class)->notifikasiPengajuanBaru($izinTerbuat, $u);
+        }
 
         return response()->json([
             'sukses' => true,
@@ -412,14 +452,18 @@ class IzinController extends Controller
             ], 403);
         }
 
+        $tahapLabel = IzinPersetujuan::where('pengajuan_id', $iz->id)
+            ->where('tahap', (int) $iz->tahap_aktif)
+            ->value('posisi_tahap') ?: 'Atasan Langsung';
+
         $hasil = $lib->proses($izArr, $pemohonArr, $user->id, $putusan, $catatan);
         catat_aktivitas('Persetujuan '.$iz->jenis, $iz->user->nama_lengkap
-            .' — tahap '.label_tahap_izin((int) $iz->tahap_aktif)
+            .' — '.$tahapLabel
             .' oleh '.$user->nama_lengkap.' → '.$hasil);
 
         $pesan = match ($hasil) {
             'Ditolak' => 'Pengajuan ditolak.',
-            'Disetujui' => 'Pengajuan disetujui penuh.',
+            'Disetujui' => 'Pengajuan disetujui.',
             default => 'Persetujuan tercatat, pengajuan diteruskan ke tahap berikutnya.',
         };
 

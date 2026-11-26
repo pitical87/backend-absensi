@@ -7,8 +7,7 @@
     <h2>{!! ikon('centang') !!} Menunggu Persetujuan Saya</h2>
     <span class="badge badge-amber">{{ count($tugasSaya) }} pengajuan</span>
   </div>
-  <p class="petunjuk">Anda melihat halaman ini karena posisi Anda (<strong>{{ $u['posisi'] }}</strong>)
-    berperan dalam alur persetujuan Izin/Cuti pegawai.</p>
+  <p class="petunjuk">Sebagai <strong>atasan langsung</strong>, Anda dapat menyetujui atau menolak pengajuan izin/cuti bawahan Anda.</p>
 
   <div class="tabel-bungkus">
     <table class="tabel">
@@ -28,7 +27,7 @@
           <td><strong>{{ $r->jenis_cuti ?: $r->jenis }}</strong></td>
           <td class="angka">{{ tgl_id($r->tanggal_mulai, false) }}@if(
               $r->tanggal_selesai !== $r->tanggal_mulai)<br>s.d. {{ tgl_id($r->tanggal_selesai, false) }}@endif</td>
-          <td class="angka">{{ $r->lama_hari }} hr kerja</td>
+          <td class="angka">{{ $r->lama_hari ? $r->lama_hari . ' hr kerja' : '—' }}</td>
           <td class="teks-kecil">{{ $r->alamat_izin ?? '—' }}</td>
           <td class="teks-kecil">
             {{ $r->keterangan }}

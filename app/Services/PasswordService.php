@@ -80,8 +80,9 @@ class PasswordService
     {
         $user->forceFill(['password_changed_at' => now()])->save();
 
-        // Cabut semua token mobile aktif agar perangkat lama wajib login ulang dengan password baru.
+        // Cabut semua token mobile aktif & sesi "Ingat saya" web agar perangkat lama wajib login ulang.
         ApiToken::where('user_id', (int) $user->id)->delete();
+        app(RememberLoginService::class)->cabutSemuaUntukUser((int) $user->id);
 
         if (! $kirimNotifikasi) {
             return;

@@ -4,6 +4,7 @@ use App\Http\Middleware\CheckAdmin;
 use App\Http\Middleware\CheckApiKey;
 use App\Http\Middleware\CheckAuth;
 use App\Http\Middleware\CheckMobileAuth;
+use App\Http\Middleware\RestoreRememberedLogin;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -37,6 +38,10 @@ return Application::configure(basePath: dirname(__DIR__))
                      Request::HEADER_X_FORWARDED_PROTO |
                      Request::HEADER_X_FORWARDED_AWS_ELB
         );
+        $middleware->web(append: [
+            RestoreRememberedLogin::class,
+        ]);
+
         $middleware->alias([
             'auth' => CheckAuth::class,
             'admin' => CheckAdmin::class,

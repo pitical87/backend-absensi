@@ -184,6 +184,7 @@
                   type="checkbox"
                   id="remember"
                   name="remember"
+                  value="1"
                   class="w-4 h-4 rounded border-slate-300 text-[#007afc] focus:ring-2 focus:ring-blue-100"
                 >
                 <span class="text-xs sm:text-sm text-slate-700">Ingat saya</span>

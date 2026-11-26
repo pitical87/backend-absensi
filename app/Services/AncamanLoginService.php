@@ -299,6 +299,7 @@ class AncamanLoginService
         if ($baru === 'nonaktif') {
             // Cabut sesi aktif supaya akses yang sedang berjalan langsung putus.
             ApiToken::where('user_id', $user->id)->delete();
+            app(RememberLoginService::class)->cabutSemuaUntukUser((int) $user->id);
         }
         LoginAttempt::where('email', $user->email)->where('sukses', 0)->delete();
 

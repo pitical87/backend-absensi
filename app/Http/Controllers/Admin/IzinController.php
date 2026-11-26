@@ -58,9 +58,9 @@ class IzinController extends Controller
             ->where('pengajuan_izin.id', $id)
             ->first();
 
-        if (! $iz || $iz->status !== 'Menunggu' || in_array($iz->jenis, ['Izin', 'Cuti'], true)) {
+        if (! $iz || $iz->status !== 'Menunggu' || (int) $iz->tahap_aktif > 0 || in_array($iz->jenis, ['Izin', 'Cuti'], true)) {
             return $this->selesai($request,
-                'Pengajuan tidak ditemukan, sudah diproses, atau memakai alur berjenjang.', false);
+                'Pengajuan tidak ditemukan, sudah diproses, atau memakai alur persetujuan atasan langsung.', false);
         }
 
         $statusBaru = $putusan === 'setuju' ? 'Disetujui' : 'Ditolak';
@@ -70,6 +70,7 @@ class IzinController extends Controller
             'catatan_admin' => $catatan,
             'processed_at' => now(),
         ]);
+        app(AlurIzinService::class)->notifikasiKeputusan($iz, $statusBaru, $catatan);
         catat_aktivitas('Proses Izin', $iz->nama_lengkap.' — '.$iz->jenis.' ('
             .$iz->tanggal_mulai.' s.d. '.$iz->tanggal_selesai.') → '.$statusBaru);
 
@@ -93,6 +94,10 @@ class IzinController extends Controller
         }
         $pemohon = User::find($iz->user_id);
 
+        $tahapLabel = IzinPersetujuan::where('pengajuan_id', $iz->id)
+            ->where('tahap', (int) $iz->tahap_aktif)
+            ->value('posisi_tahap') ?: 'Atasan Langsung';
+
         // AlurIzinService membaca atribut model, jadi harus lewat toArray(),
         // bukan (array) yang hanya menghasilkan properti internal model.
         $hasil = app(AlurIzinService::class)->proses(
@@ -103,10 +108,10 @@ class IzinController extends Controller
             $catatan
         );
         catat_aktivitas('Ambil Alih Persetujuan', $pemohon->nama_lengkap.' — '.$iz->jenis
-            .' tahap '.label_tahap_izin((int) $iz->tahap_aktif).' → '.$hasil);
+            .' ('.$tahapLabel.') → '.$hasil);
 
         return $this->selesai($request,
-            'Tahap '.label_tahap_izin((int) $iz->tahap_aktif).' untuk '.$pemohon->nama_lengkap
+            'Persetujuan '.$tahapLabel.' untuk '.$pemohon->nama_lengkap
             .' telah diproses admin ('.$hasil.').', true);
     }
 
@@ -160,11 +165,10 @@ class IzinController extends Controller
         $daftar = $b->orderBy('pengajuan_izin.id', 'DESC')->limit(200)->get()->all();
 
         $tahapPer = [];
-        $idBerjenjang = array_column(array_filter($daftar,
-            static fn ($r) => in_array($r->jenis, ['Izin', 'Cuti'], true)), 'id');
-        if ($idBerjenjang) {
+        $semuaId = array_column($daftar, 'id');
+        if ($semuaId) {
             $persetujuan = IzinPersetujuan::with('user:id,nama_lengkap')
-                ->whereIn('pengajuan_id', $idBerjenjang)
+                ->whereIn('pengajuan_id', $semuaId)
                 ->orderBy('tahap')
                 ->get();
             foreach ($persetujuan as $p) {

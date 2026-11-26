@@ -33,11 +33,10 @@ class IzinController extends Controller
             ->all();
 
         $tahapPer = [];
-        $idBerjenjang = array_column(array_filter($riwayat,
-            static fn ($r) => in_array($r->jenis, self::BERJENJANG, true)), 'id');
-        if ($idBerjenjang) {
+        $semuaId = array_column($riwayat, 'id');
+        if ($semuaId) {
             $persetujuan = IzinPersetujuan::with('user:id,nama_lengkap')
-                ->whereIn('pengajuan_id', $idBerjenjang)
+                ->whereIn('pengajuan_id', $semuaId)
                 ->orderBy('tahap')
                 ->get();
             foreach ($persetujuan as $p) {
@@ -95,35 +94,36 @@ class IzinController extends Controller
             'created_at'      => now(),
         ];
 
-        if ($berjenjang) {
-            $pesan = DB::transaction(function () use ($data, $u, $jenis, $mulai, $selesai, $jenisCuti) {
-                $izin = Izin::create($data);
-                [$tahapAktif, $statusAwal] = app(AlurIzinService::class)->mulai($izin->id, $u);
+        $alur = app(AlurIzinService::class);
+        $atasanAktif = $alur->atasanLangsungUntuk((int) $u['id']);
+        $punyaAtasan = $atasanAktif->isNotEmpty();
 
-                $update = ['tahap_aktif' => $tahapAktif, 'status' => $statusAwal];
-                if ($statusAwal === 'Disetujui') {
-                    $update['processed_at'] = now();
-                    $update['nomor_surat'] = sprintf('800/%03d/RSUD-MRK/%02d/%d',
-                        Izin::whereNotNull('nomor_surat')
-                            ->whereMonth('created_at', now()->format('n'))->whereYear('created_at', now()->format('Y'))
-                            ->count() + 1, now()->format('n'), now()->format('Y'));
-                    $update['kode_verifikasi'] = strtoupper(bin2hex(random_bytes(5)));
-                }
-                $izin->update($update);
+        $izinTerbuat = null;
+
+        if ($berjenjang || $punyaAtasan) {
+            $pesan = DB::transaction(function () use ($data, $u, $jenis, $mulai, $selesai, $jenisCuti, $alur, $atasanAktif, $punyaAtasan, &$izinTerbuat) {
+                $izin = Izin::create($data);
+                [$tahapAktif, $statusAwal] = $alur->mulai($izin->id, $u);
+                $izin->update(['tahap_aktif' => $tahapAktif, 'status' => $statusAwal]);
+                $izinTerbuat = $izin;
 
                 catat_aktivitas('Pengajuan ' . $jenis, $u['nama_lengkap'] . ' — ' . ($jenisCuti ?: $jenis)
-                    . ' (' . $mulai . ' s.d. ' . $selesai . ", {$data['lama_hari']} hr kerja)");
+                    . ' (' . $mulai . ' s.d. ' . $selesai . ($data['lama_hari'] ? ", {$data['lama_hari']} hr kerja" : '') . ')');
 
-                return $statusAwal === 'Disetujui'
-                    ? "Pengajuan {$jenis} langsung disetujui (posisi Anda berada di puncak alur persetujuan)."
-                    : 'Pengajuan ' . $jenis . ' terkirim dan menunggu persetujuan '
-                        . label_tahap_izin($tahapAktif) . '.';
+                return $punyaAtasan
+                    ? 'Pengajuan ' . $jenis . ' terkirim dan menunggu persetujuan atasan langsung: '
+                        . $atasanAktif->pluck('nama_lengkap')->implode(', ') . '.'
+                    : 'Pengajuan ' . $jenis . ' terkirim. Anda belum memiliki atasan langsung; pengajuan diteruskan ke admin.';
             });
         } else {
-            Izin::create($data);
+            $izinTerbuat = Izin::create($data);
             catat_aktivitas('Pengajuan ' . $jenis, $u['nama_lengkap'] . ' mengajukan ' . $jenis
                 . ' (' . $mulai . ' s.d. ' . $selesai . ')');
             $pesan = 'Pengajuan ' . $jenis . ' terkirim dan menunggu persetujuan admin.';
+        }
+
+        if ($izinTerbuat) {
+            $alur->notifikasiPengajuanBaru($izinTerbuat);
         }
 
         return redirect('izin')->with('success', $pesan);
