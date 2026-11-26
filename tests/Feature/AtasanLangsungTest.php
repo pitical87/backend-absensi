@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\ApiToken;
 use App\Models\AtasanLangsung;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -295,5 +296,52 @@ class AtasanLangsungTest extends TestCase
         $this->pegawai('Pegawai Biasa');
 
         $this->get(route('admin.atasan_langsung.index'))->assertRedirect();
+    }
+
+    public function test_endpoint_kelola_jadwal_dan_persetujuan_ditolak_jika_tidak_punya_bawahan(): void
+    {
+        $tanpaBawahan = $this->pegawai('Staf Biasa');
+        $atasan = $this->pegawai('Kepala Ruang');
+        $bawahan = $this->pegawai('Perawat Satu');
+        AtasanLangsung::create(['user_id' => $bawahan->id, 'atasan_id' => $atasan->id]);
+
+        $tokenStaf = ApiToken::create([
+            'user_id' => $tanpaBawahan->id,
+            'token' => 'tok-staf-tanpa-bawahan',
+            'expires_at' => now()->addDays(7),
+            'last_aktivitas' => now(),
+        ]);
+        $tokenAtasan = ApiToken::create([
+            'user_id' => $atasan->id,
+            'token' => 'tok-atasan-punya-bawahan',
+            'expires_at' => now()->addDays(7),
+            'last_aktivitas' => now(),
+        ]);
+
+        $stafClient = $this->withHeader('X-Requested-With', 'XMLHttpRequest')
+            ->withUnencryptedCookie('auth_token', $tokenStaf->token)
+            ->withCredentials();
+
+        $stafClient->getJson('/api/mobile/jadwal/kelola')->assertStatus(403);
+        $stafClient->postJson('/api/mobile/jadwal/kelola/unit', ['sub_unit_id' => 1])->assertStatus(403);
+        $stafClient->postJson('/api/mobile/jadwal/kelola/pegawai', ['users' => [$bawahan->id]])->assertStatus(403);
+        $stafClient->getJson('/api/mobile/izin/detail')->assertStatus(403);
+        $stafClient->getJson('/api/mobile/izin/riwayat-persetujuan')->assertStatus(403);
+        $stafClient->getJson('/api/mobile/perubahan-jadwal/menunggu')->assertStatus(403);
+        $stafClient->getJson('/api/mobile/perubahan-jadwal/riwayat-persetujuan')->assertStatus(403);
+        $stafClient->getJson('/api/mobile/lembur/menunggu')->assertStatus(403);
+        $stafClient->getJson('/api/mobile/lembur/riwayat-persetujuan')->assertStatus(403);
+
+        $atasanClient = $this->withHeader('X-Requested-With', 'XMLHttpRequest')
+            ->withUnencryptedCookie('auth_token', $tokenAtasan->token)
+            ->withCredentials();
+
+        $atasanClient->getJson('/api/mobile/jadwal/kelola')->assertOk();
+        $atasanClient->getJson('/api/mobile/izin/detail')->assertOk();
+        $atasanClient->getJson('/api/mobile/izin/riwayat-persetujuan')->assertOk();
+        $atasanClient->getJson('/api/mobile/perubahan-jadwal/menunggu')->assertOk();
+        $atasanClient->getJson('/api/mobile/perubahan-jadwal/riwayat-persetujuan')->assertOk();
+        $atasanClient->getJson('/api/mobile/lembur/menunggu')->assertOk();
+        $atasanClient->getJson('/api/mobile/lembur/riwayat-persetujuan')->assertOk();
     }
 }

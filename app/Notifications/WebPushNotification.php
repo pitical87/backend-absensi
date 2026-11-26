@@ -67,6 +67,20 @@ class WebPushNotification extends Notification implements ShouldQueue
         }
 
         if ($url === 'persetujuan') {
+            if ($this->notifikasi->kategori === 'lembur') {
+                return '/persetujuan-lembur';
+            }
+            if ($this->notifikasi->kategori === 'jadwal') {
+                return '/persetujuan-jadwal';
+            }
+            $teks = mb_strtolower((string) $this->notifikasi->isi);
+            if (str_contains($teks, 'lembur')) {
+                return '/persetujuan-lembur';
+            }
+            if (str_contains($teks, 'jadwal')) {
+                return '/persetujuan-jadwal';
+            }
+
             return '/persetujuan';
         }
 

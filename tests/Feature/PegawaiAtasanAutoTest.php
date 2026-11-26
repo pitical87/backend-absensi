@@ -191,4 +191,122 @@ class PegawaiAtasanAutoTest extends TestCase
             'nip' => '19870001',
         ]);
     }
+
+    public function test_register_mobile_otomatis_menetapkan_atasan_dari_sub_unit_dan_unit_kerja(): void
+    {
+        $atasanSub = User::create([
+            'nama_lengkap' => 'Kepala Ruangan',
+            'email' => 'karu-reg@example.com',
+            'password_hash' => bcrypt('rahasia-kuat'),
+            'role' => 'pegawai',
+            'status' => 'aktif',
+        ]);
+        $atasanUnit = User::create([
+            'nama_lengkap' => 'Kepala Instalasi',
+            'email' => 'kainst-reg@example.com',
+            'password_hash' => bcrypt('rahasia-kuat'),
+            'role' => 'pegawai',
+            'status' => 'aktif',
+        ]);
+
+        $unitSub = UnitKerja::create(['nama' => 'Instalasi Rawat Inap', 'punya_sub' => true]);
+        $subUnit = SubUnit::create([
+            'unit_kerja_id' => $unitSub->id,
+            'nama' => 'Ruang Melati',
+            'atasan_id' => $atasanSub->id,
+        ]);
+        $unitLangsung = UnitKerja::create([
+            'nama' => 'Instalasi Gizi',
+            'punya_sub' => false,
+            'atasan_id' => $atasanUnit->id,
+        ]);
+        $unitKosong = UnitKerja::create(['nama' => 'Unit Tanpa Atasan', 'punya_sub' => false]);
+        $profesi = Profesi::create(['nama' => 'Perawat']);
+
+        // Master data menyertakan info atasan pada unit, sub unit, dan daftar kandidat manual
+        $master = $this->getJson('/api/mobile/register/master')->assertOk();
+        $master->assertJsonFragment([
+            'id' => $subUnit->id,
+            'nama' => 'Ruang Melati',
+            'atasan_id' => $atasanSub->id,
+            'atasan_nama' => 'Kepala Ruangan',
+        ]);
+        $master->assertJsonFragment([
+            'id' => $unitLangsung->id,
+            'nama' => 'Instalasi Gizi',
+            'atasan_id' => $atasanUnit->id,
+            'atasan_nama' => 'Kepala Instalasi',
+        ]);
+
+        // 1. Register di sub unit yang punya atasan -> otomatis tersimpan di atasan_langsung
+        $this->postJson('/api/mobile/register', [
+            'nama_lengkap' => 'Pendaftar Sub',
+            'jenis_kelamin' => 'Perempuan',
+            'agama' => 'Islam',
+            'email' => 'pendaftar-sub@example.com',
+            'unit_kerja_id' => $unitSub->id,
+            'sub_unit_id' => $subUnit->id,
+            'profesi_id' => $profesi->id,
+            'jabatan_kategori' => 'Staf/Pelaksana',
+            'posisi' => 'Staf',
+            'status_pegawai' => 'Non-PNS',
+            'password' => 'rahasia123',
+            'password2' => 'rahasia123',
+        ])->assertStatus(201)->assertJsonPath('atasan_langsung.0.id', $atasanSub->id);
+
+        $u1 = User::where('email', 'pendaftar-sub@example.com')->firstOrFail();
+        $this->assertDatabaseHas('atasan_langsung', ['user_id' => $u1->id, 'atasan_id' => $atasanSub->id]);
+
+        // 2. Register di unit tanpa sub yang punya atasan -> otomatis tersimpan di atasan_langsung
+        $this->postJson('/api/mobile/register', [
+            'nama_lengkap' => 'Pendaftar Unit',
+            'jenis_kelamin' => 'Laki-Laki',
+            'agama' => 'Kristen',
+            'email' => 'pendaftar-unit@example.com',
+            'unit_kerja_id' => $unitLangsung->id,
+            'profesi_id' => $profesi->id,
+            'jabatan_kategori' => 'Staf/Pelaksana',
+            'posisi' => 'Staf',
+            'status_pegawai' => 'PNS',
+            'nip' => '199001012020011001',
+            'password' => 'rahasia123',
+            'password2' => 'rahasia123',
+        ])->assertStatus(201)->assertJsonPath('atasan_langsung.0.id', $atasanUnit->id);
+
+        $u2 = User::where('email', 'pendaftar-unit@example.com')->firstOrFail();
+        $this->assertDatabaseHas('atasan_langsung', ['user_id' => $u2->id, 'atasan_id' => $atasanUnit->id]);
+
+        // 3. Register di unit tanpa atasan tetap berhasil tanpa atasan_langsung (tidak menerima input manual publik)
+        $this->postJson('/api/mobile/register', [
+            'nama_lengkap' => 'Pendaftar Tanpa Atasan Unit',
+            'jenis_kelamin' => 'Laki-Laki',
+            'agama' => 'Katolik',
+            'email' => 'pendaftar-manual@example.com',
+            'unit_kerja_id' => $unitKosong->id,
+            'profesi_id' => $profesi->id,
+            'jabatan_kategori' => 'Staf/Pelaksana',
+            'posisi' => 'Staf',
+            'status_pegawai' => 'Honor',
+            'password' => 'rahasia123',
+            'password2' => 'rahasia123',
+        ])->assertStatus(201)->assertJsonPath('atasan_langsung', []);
+
+        $u3 = User::where('email', 'pendaftar-manual@example.com')->firstOrFail();
+        $this->assertDatabaseMissing('atasan_langsung', ['user_id' => $u3->id]);
+
+        // 4. Register PNS tanpa NIP ditolak (422)
+        $this->postJson('/api/mobile/register', [
+            'nama_lengkap' => 'Pendaftar PNS Tanpa NIP',
+            'jenis_kelamin' => 'Perempuan',
+            'agama' => 'Islam',
+            'email' => 'pns-tanpa-nip@example.com',
+            'unit_kerja_id' => $unitLangsung->id,
+            'profesi_id' => $profesi->id,
+            'jabatan_kategori' => 'Staf/Pelaksana',
+            'posisi' => 'Staf',
+            'status_pegawai' => 'PNS',
+            'password' => 'rahasia123',
+            'password2' => 'rahasia123',
+        ])->assertStatus(422);
+    }
 }

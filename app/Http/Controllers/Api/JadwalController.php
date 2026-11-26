@@ -8,6 +8,7 @@ use App\Models\JadwalTemplateMingguan;
 use App\Models\Shift;
 use App\Models\SubUnit;
 use App\Models\User;
+use App\Services\AtasanLangsungService;
 use App\Services\JadwalImportService;
 use App\Services\JadwalTemplateService;
 use Carbon\Carbon;
@@ -124,6 +125,26 @@ class JadwalController extends Controller
     }
 
     /**
+     * Hanya admin atau pegawai yang tercatat memiliki bawahan langsung yang
+     * berwenang mengakses endpoint kelola jadwal.
+     */
+    private function cekWewenangKelola(Request $req): ?JsonResponse
+    {
+        $user = $req->get('user');
+        if (! $user) {
+            return response()->json(['sukses' => false, 'pesan' => 'Tidak terautentikasi.'], 401);
+        }
+        if ($user->role === 'admin' || app(AtasanLangsungService::class)->punyaBawahan($user)) {
+            return null;
+        }
+
+        return response()->json([
+            'sukses' => false,
+            'pesan' => 'Menu kelola jadwal hanya tersedia bagi atasan langsung yang memiliki bawahan.',
+        ], 403);
+    }
+
+    /**
      * Rekapitulasi pengaturan jadwal shift pegawai — serupa halaman admin/jadwal.
      * Menyediakan daftar sub unit, shift aktif, pegawai per sub unit beserta grid
      * jadwal bulanan, serta seluruh pegawai aktif dan karyawan yang punya jadwal
@@ -131,6 +152,10 @@ class JadwalController extends Controller
      */
     public function kelola(Request $req): JsonResponse
     {
+        if ($tolak = $this->cekWewenangKelola($req)) {
+            return $tolak;
+        }
+
         $bulan = (int) ($req->query('bulan') ?: now()->month);
         $tahun = (int) ($req->query('tahun') ?: now()->year);
         $subUnitId = (int) $req->query('sub_unit');
@@ -270,6 +295,10 @@ class JadwalController extends Controller
      */
     public function simpanUnit(Request $req): JsonResponse
     {
+        if ($tolak = $this->cekWewenangKelola($req)) {
+            return $tolak;
+        }
+
         $user = $req->get('user');
 
         $subUnitId = (int) $req->input('sub_unit_id');
@@ -397,6 +426,10 @@ class JadwalController extends Controller
      */
     public function simpanPegawai(Request $req): JsonResponse
     {
+        if ($tolak = $this->cekWewenangKelola($req)) {
+            return $tolak;
+        }
+
         $user = $req->get('user');
 
         $bulan = (int) $req->input('bulan', now()->month);
@@ -471,6 +504,10 @@ class JadwalController extends Controller
      */
     public function template(Request $req, JadwalTemplateService $template)
     {
+        if ($tolak = $this->cekWewenangKelola($req)) {
+            return $tolak;
+        }
+
         [$bulan, $tahun] = $this->periodeImport($req);
 
         return response()
@@ -488,6 +525,10 @@ class JadwalController extends Controller
      */
     public function impor(Request $req, JadwalImportService $import): JsonResponse
     {
+        if ($tolak = $this->cekWewenangKelola($req)) {
+            return $tolak;
+        }
+
         $user = $req->get('user');
 
         $req->validate([

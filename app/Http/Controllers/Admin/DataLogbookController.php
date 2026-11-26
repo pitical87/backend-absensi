@@ -136,13 +136,25 @@ class DataLogbookController extends Controller
         ]);
 
         $verifikasi = $f['aksi'] === 'verifikasi';
+        $ids = array_map('intval', $f['ids']);
+
+        $terdampak = Logbook::query()
+            ->whereIn('id', $ids)
+            ->where('is_verified', ! $verifikasi)
+            ->get(['id', 'user_id', 'tanggal']);
+
         $jumlah = Logbook::query()
-            ->whereIn('id', array_map('intval', $f['ids']))
+            ->whereIn('id', $ids)
             ->update([
                 'is_verified' => $verifikasi,
                 'verified_at' => $verifikasi ? now() : null,
                 'verified_by' => $verifikasi ? (int) session('uid') : null,
             ]);
+
+        if ($terdampak->isNotEmpty()) {
+            app(\App\Services\VerifikasiLogbookService::class)
+                ->notifikasiPegawai($terdampak, 'Admin', $f['aksi']);
+        }
 
         catat_aktivitas(
             $verifikasi ? 'Verifikasi Logbook' : 'Batal Verifikasi Logbook',

@@ -13,6 +13,7 @@ use App\Models\Profesi;
 use App\Models\SubUnit;
 use App\Models\UnitKerja;
 use App\Models\User;
+use App\Services\AtasanLangsungService;
 use App\Services\StrukturService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -83,17 +84,39 @@ class AuthController extends Controller
     {
         $struktur = app(StrukturService::class);
 
+        $atasanPilihan = User::where('role', '!=', 'admin')
+            ->where('status', 'aktif')
+            ->orderBy('nama_lengkap')
+            ->get(['id', 'nama_lengkap']);
+        $atasanMap = $atasanPilihan->pluck('nama_lengkap', 'id');
+
         $sub = [];
         foreach (SubUnit::orderBy('unit_kerja_id')->orderBy('id')->get() as $s) {
-            $sub[(int) $s->unit_kerja_id][] = ['id' => (int) $s->id, 'nama' => $s->nama];
+            $atasanId = $s->atasan_id && $atasanMap->has((int) $s->atasan_id)
+                ? (int) $s->atasan_id
+                : null;
+            $sub[(int) $s->unit_kerja_id][] = [
+                'id' => (int) $s->id,
+                'nama' => $s->nama,
+                'atasan_id' => $atasanId,
+                'atasan_nama' => $atasanId ? (string) $atasanMap->get($atasanId) : null,
+            ];
         }
 
         $unitList = UnitKerja::orderBy('id')->get()
-            ->map(fn ($u) => [
-                'id' => (int) $u->id,
-                'nama' => $u->nama,
-                'punya_sub' => (bool) $u->punya_sub,
-            ])
+            ->map(function ($u) use ($atasanMap) {
+                $atasanId = $u->atasan_id && $atasanMap->has((int) $u->atasan_id)
+                    ? (int) $u->atasan_id
+                    : null;
+
+                return [
+                    'id' => (int) $u->id,
+                    'nama' => $u->nama,
+                    'punya_sub' => (bool) $u->punya_sub,
+                    'atasan_id' => $atasanId,
+                    'atasan_nama' => $atasanId ? (string) $atasanMap->get($atasanId) : null,
+                ];
+            })
             ->values();
 
         $profList = Profesi::orderBy('id')->get()
@@ -115,8 +138,11 @@ class AuthController extends Controller
         ]);
     }
 
-    public function register(Request $req, StrukturService $struktur): JsonResponse
-    {
+    public function register(
+        Request $req,
+        StrukturService $struktur,
+        AtasanLangsungService $atasanServis
+    ): JsonResponse {
         $d = [
             'nama_lengkap' => trim((string) $req->input('nama_lengkap')),
             'tempat_lahir' => trim((string) $req->input('tempat_lahir')),
@@ -183,29 +209,21 @@ class AuthController extends Controller
             $galat[] = 'Profesi wajib dipilih.';
         }
 
-        [$kategoriJab, $jabatanId, $galatJab] = $struktur->resolusi(
-            (string) $req->input('jabatan_kategori'),
-            (int) $req->input('jabatan_id')
-        );
-        if ($galatJab !== '') {
-            $galat[] = $galatJab;
-        }
-        $d['jabatan_kategori'] = $kategoriJab;
-        $d['jabatan_id'] = $jabatanId;
+        // Pendaftaran mandiri selalu menggunakan default Staf/Pelaksana & Staf
+        // (seksi pembina belum ditetapkan); penyesuaian struktur dilakukan oleh admin.
+        $d['jabatan_kategori'] = 'Staf/Pelaksana';
+        $d['jabatan_id'] = null;
+        $d['posisi'] = 'Staf';
+        $d['seksi_pembina_id'] = null;
 
         $statusPegawai = User::normalStatusPegawai($req->input('status_pegawai'));
-        [$posisi, $seksiPembinaId, $galatPosisi] = $struktur->resolusiPosisi(
-            (string) $req->input('posisi'),
-            $kategoriJab,
-            $jabatanId,
-            (int) $req->input('seksi_pembina_id') ?: null
-        );
-        if ($galatPosisi !== '') {
-            $galat[] = $galatPosisi;
+        if ($statusPegawai === 'PNS' && $d['nip'] === null) {
+            $galat[] = 'NIP wajib diisi untuk pegawai berstatus PNS.';
         }
-        $d['posisi'] = $posisi;
+        if ($statusPegawai !== 'PNS') {
+            $d['nip'] = null;
+        }
         $d['status_pegawai'] = $statusPegawai;
-        $d['seksi_pembina_id'] = $seksiPembinaId;
 
         if ($galat) {
             return response()->json([
@@ -214,12 +232,33 @@ class AuthController extends Controller
             ], 422);
         }
 
-        User::insert($d + [
-            'password_hash' => bcrypt($pass),
-            'role' => 'pegawai',
-            'status' => 'nonaktif',
-            'created_at' => now(),
-        ]);
+        $user = DB::transaction(function () use ($d, $pass, $atasanServis) {
+            $user = User::create($d + [
+                'password_hash' => bcrypt($pass),
+                'role' => 'pegawai',
+                'status' => 'nonaktif',
+            ]);
+
+            $atasanAutoId = $user->sub_unit_id
+                ? SubUnit::whereKey($user->sub_unit_id)->value('atasan_id')
+                : null;
+            if (! $atasanAutoId && $user->unit_kerja_id) {
+                $atasanAutoId = UnitKerja::whereKey($user->unit_kerja_id)->value('atasan_id');
+            }
+
+            $atasanAutoSah = $atasanAutoId && (int) $atasanAutoId !== (int) $user->id
+                ? User::whereKey($atasanAutoId)
+                    ->where('role', '!=', 'admin')
+                    ->where('status', 'aktif')
+                    ->value('id')
+                : null;
+
+            if ($atasanAutoSah) {
+                $atasanServis->sinkron((int) $user->id, [(int) $atasanAutoSah]);
+            }
+
+            return $user;
+        });
 
         catat_aktivitas('Pendaftaran', $d['nama_lengkap'].' mendaftarkan akun pegawai baru');
 
@@ -230,7 +269,7 @@ class AuthController extends Controller
                 $adminIds,
                 "Pendaftaran baru: {$d['nama_lengkap']} ({$d['email']}) butuh verifikasi/aktivasi.",
                 'warning',
-                route('admin.pegawai.index'),
+                route('admin.pegawai'),
                 'keamanan'
             );
         }
@@ -238,6 +277,7 @@ class AuthController extends Controller
         return response()->json([
             'sukses' => true,
             'pesan' => 'Pendaftaran berhasil. silahkan konfirmasi email anda ke administrator untuk mengaktifkan akun Anda.',
+            'atasan_langsung' => $atasanServis->daftarAtasan($user),
         ], 201);
     }
 

@@ -178,13 +178,29 @@ class VerifikasiLogbookService
             ? ['is_verified' => false]
             : ['is_verified' => true];
 
+        $terdampak = Logbook::query()
+            ->whereIn('id', $ids)
+            ->whereIn('user_id', $diizinkan)
+            ->where($kondisi)
+            ->get(['id', 'user_id', 'tanggal']);
+
+        if ($terdampak->isEmpty()) {
+            return [
+                'ok' => false,
+                'pesan' => $aksi === 'verifikasi'
+                    ? 'Entri sudah terverifikasi atau tidak ditemukan.'
+                    : 'Entri belum terverifikasi atau tidak ditemukan.',
+                'jumlah' => 0,
+                'status' => 404,
+            ];
+        }
+
         $ubah = $aksi === 'verifikasi'
             ? ['is_verified' => true, 'verified_at' => now(), 'verified_by' => $atasan->id]
             : ['is_verified' => false, 'verified_at' => null, 'verified_by' => null];
 
         $jumlah = Logbook::query()
-            ->whereIn('id', $ids)
-            ->whereIn('user_id', $diizinkan)
+            ->whereIn('id', $terdampak->pluck('id')->all())
             ->where($kondisi)
             ->update($ubah);
 
@@ -199,12 +215,44 @@ class VerifikasiLogbookService
             ];
         }
 
+        $this->notifikasiPegawai($terdampak, $atasan->nama_lengkap ?: 'Atasan Langsung', $aksi);
+
         return [
             'ok' => true,
             'pesan' => $jumlah.' entri logbook berhasil '.($aksi === 'verifikasi' ? 'diverifikasi' : 'dibatalkan verifikasinya').'.',
             'jumlah' => $jumlah,
             'status' => 200,
         ];
+    }
+
+    /**
+     * Kirim notifikasi in-app + Web Push ke setiap pegawai yang logbook-nya berubah status verifikasi.
+     *
+     * @param  Collection<int, Logbook>  $terdampak
+     */
+    public function notifikasiPegawai(Collection $terdampak, string $namaVerifikator, string $aksi): void
+    {
+        $verifikasi = $aksi === 'verifikasi';
+        $tipe = $verifikasi ? 'success' : 'warning';
+
+        foreach ($terdampak->groupBy('user_id') as $userId => $baris) {
+            $jumlah = $baris->count();
+            $tanggalUnik = $baris
+                ->map(fn (Logbook $l) => $l->tanggal?->format('Y-m-d'))
+                ->filter()
+                ->unique()
+                ->values();
+
+            $bagianTanggal = $tanggalUnik->count() === 1
+                ? ' ('.tgl_id((string) $tanggalUnik->first(), false).')'
+                : '';
+
+            $isi = $verifikasi
+                ? $jumlah.' entri logbook Anda'.$bagianTanggal.' telah diverifikasi oleh '.$namaVerifikator.'.'
+                : 'Verifikasi '.$jumlah.' entri logbook Anda'.$bagianTanggal.' dibatalkan oleh '.$namaVerifikator.'.';
+
+            buat_notifikasi((int) $userId, $isi, $tipe, 'logbook', 'logbook');
+        }
     }
 
     /**

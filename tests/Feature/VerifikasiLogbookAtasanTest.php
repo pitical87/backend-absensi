@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\ApiToken;
 use App\Models\AtasanLangsung;
 use App\Models\Logbook;
+use App\Models\Notifikasi;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -635,5 +636,59 @@ class VerifikasiLogbookAtasanTest extends TestCase
             ->getJson('/api/mobile/logbook/bawahan?bulan=8&tahun=2026')
             ->assertOk()
             ->assertJsonPath('total_belum', 1);
+    }
+
+    public function test_verifikasi_dan_batal_logbook_mengirim_notifikasi_ke_pegawai(): void
+    {
+        $diana = $this->buatUser('Diana Sihombong');
+        $firman = $this->buatUser('Firman');
+        $this->hubungkan($firman, $diana);
+
+        $e1 = $this->entri($firman, ['tanggal' => '2026-08-03', 'jam' => '08:00', 'isi' => 'Visitasi pagi']);
+        $e2 = $this->entri($firman, ['tanggal' => '2026-08-03', 'jam' => '10:00', 'isi' => 'Rekap laporan']);
+
+        $this->sebagai($diana)
+            ->postJson('/api/mobile/logbook/verifikasi', [
+                'ids' => [$e1->id, $e2->id],
+                'aksi' => 'verifikasi',
+                'user_id' => $firman->id,
+            ])
+            ->assertOk()
+            ->assertJsonPath('sukses', true)
+            ->assertJsonPath('jumlah', 2);
+
+        $notifVerif = Notifikasi::where('user_id', $firman->id)
+            ->where('kategori', 'logbook')
+            ->where('tipe', 'success')
+            ->first();
+        $this->assertNotNull($notifVerif);
+        $this->assertSame('logbook', $notifVerif->url);
+        $this->assertStringContainsString('2 entri logbook Anda', $notifVerif->isi);
+        $this->assertStringContainsString('Diana Sihombong', $notifVerif->isi);
+
+        // Endpoint notifikasi mobile menerima filter kategori=logbook
+        $this->sebagai($firman)
+            ->getJson('/api/mobile/notifikasi?kategori=logbook')
+            ->assertOk()
+            ->assertJsonPath('sukses', true)
+            ->assertJsonPath('notifikasi.0.kategori_label', 'Logbook');
+
+        // Pembatalan verifikasi juga mengirim notifikasi warning ke pegawai
+        $this->sebagai($diana)
+            ->postJson('/api/mobile/logbook/verifikasi', [
+                'ids' => [$e1->id],
+                'aksi' => 'batal',
+                'user_id' => $firman->id,
+            ])
+            ->assertOk()
+            ->assertJsonPath('sukses', true);
+
+        $notifBatal = Notifikasi::where('user_id', $firman->id)
+            ->where('kategori', 'logbook')
+            ->where('tipe', 'warning')
+            ->first();
+        $this->assertNotNull($notifBatal);
+        $this->assertSame('logbook', $notifBatal->url);
+        $this->assertStringContainsString('dibatalkan oleh Diana Sihombong', $notifBatal->isi);
     }
 }

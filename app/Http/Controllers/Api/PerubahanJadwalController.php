@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\PengajuanJadwal;
 use App\Models\Shift;
+use App\Models\User;
+use App\Services\AtasanLangsungService;
 use App\Services\UbahJadwalService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -171,12 +173,28 @@ class PerubahanJadwalController extends Controller
         return response()->json(['sukses' => true, 'total' => $total]);
     }
 
+    private function cekWewenangAtasan(User $user): ?JsonResponse
+    {
+        if ($user->role === 'admin' || app(AtasanLangsungService::class)->punyaBawahan($user)) {
+            return null;
+        }
+
+        return response()->json([
+            'sukses' => false,
+            'pesan' => 'Menu persetujuan perubahan jadwal hanya tersedia bagi atasan langsung yang memiliki bawahan.',
+        ], 403);
+    }
+
     /**
      * GET /perubahan-jadwal/menunggu — daftar Menunggu untuk atasan langsung.
      */
     public function menungguDaftar(Request $req): JsonResponse
     {
-        $u      = $req->get('user');
+        $u = $req->get('user');
+        if ($tolak = $this->cekWewenangAtasan($u)) {
+            return $tolak;
+        }
+
         $daftar = app(UbahJadwalService::class)->tugasAtasan($u);
 
         return response()->json([
@@ -246,6 +264,10 @@ class PerubahanJadwalController extends Controller
     public function riwayatPersetujuan(Request $req): JsonResponse
     {
         $u = $req->get('user');
+        if ($tolak = $this->cekWewenangAtasan($u)) {
+            return $tolak;
+        }
+
         $riwayat = PengajuanJadwal::with(['user:id,nama_lengkap', 'shiftLama:id,kategori', 'shiftBaru:id,kategori'])
             ->where('diproses_oleh', $u->id)
             ->where('status', '!=', 'Menunggu')

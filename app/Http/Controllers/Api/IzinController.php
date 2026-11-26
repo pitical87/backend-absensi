@@ -9,6 +9,7 @@ use App\Models\Izin;
 use App\Models\IzinPersetujuan;
 use App\Models\User;
 use App\Services\AlurIzinService;
+use App\Services\AtasanLangsungService;
 use App\Services\CutiService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -48,9 +49,25 @@ class IzinController extends Controller
         ]);
     }
 
+    private function cekWewenangAtasan(User $user): ?JsonResponse
+    {
+        if ($user->role === 'admin' || app(AtasanLangsungService::class)->punyaBawahan($user)) {
+            return null;
+        }
+
+        return response()->json([
+            'sukses' => false,
+            'pesan' => 'Menu persetujuan izin hanya tersedia bagi atasan langsung yang memiliki bawahan.',
+        ], 403);
+    }
+
     public function getDetailIzinMenunggu(Request $req): JsonResponse
     {
         $user = $req->get('user');
+        if ($tolak = $this->cekWewenangAtasan($user)) {
+            return $tolak;
+        }
+
         $daftar = $this->tugasSaya($user);
 
         return response()->json([
@@ -104,6 +121,10 @@ class IzinController extends Controller
     public function getRiwayatPersetujuan(Request $req): JsonResponse
     {
         $user = $req->get('user');
+        if ($tolak = $this->cekWewenangAtasan($user)) {
+            return $tolak;
+        }
+
         $riwayat = IzinPersetujuan::with(['pengajuan' => function ($q) {
             $q->select('id', 'user_id', 'jenis', 'jenis_cuti', 'tanggal_mulai', 'tanggal_selesai')
                 ->with(['user' => function ($q2) {

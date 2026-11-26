@@ -2,10 +2,10 @@
 
 namespace App\Services;
 
-use App\Models\AtasanLangsung;
 use App\Models\PengajuanLembur;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class PengajuanLemburService
@@ -28,33 +28,52 @@ class PengajuanLemburService
     }
 
     /**
-     * Atasan langsung pegawai: tabel atasan_langsung → sub_unit.atasan_id → unit_kerja.atasan_id.
+     * Semua atasan langsung aktif pegawai: tabel atasan_langsung → sub_unit.atasan_id → unit_kerja.atasan_id.
+     *
+     * @return Collection<int, User>
      */
-    public function atasanUntuk(int $pegawaiId): ?User
+    public function atasanListUntuk(int $pegawaiId): Collection
     {
         $pegawai = User::with('unitKerja:id,nama,atasan_id', 'subUnit:id,nama,atasan_id')
             ->find($pegawaiId);
         if (! $pegawai) {
-            return null;
+            return collect();
         }
 
-        $atasanId = AtasanLangsung::where('user_id', $pegawai->id)
-            ->orderBy('id')
-            ->value('atasan_id');
-        $atasanId = $atasanId ?: $pegawai->subUnit?->atasan_id ?: $pegawai->unitKerja?->atasan_id;
+        $dariTabel = User::query()
+            ->join('atasan_langsung as al', 'al.atasan_id', '=', 'users.id')
+            ->where('al.user_id', $pegawai->id)
+            ->where('al.atasan_id', '!=', $pegawai->id)
+            ->where('users.status', 'aktif')
+            ->orderBy('al.id')
+            ->get(['users.*']);
 
+        if ($dariTabel->isNotEmpty()) {
+            return $dariTabel;
+        }
+
+        $atasanId = $pegawai->subUnit?->atasan_id ?: $pegawai->unitKerja?->atasan_id;
         if (! $atasanId || (int) $atasanId === (int) $pegawai->id) {
-            return null;
+            return collect();
         }
 
-        return User::where('id', $atasanId)->where('status', 'aktif')->first();
+        $fallback = User::where('id', $atasanId)->where('status', 'aktif')->first();
+
+        return $fallback ? collect([$fallback]) : collect();
+    }
+
+    /**
+     * Atasan langsung utama pegawai: tabel atasan_langsung → sub_unit.atasan_id → unit_kerja.atasan_id.
+     */
+    public function atasanUntuk(int $pegawaiId): ?User
+    {
+        return $this->atasanListUntuk($pegawaiId)->first();
     }
 
     public function isAtasan(User $calonAtasan, int $pegawaiId): bool
     {
-        $atasan = $this->atasanUntuk($pegawaiId);
-
-        return $atasan && (int) $atasan->id === (int) $calonAtasan->id;
+        return $this->atasanListUntuk($pegawaiId)
+            ->contains(fn (User $a) => (int) $a->id === (int) $calonAtasan->id);
     }
 
     /**
@@ -190,9 +209,11 @@ class PengajuanLemburService
             . (float) $pj->durasi_jam . ' jam).';
         $url = 'persetujuan';
 
-        $atasan = $this->atasanUntuk((int) $pemohon->id);
-        if ($atasan) {
-            buat_notifikasi((int) $atasan->id, $isi, 'warning', $url, 'lembur');
+        $atasanList = $this->atasanListUntuk((int) $pemohon->id);
+        if ($atasanList->isNotEmpty()) {
+            foreach ($atasanList as $atasan) {
+                buat_notifikasi((int) $atasan->id, $isi, 'warning', $url, 'lembur');
+            }
 
             return;
         }
@@ -228,12 +249,17 @@ class PengajuanLemburService
         ]);
 
         $tipe = $putusan === 'Disetujui' ? 'success' : 'danger';
+        $namaPemroses = $olehUserId > 0
+            ? User::where('id', $olehUserId)->value('nama_lengkap')
+            : null;
         buat_notifikasi(
             (int) $pj->user_id,
             'Pengajuan lembur ' . tgl_id($pj->tanggal->format('Y-m-d'), false)
                 . ' (' . Carbon::parse($pj->jam_mulai)->format('H.i') . ' - '
                 . Carbon::parse($pj->jam_selesai)->format('H.i') . ') '
-                . strtolower($putusan) . '.',
+                . strtolower($putusan)
+                . ($namaPemroses ? ' oleh ' . $namaPemroses : '')
+                . ($catatan ? ' — ' . $catatan : '') . '.',
             $tipe,
             'lembur',
             'lembur',

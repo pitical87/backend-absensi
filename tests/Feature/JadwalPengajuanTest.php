@@ -2,7 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\ApiToken;
+use App\Models\AtasanLangsung;
 use App\Models\JadwalShift;
+use App\Models\Notifikasi;
 use App\Models\PengajuanJadwal;
 use App\Models\Shift;
 use App\Models\User;
@@ -243,5 +246,44 @@ class JadwalPengajuanTest extends TestCase
 
         $this->get(route('admin.jadwal.pengajuan'))->assertRedirect();
         $this->getJson(route('admin.jadwal.pengajuan.data'))->assertStatus(302);
+    }
+
+    public function test_persetujuan_atasan_langsung_mengirim_notifikasi_ke_pegawai(): void
+    {
+        $pemohon = $this->pegawai('Budi Pemohon');
+        $atasan1 = $this->pegawai('Atasan Satu');
+        $atasan2 = $this->pegawai('Atasan Dua');
+        AtasanLangsung::create(['user_id' => $pemohon->id, 'atasan_id' => $atasan1->id]);
+        AtasanLangsung::create(['user_id' => $pemohon->id, 'atasan_id' => $atasan2->id]);
+
+        $pengajuan = $this->pengajuan([], $pemohon);
+
+        $token = ApiToken::create([
+            'user_id' => $atasan2->id,
+            'token' => 'tok-jadwal-'.++self::$urut,
+            'expires_at' => now()->addDays(7),
+            'last_aktivitas' => now(),
+        ]);
+
+        $this->withHeader('X-Requested-With', 'XMLHttpRequest')
+            ->withUnencryptedCookie('auth_token', $token->token)
+            ->withCredentials()
+            ->postJson('/api/mobile/perubahan-jadwal/proses', [
+                'id' => $pengajuan->id,
+                'putusan' => 'setuju',
+                'catatan' => 'Silakan tukar shift',
+            ])
+            ->assertOk()
+            ->assertJsonPath('sukses', true)
+            ->assertJsonPath('status', 'Disetujui');
+
+        $notif = Notifikasi::where('user_id', $pemohon->id)
+            ->where('kategori', 'jadwal')
+            ->where('tipe', 'success')
+            ->first();
+        $this->assertNotNull($notif);
+        $this->assertSame('ubah-jadwal', $notif->url);
+        $this->assertStringContainsString('Atasan Dua', $notif->isi);
+        $this->assertStringContainsString('Silakan tukar shift', $notif->isi);
     }
 }

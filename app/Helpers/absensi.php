@@ -135,7 +135,7 @@ if (! function_exists('buat_notifikasi')) {
      * seperti catat_aktivitas().
      *
      * @param  string  $tipe  info|warning|danger|success
-     * @param  string|null  $kategori  password|keamanan|jadwal|izin|lembur|sistem
+     * @param  string|null  $kategori  password|keamanan|jadwal|izin|lembur|logbook|sistem
      * @return int|null id notifikasi, null bila gagal disimpan
      */
     function buat_notifikasi(

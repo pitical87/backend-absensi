@@ -2,6 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\ApiToken;
+use App\Models\AtasanLangsung;
+use App\Models\Notifikasi;
 use App\Models\PengajuanLembur;
 use App\Models\Pengaturan;
 use App\Models\User;
@@ -214,5 +217,44 @@ class LemburTest extends TestCase
 
         $this->get(route('admin.lembur.index'))->assertRedirect();
         $this->getJson(route('admin.lembur.data'))->assertStatus(302);
+    }
+
+    public function test_persetujuan_lembur_atasan_langsung_mengirim_notifikasi_ke_pegawai(): void
+    {
+        $pemohon = $this->pegawai('Siti Pemohon');
+        $atasan1 = $this->pegawai('Atasan Lembur 1');
+        $atasan2 = $this->pegawai('Atasan Lembur 2');
+        AtasanLangsung::create(['user_id' => $pemohon->id, 'atasan_id' => $atasan1->id]);
+        AtasanLangsung::create(['user_id' => $pemohon->id, 'atasan_id' => $atasan2->id]);
+
+        $pengajuan = $this->pengajuan([], $pemohon);
+
+        $token = ApiToken::create([
+            'user_id' => $atasan2->id,
+            'token' => 'tok-lembur-'.++self::$urut,
+            'expires_at' => now()->addDays(7),
+            'last_aktivitas' => now(),
+        ]);
+
+        $this->withHeader('X-Requested-With', 'XMLHttpRequest')
+            ->withUnencryptedCookie('auth_token', $token->token)
+            ->withCredentials()
+            ->postJson('/api/mobile/lembur/proses', [
+                'id' => $pengajuan->id,
+                'putusan' => 'tolak',
+                'catatan' => 'Tunda besok',
+            ])
+            ->assertOk()
+            ->assertJsonPath('sukses', true)
+            ->assertJsonPath('status', 'Ditolak');
+
+        $notif = Notifikasi::where('user_id', $pemohon->id)
+            ->where('kategori', 'lembur')
+            ->where('tipe', 'danger')
+            ->first();
+        $this->assertNotNull($notif);
+        $this->assertSame('lembur', $notif->url);
+        $this->assertStringContainsString('Atasan Lembur 2', $notif->isi);
+        $this->assertStringContainsString('Tunda besok', $notif->isi);
     }
 }

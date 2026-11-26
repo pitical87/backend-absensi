@@ -219,7 +219,11 @@ class AlurIzinService
         $labelJenis = $izin->jenis_cuti ?: $izin->jenis;
         $rentang = $this->formatRentangTanggal($izin);
         $tipe = $statusAkhir === 'Disetujui' ? 'success' : 'danger';
+        $namaPemroses = $izin->diproses_oleh
+            ? User::where('id', (int) $izin->diproses_oleh)->value('nama_lengkap')
+            : null;
         $isi = 'Pengajuan '.$labelJenis.' ('.$rentang.') '.strtolower($statusAkhir)
+            .($namaPemroses ? ' oleh '.$namaPemroses : '')
             .($catatan ? ' — '.$catatan : '').'.';
 
         buat_notifikasi((int) $izin->user_id, $isi, $tipe, 'izin', 'izin');

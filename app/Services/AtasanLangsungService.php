@@ -37,8 +37,10 @@ class AtasanLangsungService
      */
     public function punyaBawahan(User $user): bool
     {
-        return AtasanLangsung::where('atasan_id', $user->id)
-            ->where('user_id', '!=', $user->id)
+        return AtasanLangsung::where('atasan_langsung.atasan_id', $user->id)
+            ->where('atasan_langsung.user_id', '!=', $user->id)
+            ->join('users as bu', 'bu.id', '=', 'atasan_langsung.user_id')
+            ->whereNull('bu.deleted_at')
             ->exists();
     }
 

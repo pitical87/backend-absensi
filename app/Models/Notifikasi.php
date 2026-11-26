@@ -29,6 +29,7 @@ class Notifikasi extends Model
         'jadwal' => 'Jadwal',
         'izin' => 'Izin',
         'lembur' => 'Lembur',
+        'logbook' => 'Logbook',
         'sistem' => 'Sistem',
     ];
 

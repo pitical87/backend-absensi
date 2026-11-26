@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\PengajuanLembur;
+use App\Models\User;
 use App\Services\AbsenLemburService;
+use App\Services\AtasanLangsungService;
 use App\Services\PengajuanLemburService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -177,6 +179,18 @@ class LemburController extends Controller
         return response()->json(['sukses' => true, 'total' => $total]);
     }
 
+    private function cekWewenangAtasan(User $user): ?JsonResponse
+    {
+        if ($user->role === 'admin' || app(AtasanLangsungService::class)->punyaBawahan($user)) {
+            return null;
+        }
+
+        return response()->json([
+            'sukses' => false,
+            'pesan' => 'Menu persetujuan lembur hanya tersedia bagi atasan langsung yang memiliki bawahan.',
+        ], 403);
+    }
+
     /**
      * GET /lembur/menunggu — daftar Menunggu untuk atasan langsung.
      */
@@ -187,7 +201,11 @@ class LemburController extends Controller
             return $nonAktif;
         }
 
-        $u      = $req->get('user');
+        $u = $req->get('user');
+        if ($tolak = $this->cekWewenangAtasan($u)) {
+            return $tolak;
+        }
+
         $daftar = app(PengajuanLemburService::class)->tugasAtasan($u);
 
         return response()->json([
@@ -263,6 +281,10 @@ class LemburController extends Controller
         }
 
         $u = $req->get('user');
+        if ($tolak = $this->cekWewenangAtasan($u)) {
+            return $tolak;
+        }
+
         $riwayat = PengajuanLembur::with('user:id,nama_lengkap')
             ->where('diproses_oleh', $u->id)
             ->where('status', '!=', 'Menunggu')
