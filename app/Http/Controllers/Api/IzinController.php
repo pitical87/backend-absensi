@@ -107,27 +107,29 @@ class IzinController extends Controller
         $riwayat = IzinPersetujuan::with(['pengajuan' => function ($q) {
             $q->select('id', 'user_id', 'jenis', 'jenis_cuti', 'tanggal_mulai', 'tanggal_selesai')
                 ->with(['user' => function ($q2) {
-                    $q2->select('id', 'nama_lengkap');
+                    $q2->withTrashed()->select('id', 'nama_lengkap');
                 }]);
         }])
             ->where('oleh_user_id', $user->id)
             ->orderBy('waktu', 'DESC')
             ->limit(30)
             ->get()
+            ->filter(fn ($r) => $r->pengajuan !== null)
+            ->values()
             ->map(fn ($r) => [
-            'id' => $r->id,
-            'waktu' => $r->waktu?->toISOString(),
-            'catatan' => $r->catatan,
-            'status' => $r->status,
-            'pengajuan' => [
-                'id' => $r->pengajuan->id,
-                'jenis' => $r->pengajuan->jenis,
-                'jenis_cuti' => $r->pengajuan->jenis_cuti,
-                'tanggal_mulai' => $r->pengajuan->tanggal_mulai->format('Y-m-d'),
-                'tanggal_selesai' => $r->pengajuan->tanggal_selesai->format('Y-m-d'),
-                'nama_pemohon' => $r->pengajuan->user->nama_lengkap,
-            ],
-        ]);
+                'id' => $r->id,
+                'waktu' => $r->waktu?->toISOString(),
+                'catatan' => $r->catatan,
+                'status' => $r->status,
+                'pengajuan' => [
+                    'id' => $r->pengajuan->id,
+                    'jenis' => $r->pengajuan->jenis,
+                    'jenis_cuti' => $r->pengajuan->jenis_cuti,
+                    'tanggal_mulai' => $r->pengajuan->tanggal_mulai->format('Y-m-d'),
+                    'tanggal_selesai' => $r->pengajuan->tanggal_selesai->format('Y-m-d'),
+                    'nama_pemohon' => $r->pengajuan->user?->nama_lengkap ?? 'Pegawai',
+                ],
+            ]);
 
         return response()->json([
             'sukses' => true,
