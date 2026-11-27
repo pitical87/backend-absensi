@@ -63,8 +63,10 @@ Route::middleware('auth')->group(function () {
     Route::post('persetujuan/proses', [PersetujuanController::class, 'proses'])->name('persetujuan.proses');
     Route::post('persetujuan/jadwal', [PersetujuanController::class, 'prosesJadwal'])->name('persetujuan.jadwal');
     Route::post('persetujuan/lembur', [PersetujuanController::class, 'prosesLembur'])->name('persetujuan.lembur');
+    Route::post('persetujuan/lupa-absen', [PersetujuanController::class, 'prosesLupaAbsen'])->name('persetujuan.lupa-absen');
     Route::get('foto/{id}/{tipe}', [FotoController::class, 'tampil'])->name('foto');
     Route::get('lampiran-izin/{id}', [FotoController::class, 'lampiranIzin'])->name('lampiran');
+    Route::get('lampiran-lupa-absen/{id}', [FotoController::class, 'lampiranLupaAbsen'])->name('lampiran.lupa-absen');
     Route::post('ubah-password', [ProfilController::class, 'ubahPassword'])->name('pegawai.ubah-password');
     Route::get('verifikasi-email', [VerifikasiEmailController::class, 'form'])->name('verifikasi-email');
     Route::post('verifikasi-email', [VerifikasiEmailController::class, 'kirim'])->name('verifikasi-email.kirim');

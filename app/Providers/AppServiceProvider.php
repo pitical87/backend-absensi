@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\Notifikasi;
+use App\Models\PengajuanLupaAbsen;
 use App\Services\AncamanLoginService;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -24,6 +25,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->registerBrainPackage();
         $this->registerBadgeAncaman();
+        $this->registerBadgeLupaAbsen();
         $this->registerNotifikasi();
     }
 
@@ -42,6 +44,23 @@ class AppServiceProvider extends ServiceProvider
             }
 
             $view->with('jumlahAncaman', $jumlah);
+        });
+    }
+
+    private function registerBadgeLupaAbsen(): void
+    {
+        View::composer('layouts.admin', function ($view) {
+            $jumlah = 0;
+
+            if (session('role') === 'admin') {
+                try {
+                    $jumlah = (int) PengajuanLupaAbsen::where('status', 'Menunggu')->count();
+                } catch (\Throwable) {
+                    $jumlah = 0;
+                }
+            }
+
+            $view->with('badgeLupaAbsen', $jumlah);
         });
     }
 

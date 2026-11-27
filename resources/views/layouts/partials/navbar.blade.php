@@ -2,8 +2,9 @@
 @php
   $jumlahAncaman = $jumlahAncaman ?? 0;
   $badgeIzin = $badgeIzin ?? 0;
+  $badgeLupaAbsen = $badgeLupaAbsen ?? 0;
   $notifikasiBelumDibaca = $notifikasiBelumDibaca ?? 0;
-  $totalNotifikasi = $badgeIzin + $jumlahAncaman + $notifikasiBelumDibaca;
+  $totalNotifikasi = $badgeIzin + $badgeLupaAbsen + $jumlahAncaman + $notifikasiBelumDibaca;
 @endphp
 <header class="bg-white/95 backdrop-blur-md border-b border-slate-200/80 py-3 px-4 sm:px-6 flex items-center justify-between gap-3 sticky top-0 z-30  dark:bg-[#0D1830]/95 ">
   <div class="flex items-center gap-3">
@@ -117,7 +118,21 @@
                 <p class="text-[0.75rem] text-slate-500 leading-snug">Ada <strong>{{ $badgeIzin }}</strong> pengajuan izin pegawai yang menunggu verifikasi Anda.</p>
               </div>
             </a>
-          @elseif($jumlahAncaman === 0 && $notifikasiBelumDibaca === 0 && empty($notifikasiDaftar))
+          @endif
+
+          @if($badgeLupaAbsen > 0)
+            <a href="{{ url('admin/lupa_absen') }}" class="p-3 px-4 flex items-start gap-3 hover:bg-amber-50/50 transition-colors no-underline group">
+              <div class="w-8 h-8 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0 mt-0.5">
+                {!! ikon('kalender', 15) !!}
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs font-semibold text-slate-800 group-hover:text-blue-600 mb-0.5">Pengajuan Lupa Absen</p>
+                <p class="text-[0.75rem] text-slate-500 leading-snug">Ada <strong>{{ $badgeLupaAbsen }}</strong> pengajuan lupa absen pegawai yang menunggu verifikasi.</p>
+              </div>
+            </a>
+          @endif
+
+          @if($badgeIzin === 0 && $badgeLupaAbsen === 0 && $jumlahAncaman === 0 && $notifikasiBelumDibaca === 0 && empty($notifikasiDaftar))
             <div class="p-3 px-4 flex items-start gap-3 hover:bg-slate-50/50 transition-colors">
               <div class="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
                 {!! ikon('centang', 15) !!}
@@ -414,7 +429,7 @@
   function totalTetap() {
     // Badge lonceng gabungan (notifikasi + izin + ancaman), jadi bagian ini
     // hanya boleh dikurangi sebanyak notifikasi yang baru ditandai terbaca.
-    return {{ (int) $badgeIzin }} + {{ (int) $jumlahAncaman }};
+    return {{ (int) $badgeIzin }} + {{ (int) $badgeLupaAbsen }} + {{ (int) $jumlahAncaman }};
   }
 
   function perbaruiBadge(sisa) {

@@ -29,9 +29,14 @@
     </td>
     <td class="teks-kecil">{{ label_shift($r->shiftHariIni) }}</td>
     <td class="angka">In : {{ jam_id($r->waktu_masuk) }}<br>Out : {{ jam_id($r->waktu_pulang) }}</td>
-    <td>{!! badge_status(! $r->waktu_pulang ? 'Belum Pulang'
+    <td>
+      {!! badge_status(! $r->waktu_pulang ? 'Belum Pulang'
            : ($r->status_masuk === 'Terlambat' ? 'Terlambat' : 'Tepat Waktu'),
-           (int) $r->menit_terlambat) !!}</td>
+           (int) $r->menit_terlambat) !!}
+      @if($r->sumber === 'lupa_absen')
+        <br><span class="badge badge-amber mt-1">Lupa Absen</span>
+      @endif
+    </td>
     <td class="angka teks-kecil">
       @php $bintang = app(\App\Services\BintangService::class); @endphp
       <span class="block">In : <span class="text-amber-500 tracking-wider">{{ $r->bintang_masuk !== null ? $bintang->simbol((int) $r->bintang_masuk) : '—' }}</span></span>

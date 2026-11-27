@@ -488,7 +488,8 @@ class VerifikasiLogbookAtasanTest extends TestCase
             ->assertJsonPath('hak_akses.buat_jadwal', true)
             ->assertJsonPath('hak_akses.verifikasi_ijin', true)
             ->assertJsonPath('hak_akses.verifikasi_lembur', true)
-            ->assertJsonPath('hak_akses.verifikasi_perubahan_jadwal', true);
+            ->assertJsonPath('hak_akses.verifikasi_perubahan_jadwal', true)
+            ->assertJsonPath('hak_akses.verifikasi_lupa_absen', true);
 
         $bawahan = $respons->json('bawahan');
         $this->assertCount(3, $bawahan);
@@ -513,6 +514,7 @@ class VerifikasiLogbookAtasanTest extends TestCase
                 'verifikasi_ijin' => false,
                 'verifikasi_lembur' => false,
                 'verifikasi_perubahan_jadwal' => false,
+                'verifikasi_lupa_absen' => false,
             ])
             ->assertJsonPath('bawahan', [[
                 'id' => $budi->id,

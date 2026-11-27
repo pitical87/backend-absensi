@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\JadwalController;
 use App\Http\Controllers\Admin\KehadiranController;
 use App\Http\Controllers\Admin\LemburController;
 use App\Http\Controllers\Admin\LiburController;
+use App\Http\Controllers\Admin\LupaAbsenController;
 use App\Http\Controllers\Admin\LogbookController;
 use App\Http\Controllers\Admin\LoginGagalController;
 use App\Http\Controllers\Admin\MappingSIMRSController;
@@ -163,6 +164,10 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::get('lembur', [LemburController::class, 'index'])->name('admin.lembur.index');
     Route::get('lembur/data', [LemburController::class, 'data'])->name('admin.lembur.data');
     Route::post('lembur/proses', [LemburController::class, 'proses'])->name('admin.lembur.proses');
+
+    Route::get('lupa_absen', [LupaAbsenController::class, 'index'])->name('admin.lupa_absen.index');
+    Route::get('lupa_absen/data', [LupaAbsenController::class, 'data'])->name('admin.lupa_absen.data');
+    Route::post('lupa_absen/proses', [LupaAbsenController::class, 'proses'])->name('admin.lupa_absen.proses');
 
     Route::get('libur', [LiburController::class, 'index'])->name('admin.libur.index');
     Route::get('libur/data', [LiburController::class, 'data'])->name('admin.libur.data');

@@ -29,6 +29,7 @@ class AtasanLangsungService
             'verifikasi_ijin' => $punyaBawahan,
             'verifikasi_lembur' => $punyaBawahan && trim((string) pengaturan('aktifkan_lembur', '1')) === '1',
             'verifikasi_perubahan_jadwal' => $punyaBawahan,
+            'verifikasi_lupa_absen' => $punyaBawahan,
         ];
     }
 

@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\IzinController;
 use App\Http\Controllers\Api\JadwalController;
 use App\Http\Controllers\Api\LogbookController;
 use App\Http\Controllers\Api\LemburController;
+use App\Http\Controllers\Api\LupaAbsenController;
 use App\Http\Controllers\Api\NotifikasiController;
 use App\Http\Controllers\Api\PerubahanJadwalController;
 use App\Http\Controllers\Api\ProfilController;
@@ -105,6 +106,16 @@ Route::prefix('mobile')->group(function (){
         Route::post('absen-lembur', [LemburController::class, 'absenMasuk']);
         Route::put('absen-lembur/pulang', [LemburController::class, 'absenPulang']);
         Route::get('absen-lembur/status', [LemburController::class, 'statusLembur']);
+
+        // Pengajuan lupa absen
+        Route::get('lupa-absen/cek', [LupaAbsenController::class, 'cek']);
+        Route::get('lupa-absen', [LupaAbsenController::class, 'daftar']);
+        Route::post('lupa-absen', [LupaAbsenController::class, 'ajukan']);
+        Route::get('lupa-absen/total', [LupaAbsenController::class, 'menungguTotal']);
+        Route::get('lupa-absen/menunggu', [LupaAbsenController::class, 'menungguDaftar']);
+        Route::post('lupa-absen/proses', [LupaAbsenController::class, 'proses']);
+        Route::get('lupa-absen/riwayat-persetujuan', [LupaAbsenController::class, 'riwayatPersetujuan']);
+        Route::delete('lupa-absen/{id}', [LupaAbsenController::class, 'batal'])->whereNumber('id');
 
         // Logbook & template
         Route::get('logbook/simrs',[LogbookController::class,"logbookSimrs"]);

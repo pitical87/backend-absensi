@@ -157,6 +157,60 @@
 </section>
 
 <section class="kartu">
+  <div class="kartu-kepala">
+    <h2>{!! ikon('kalender') !!} Pengajuan Lupa Absen</h2>
+    <span class="badge badge-amber">{{ count($tugasLupaAbsen ?? []) }} menunggu</span>
+  </div>
+  <p class="petunjuk">Sebagai <strong>atasan langsung</strong>, Anda memverifikasi pengajuan lupa absen bawahan.
+    Jika disetujui, kehadiran tercatat tanpa foto &amp; koordinat dengan bintang 1 di absen masuk dan pulang.</p>
+  <div class="tabel-bungkus">
+    <table class="tabel">
+      <thead>
+        <tr><th>Pegawai</th><th>Tanggal Alpa</th><th>Shift</th><th>Alasan &amp; Lampiran</th>
+            <th class="min-w-[260px]">Tindakan</th></tr>
+      </thead>
+      <tbody>
+        @foreach($tugasLupaAbsen ?? [] as $r)
+        <tr>
+          <td>
+            <strong>{{ $r->user->nama_lengkap }}</strong>
+            @if($r->user->nip)<br><span class="teks-kecil teks-redup">NIP {{ $r->user->nip }}</span>@endif
+            <br><span class="teks-kecil teks-redup">{{ $r->user->unitKerja->nama ?? '—' }}@if(
+                $r->user->subUnit?->nama) — {{ $r->user->subUnit->nama }}@endif</span>
+          </td>
+          <td class="angka">
+            {{ tgl_id($r->tanggal->format('Y-m-d'), false) }}<br>
+            <span class="teks-kecil teks-redup">diajukan {{ tgl_id($r->created_at, false) }} · {{ jam_id($r->created_at) }}</span>
+          </td>
+          <td class="teks-kecil">{!! label_shift($r->shift) !!}</td>
+          <td class="teks-kecil">
+            {{ $r->alasan }}
+            @if($r->lampiran)
+              <br><a href="{{ url('lampiran-lupa-absen/' . (int) $r->id) }}" target="_blank" rel="noopener">Lihat lampiran</a>
+            @endif
+          </td>
+          <td>
+            <form method="post" action="{{ url('persetujuan/lupa-absen') }}" class="bilah-alat m-0">
+              @csrf
+              <input type="hidden" name="id" value="{{ (int) $r->id }}">
+              <input type="text" name="catatan" placeholder="Catatan (opsional)…" class="min-w-[120px]">
+              <button type="submit" name="putusan" value="setuju" class="btn btn-primer btn-kecil"
+                      onclick="return confirm('Setujui pengajuan lupa absen ini? Kehadiran akan tercatat dengan bintang 1.');">Setujui</button>
+              <button type="submit" name="putusan" value="tolak" class="btn btn-bahaya btn-kecil"
+                      onclick="return confirm('Tolak pengajuan lupa absen ini?');">Tolak</button>
+            </form>
+          </td>
+        </tr>
+        @endforeach
+        @if(empty($tugasLupaAbsen))
+        <tr><td colspan="5" class="tengah teks-redup">Tidak ada pengajuan lupa absen yang menunggu keputusan Anda.</td></tr>
+        @endif
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="kartu">
   <div class="kartu-kepala"><h2>{!! ikon('log') !!} Riwayat Keputusan Saya</h2></div>
   <div class="tabel-bungkus">
     <table class="tabel">
@@ -218,6 +272,28 @@
         @endforeach
         @if(! $riwayatLemburSaya)
         <tr><td colspan="6" class="tengah teks-redup">Belum ada riwayat keputusan lembur.</td></tr>
+        @endif
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="mt-6 mb-2 text-sm font-bold text-navy">Riwayat Keputusan Lupa Absen</h3>
+  <div class="tabel-bungkus">
+    <table class="tabel">
+      <thead><tr><th>Waktu</th><th>Pegawai</th><th>Tanggal Alpa</th><th>Shift</th><th>Putusan</th><th>Catatan</th></tr></thead>
+      <tbody>
+        @foreach($riwayatLupaAbsenSaya ?? [] as $r)
+        <tr>
+          <td class="angka teks-kecil">{{ tgl_id($r->diproses_pada, false) }} · {{ jam_id($r->diproses_pada) }}</td>
+          <td>{{ $r->user?->nama_lengkap ?? '—' }}</td>
+          <td class="angka">{{ tgl_id($r->tanggal->format('Y-m-d'), false) }}</td>
+          <td class="teks-kecil">{!! label_shift($r->shift) !!}</td>
+          <td>{!! badge_tahap($r->status) !!}</td>
+          <td class="teks-kecil">{{ $r->catatan_keputusan ?? '—' }}</td>
+        </tr>
+        @endforeach
+        @if(empty($riwayatLupaAbsenSaya))
+        <tr><td colspan="6" class="tengah teks-redup">Belum ada riwayat keputusan lupa absen.</td></tr>
         @endif
       </tbody>
     </table>

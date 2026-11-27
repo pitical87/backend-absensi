@@ -17,7 +17,7 @@ class Absensi extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'user_id', 'tanggal', 'waktu_masuk', 'waktu_pulang',
+        'user_id', 'sesi', 'tanggal', 'waktu_masuk', 'waktu_pulang',
         'lat_masuk', 'lng_masuk', 'lat_pulang', 'lng_pulang',
         'foto_masuk', 'foto_pulang', 'status_masuk', 'menit_terlambat',
         'status_pulang', 'menit_awal_pulang',

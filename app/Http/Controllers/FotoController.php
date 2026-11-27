@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\HasPenggunaAktif;
 use App\Models\Absensi;
 use App\Models\Izin;
+use App\Models\PengajuanLupaAbsen;
+use App\Models\User;
+use App\Services\LupaAbsenService;
 use Illuminate\Support\Facades\Storage;
 
 class FotoController extends Controller
@@ -42,6 +45,30 @@ class FotoController extends Controller
             return response('Tidak ditemukan.', 404);
         }
         return $this->kirimBerkas($iz->lampiran);
+    }
+
+    public function lampiranLupaAbsen(int $id)
+    {
+        $u = $this->penggunaAktif();
+        if (! $u) {
+            return response('Tidak berwenang.', 401);
+        }
+
+        $pj = PengajuanLupaAbsen::find($id);
+        if (! $pj) {
+            return response('Tidak ditemukan.', 404);
+        }
+
+        $boleh = $u['role'] === 'admin' || (int) $pj->user_id === (int) $u['id'];
+        if (! $boleh) {
+            $userModel = User::find((int) $u['id']);
+            $boleh = $userModel && app(LupaAbsenService::class)->isAtasan($userModel, (int) $pj->user_id);
+        }
+        if (! $boleh) {
+            return response('Tidak ditemukan.', 404);
+        }
+
+        return $this->kirimBerkas($pj->lampiran);
     }
 
     private function kirimBerkas(?string $relatif)
